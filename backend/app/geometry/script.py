@@ -49,7 +49,7 @@ from app.geometry.models import (
     ReflectionOverPoint,
     ReflectionOverPointDefinition,
     RegularPolygonDefinition,
-    RotatedPoint,
+    RotatedObject,
     RotationDefinition,
     Segment,
     SegmentBetweenPointsDefinition,
@@ -485,10 +485,16 @@ def _build_object(
 
     if command == "Rotation":
         _require_arity(statement, 3)
-        pt = _resolve_point_argument(arguments[0], statement, symbols, objects, argument_position=1)
+        source = _resolve_reference(arguments[0], statement, symbols, argument_position=1)
+        if source.kind not in {"point", "line", "segment", "circle", "polygon"}:
+            _raise(
+                "invalid_reference_type",
+                f"Argument 1 of Rotation must reference a rotatable object, but '{source.id}' is a {source.kind}",
+                statement.line, statement.source_line, source.id,
+            )
         center = _resolve_point_argument(arguments[1], statement, symbols, objects, argument_position=2)
         degrees = _parse_number(arguments[2], statement, argument_position=3)
-        return [RotatedPoint(id=statement.target, label=statement.target, definition=RotationDefinition(point=pt.id, center=center.id, degrees=degrees))]
+        return [RotatedObject(id=statement.target, label=statement.target, kind=source.kind, definition=RotationDefinition(object_id=source.id, center=center.id, degrees=degrees))]
 
     # ─── New: polygons ─────────────────────────────────────────────────────────
 

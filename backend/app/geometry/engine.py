@@ -98,7 +98,7 @@ def get_parent_ids(obj: GeometryObject) -> list[str]:
     if isinstance(definition, TranslationDefinition):
         return [definition.point, definition.from_, definition.to]
     if isinstance(definition, RotationDefinition):
-        return [definition.point, definition.center]
+        return [definition.object_id, definition.center]
     # ─── Polygons ────────────────────────────────────────────────────────────
     if isinstance(definition, PolygonDefinition):
         return list(definition.point_ids)
@@ -250,8 +250,16 @@ class GeometryGraph:
             require_kind(definition.from_, "point")
             require_kind(definition.to, "point")
         elif isinstance(definition, RotationDefinition):
-            require_kind(definition.point, "point")
+            actual = self._objects_by_id[definition.object_id].kind
+            if actual not in {"point", "line", "segment", "circle", "polygon"}:
+                raise GeometryValidationError(
+                    f"Object '{obj.id}' requires parent '{definition.object_id}' to be rotatable"
+                )
             require_kind(definition.center, "point")
+            if obj.kind != actual:
+                raise GeometryValidationError(
+                    f"Object '{obj.id}' must keep the rotated kind '{actual}'"
+                )
             if not isfinite(definition.degrees):
                 raise GeometryValidationError(f"Object '{obj.id}' degrees must be finite")
         # ─── Polygons ─────────────────────────────────────────────────────────
@@ -511,20 +519,14 @@ class GeometryGraph:
             return PointValue(x=_clean_zero(pt.x + to_pt.x - from_pt.x), y=_clean_zero(pt.y + to_pt.y - from_pt.y))
 
         if isinstance(definition, RotationDefinition):
-            pt = self._require_value(obj.id, definition.point, "point")
-            if isinstance(pt, UndefinedValue):
-                return pt
             ctr = self._require_value(obj.id, definition.center, "point")
             if isinstance(ctr, UndefinedValue):
                 return ctr
-            assert isinstance(pt, PointValue)
             assert isinstance(ctr, PointValue)
-            theta = definition.degrees * pi / 180.0
-            c = cos(theta)
-            s = sin(theta)
-            dx = pt.x - ctr.x
-            dy = pt.y - ctr.y
-            return PointValue(x=_clean_zero(ctr.x + dx * c - dy * s), y=_clean_zero(ctr.y + dx * s + dy * c))
+            source = self._require_value(obj.id, definition.object_id, obj.kind)
+            if isinstance(source, UndefinedValue):
+                return source
+            return _rotate_value(source, ctr, definition.degrees)
 
         # ─── Polygons ─────────────────────────────────────────────────────────
 
@@ -695,6 +697,44 @@ def _reflect_value_over_point(value: EvaluatedValue, center: PointValue) -> Eval
             ]
         )
     raise GeometryValidationError(f"Reflection over point is unsupported for evaluated type '{value.type}'")
+
+
+def _rotate_point(pt: PointValue, ctr: PointValue, degrees: float) -> PointValue:
+    theta = degrees * pi / 180.0
+    c = cos(theta)
+    s = sin(theta)
+    dx = pt.x - ctr.x
+    dy = pt.y - ctr.y
+    return PointValue(
+        x=_clean_zero(ctr.x + dx * c - dy * s),
+        y=_clean_zero(ctr.y + dx * s + dy * c),
+    )
+
+
+def _rotate_value(value: EvaluatedValue, center: PointValue, degrees: float) -> EvaluatedValue:
+    if isinstance(value, PointValue):
+        return _rotate_point(value, center, degrees)
+    if isinstance(value, LineValue):
+        p1, p2 = _line_sample_points(value)
+        return _line_through_points(_rotate_point(p1, center, degrees), _rotate_point(p2, center, degrees))
+    if isinstance(value, SegmentValue):
+        start = _rotate_point(PointValue(x=value.start.x, y=value.start.y), center, degrees)
+        end = _rotate_point(PointValue(x=value.end.x, y=value.end.y), center, degrees)
+        return SegmentValue(start=Coordinate(x=start.x, y=start.y), end=Coordinate(x=end.x, y=end.y))
+    if isinstance(value, CircleValue):
+        rotated_center = _rotate_point(PointValue(x=value.center.x, y=value.center.y), center, degrees)
+        return CircleValue(center=Coordinate(x=rotated_center.x, y=rotated_center.y), radius=value.radius)
+    if isinstance(value, PolygonValue):
+        return PolygonValue(
+            vertices=[
+                Coordinate(x=rotated.x, y=rotated.y)
+                for rotated in (
+                    _rotate_point(PointValue(x=vertex.x, y=vertex.y), center, degrees)
+                    for vertex in value.vertices
+                )
+            ]
+        )
+    raise GeometryValidationError(f"Rotation is unsupported for evaluated type '{value.type}'")
 
 
 def _intersect_line_circle(

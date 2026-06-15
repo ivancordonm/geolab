@@ -304,6 +304,8 @@ export function App() {
         onActivateTool={constructionTools.activateTool}
         regularPolygonSides={constructionTools.regularPolygonSides}
         onRegularPolygonSidesChange={constructionTools.setRegularPolygonSides}
+        rotationAngle={constructionTools.rotationAngle}
+        onRotationAngleChange={constructionTools.setRotationAngle}
         controls={toolbarControls}
       />
 

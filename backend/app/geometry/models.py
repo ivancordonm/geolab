@@ -204,7 +204,10 @@ class TranslationDefinition(GeometryModel):
 
 class RotationDefinition(GeometryModel):
     type: Literal["rotation"] = "rotation"
-    point: str
+    object_id: str = Field(
+        validation_alias=AliasChoices("object", "point"),
+        serialization_alias="object",
+    )
     center: str
     degrees: float
 
@@ -312,8 +315,8 @@ class TranslatedPoint(GeometryObjectBase):
     definition: TranslationDefinition
 
 
-class RotatedPoint(GeometryObjectBase):
-    kind: Literal["point"] = "point"
+class RotatedObject(GeometryObjectBase):
+    kind: Literal["point", "line", "segment", "circle", "polygon"]
     definition: RotationDefinition
 
 
@@ -374,7 +377,7 @@ GeometryObject: TypeAlias = (
     | HomothetyPoint
     | InversionInCircle
     | TranslatedPoint
-    | RotatedPoint
+    | RotatedObject
     | Polygon
 )
 

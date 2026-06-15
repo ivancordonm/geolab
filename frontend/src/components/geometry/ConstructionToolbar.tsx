@@ -30,6 +30,8 @@ interface ConstructionToolbarProps {
   onActivateTool: (tool: ConstructionTool) => void;
   regularPolygonSides?: number;
   onRegularPolygonSidesChange?: (sides: number) => void;
+  rotationAngle?: number;
+  onRotationAngleChange?: (angle: number) => void;
   /** Controles adicionales (tema, reset view, persistencia) que se colocan bajo un divisor. */
   controls?: ReactNode;
 }
@@ -65,7 +67,7 @@ const TOOLS: readonly ToolEntry[] = [
   { tool: "homothety", label: "Homothety (point ratio)", icon: Maximize2 },
   { tool: "inversion", label: "Inversion in circle", icon: RefreshCw },
   { tool: "translation", label: "Translation", icon: Move },
-  { tool: "rotation90", label: "Rotate 90°", icon: RotateCw },
+  { tool: "rotation", label: "Rotate", icon: RotateCw },
   { divider: true },
   { tool: "polygon", label: "Polygon", icon: Pentagon },
   { tool: "regular_polygon", label: "Regular polygon", icon: Star },
@@ -77,6 +79,8 @@ export function ConstructionToolbar({
   onActivateTool,
   regularPolygonSides = 5,
   onRegularPolygonSidesChange,
+  rotationAngle = 45,
+  onRotationAngleChange,
   controls,
 }: ConstructionToolbarProps) {
   return (
@@ -137,7 +141,28 @@ export function ConstructionToolbar({
           </div>
         </>
       )}
-
+      {activeTool === "rotation" && onRotationAngleChange !== undefined && (
+        <>
+          <div className="my-0.5 h-px bg-edge" role="separator" />
+          <div className="flex flex-col gap-1 px-1">
+            <label className="text-[10px] font-semibold text-muted" htmlFor="rotation-angle">
+              Angle (°)
+            </label>
+            <input
+              id="rotation-angle"
+              type="number"
+              min={-360}
+              max={360}
+              value={rotationAngle}
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                if (!isNaN(v)) onRotationAngleChange(v);
+              }}
+              className="w-14 rounded border border-edge bg-surface px-1.5 py-0.5 text-xs text-content focus:outline-none focus:ring-1 focus:ring-brand-500"
+            />
+          </div>
+        </>
+      )}
       {controls !== undefined && (
         <>
           <div className="my-0.5 h-px bg-edge" role="separator" />

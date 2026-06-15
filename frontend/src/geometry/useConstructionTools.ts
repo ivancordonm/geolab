@@ -27,6 +27,7 @@ export interface ConstructionToolsState extends ConstructionToolState {
   cancel: () => void;
   finish: () => void;
   setRegularPolygonSides: (sides: number) => void;
+  setRotationAngle: (angle: number) => void;
   handleCanvasClick: (world: Coordinate) => void;
   handleObjectClick: (objectId: string) => void;
   updatePointer: (world: Coordinate | null) => void;
@@ -71,6 +72,10 @@ export function useConstructionTools({
     setState(controllerRef.current.setRegularPolygonSides(sides));
   }, []);
 
+  const setRotationAngle = useCallback((angle: number) => {
+    setState(controllerRef.current.setRotationAngle(angle));
+  }, []);
+
   const handleCanvasClick = useCallback(
     (world: Coordinate) => applyResult(controllerRef.current.handleCanvasClick(world, document)),
     [applyResult, document],
@@ -104,6 +109,7 @@ export function useConstructionTools({
     cancel,
     finish,
     setRegularPolygonSides,
+    setRotationAngle,
     handleCanvasClick,
     handleObjectClick,
     updatePointer,

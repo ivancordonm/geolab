@@ -67,7 +67,7 @@ export function getParentIds(object: GeometryObject): GeometryObjectId[] {
     case "translation":
       return [object.definition.point, object.definition.from, object.definition.to];
     case "rotation":
-      return [object.definition.point, object.definition.center];
+      return [object.definition.object ?? object.definition.point!, object.definition.center];
     case "arc_through_points":
       return [object.definition.pointA, object.definition.pointMid, object.definition.pointB];
     // ─── Polygons ─────────────────────────────────────────────────────────
@@ -305,9 +305,23 @@ export class GeometryGraph {
         requireKind(def.to, "point");
         return;
       case "rotation":
-        requireKind(def.point, "point");
-        requireKind(def.center, "point");
-        assertFiniteNumber(def.degrees, `${object.id}.degrees`);
+        {
+          const sourceId = def.object ?? def.point!;
+          const parent = this.objectsById.get(sourceId);
+          const actual = parent?.kind;
+          if (actual === undefined || !["point", "line", "segment", "circle", "polygon"].includes(actual)) {
+            throw new GeometryValidationError(
+              `Object '${object.id}' requires parent '${sourceId}' to be rotatable`,
+            );
+          }
+          requireKind(def.center, "point");
+          if (object.kind !== actual) {
+            throw new GeometryValidationError(
+              `Object '${object.id}' must keep the rotated kind '${actual}'`,
+            );
+          }
+          assertFiniteNumber(def.degrees, `${object.id}.degrees`);
+        }
         return;
       case "arc_through_points":
         requireKind(def.pointA, "point");
@@ -599,20 +613,12 @@ export class GeometryGraph {
       }
 
       case "rotation": {
-        const pt = this.requireValue<PointValue>(object.id, def.point, "point");
-        if (isUndefined(pt)) return pt;
         const ctr = this.requireValue<PointValue>(object.id, def.center, "point");
         if (isUndefined(ctr)) return ctr;
-        const theta = (def.degrees * Math.PI) / 180;
-        const cos = Math.cos(theta);
-        const sin = Math.sin(theta);
-        const dx = pt.x - ctr.x;
-        const dy = pt.y - ctr.y;
-        return {
-          type: "point",
-          x: cleanZero(ctr.x + dx * cos - dy * sin),
-          y: cleanZero(ctr.y + dx * sin + dy * cos),
-        };
+        const sourceId = def.object ?? def.point!;
+        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind);
+        if (isUndefined(source)) return source;
+        return rotateValue(source, ctr, def.degrees);
       }
 
       case "arc_through_points": {
@@ -836,6 +842,49 @@ function reflectValueOverPoint(value: EvaluatedValue, center: PointValue): Evalu
       };
     default:
       throw new GeometryValidationError(`Reflection over point is unsupported for evaluated type '${value.type}'`);
+  }
+}
+
+function rotatePoint(pt: PointValue, ctr: PointValue, degrees: number): PointValue {
+  const theta = (degrees * Math.PI) / 180;
+  const cos = Math.cos(theta);
+  const sin = Math.sin(theta);
+  const dx = pt.x - ctr.x;
+  const dy = pt.y - ctr.y;
+  return {
+    type: "point",
+    x: cleanZero(ctr.x + dx * cos - dy * sin),
+    y: cleanZero(ctr.y + dx * sin + dy * cos),
+  };
+}
+
+function rotateValue(value: EvaluatedValue, center: PointValue, degrees: number): EvaluatedValue {
+  switch (value.type) {
+    case "point":
+      return rotatePoint(value, center, degrees);
+    case "line": {
+      const [first, second] = samplePointsFromLine(value);
+      return lineThroughPoints(rotatePoint(first, center, degrees), rotatePoint(second, center, degrees));
+    }
+    case "segment": {
+      const start = rotatePoint({ type: "point", ...value.start }, center, degrees);
+      const end = rotatePoint({ type: "point", ...value.end }, center, degrees);
+      return { type: "segment", start: { x: start.x, y: start.y }, end: { x: end.x, y: end.y } };
+    }
+    case "circle": {
+      const rotatedCenter = rotatePoint({ type: "point", ...value.center }, center, degrees);
+      return { type: "circle", center: { x: rotatedCenter.x, y: rotatedCenter.y }, radius: value.radius };
+    }
+    case "polygon":
+      return {
+        type: "polygon",
+        vertices: value.vertices.map((vertex) => {
+          const rotated = rotatePoint({ type: "point", ...vertex }, center, degrees);
+          return { x: rotated.x, y: rotated.y };
+        }),
+      };
+    default:
+      throw new GeometryValidationError(`Rotation is unsupported for evaluated type '${value.type}'`);
   }
 }
 

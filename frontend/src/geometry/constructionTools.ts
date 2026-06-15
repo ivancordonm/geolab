@@ -23,7 +23,7 @@ import type {
   Polygon,
   ReflectionOverLine,
   ReflectionOverPoint,
-  RotatedPoint,
+  RotatedObject,
   Segment,
   TranslatedPoint,
 } from "../types/geometry";
@@ -48,7 +48,7 @@ export type ConstructionTool =
   | "homothety"
   | "inversion"
   | "translation"
-  | "rotation90"
+  | "rotation"
   | "polygon"
   | "regular_polygon"
   | "vector_polygon";
@@ -71,6 +71,8 @@ export interface ConstructionToolState {
   error: string | null;
   /** Number of sides for the regular_polygon tool. */
   regularPolygonSides: number;
+  /** Angle in degrees for rotation tool. */
+  rotationAngle: number;
 }
 
 export interface ConstructionToolResult {
@@ -98,7 +100,7 @@ export const TOOL_INSTRUCTIONS: Record<ConstructionTool, string> = {
   homothety: "Click center, then source point, then a point defining the ratio.",
   inversion: "Select the object to invert, then select the inversion circle.",
   translation: "Click the point to translate, then the start of the translation vector, then the end.",
-  rotation90: "Click the point to rotate, then the rotation center (90° counter-clockwise).",
+  rotation: "Click the object to rotate, then select the center of rotation.",
   polygon: "Click 3+ points to define a polygon. Click the first point again or press Enter to close.",
   regular_polygon: "Click two adjacent vertices, then set the number of sides in the toolbar.",
   vector_polygon: "Click an anchor point and then additional vertices; drag the anchor to translate the whole polygon.",
@@ -122,7 +124,7 @@ const MULTI_STEP_REQUIREMENTS: Partial<Record<ConstructionTool, readonly Require
   homothety: ["point", "point", "point"],
   inversion: ["invertible", "circle"],
   translation: ["point", "point", "point"],
-  rotation90: ["point", "point"],
+  rotation: ["invertible", "point"],
 };
 
 function kindMatches(kind: GeometryObject["kind"], required: RequiredKind): boolean {
@@ -148,6 +150,7 @@ export class ConstructionToolController {
     pointerWorld: null,
     error: null,
     regularPolygonSides: 5,
+    rotationAngle: 45,
   };
 
   get state(): ConstructionToolState {
@@ -162,6 +165,7 @@ export class ConstructionToolController {
       pointerWorld: null,
       error: null,
       regularPolygonSides: this.stateValue.regularPolygonSides,
+      rotationAngle: this.stateValue.rotationAngle,
     };
     return this.state;
   }
@@ -175,6 +179,11 @@ export class ConstructionToolController {
   setRegularPolygonSides(sides: number): ConstructionToolState {
     if (sides < 3) return this.state;
     this.stateValue = { ...this.stateValue, regularPolygonSides: sides };
+    return this.state;
+  }
+
+  setRotationAngle(angle: number): ConstructionToolState {
+    this.stateValue = { ...this.stateValue, rotationAngle: angle };
     return this.state;
   }
 
@@ -285,7 +294,13 @@ export class ConstructionToolController {
       ...document,
       objects: [...document.objects, newPoint],
     };
-    const constructions = createConstruction(this.stateValue.activeTool, selected, candidateDoc);
+    const constructions = createConstruction(
+      this.stateValue.activeTool,
+      selected,
+      candidateDoc,
+      this.stateValue.regularPolygonSides,
+      this.stateValue.rotationAngle,
+    );
     this.stateValue = { ...this.stateValue, selectedObjectIds: [], pointerWorld: null, error: null };
     return {
       state: this.state,
@@ -368,7 +383,13 @@ export class ConstructionToolController {
       return { state: this.state, selectedObjectId: objectId };
     }
 
-    const constructions = createConstruction(this.stateValue.activeTool, selected, document);
+    const constructions = createConstruction(
+      this.stateValue.activeTool,
+      selected,
+      document,
+      this.stateValue.regularPolygonSides,
+      this.stateValue.rotationAngle,
+    );
     this.stateValue = { ...this.stateValue, selectedObjectIds: [], pointerWorld: null, error: null };
     return {
       state: this.state,
@@ -398,6 +419,7 @@ function createConstruction(
   selected: readonly string[],
   document: GeometryDocument,
   regularPolygonSides = 5,
+  rotationAngle = 90,
 ): readonly GeometryObject[] {
   const [first, second, third] = selected;
 
@@ -513,9 +535,19 @@ function createConstruction(
       const obj: TranslatedPoint = { id, label: id, kind: "point", visible: true, definition: { type: "translation", point: first, from: second, to: third } };
       return [obj];
     }
-    case "rotation90": {
+    case "rotation": {
       const id = nextObjectId(document, "rot");
-      const obj: RotatedPoint = { id, label: id, kind: "point", visible: true, definition: { type: "rotation", point: first, center: second, degrees: 90 } };
+      const source = requireObject(document, first);
+      if (!isReflectableObject(source)) {
+        throw new Error("Rotation requires a point, line, segment, circle, or polygon");
+      }
+      const obj: RotatedObject = {
+        id,
+        label: id,
+        kind: source.kind,
+        visible: true,
+        definition: { type: "rotation", object: first, center: second, degrees: rotationAngle },
+      };
       return [obj];
     }
 

@@ -60,7 +60,7 @@ function objectToStatement(object: GeometryObject): string {
     case "translation":
       return `${object.id} = Translation(${definition.point}, ${definition.from}, ${definition.to})`;
     case "rotation":
-      return `${object.id} = Rotation(${definition.point}, ${definition.center}, ${formatNumber(definition.degrees)})`;
+      return `${object.id} = Rotation(${definition.object ?? definition.point}, ${definition.center}, ${formatNumber(definition.degrees)})`;
     case "arc_through_points":
       return `${object.id} = Arc(${definition.pointA}, ${definition.pointMid}, ${definition.pointB})`;
     case "polygon":

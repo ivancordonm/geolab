@@ -226,6 +226,56 @@ describe("GeometryGraph", () => {
       vertices: [{ x: -1, y: -1 }, { x: -3, y: -1 }, { x: -1, y: -3 }],
     });
   });
+
+  it("rotates complete objects, not only points", () => {
+    const doc: GeometryDocument = {
+      schemaVersion: 1,
+      id: "rotation-objects",
+      title: "Rotation objects",
+      objects: [
+        { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 1, y: 1 } },
+        { id: "B", label: "B", kind: "point", visible: true, definition: { type: "free", x: 3, y: 1 } },
+        { id: "C", label: "C", kind: "point", visible: true, definition: { type: "free", x: 1, y: 3 } },
+        { id: "center", label: "center", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+        { id: "seg", label: "seg", kind: "segment", visible: true, definition: { type: "between_points", pointA: "A", pointB: "B" } },
+        { id: "circle", label: "circle", kind: "circle", visible: true, definition: { type: "center_through_point", center: "A", point: "B" } },
+        { id: "poly", label: "poly", kind: "polygon", visible: true, definition: { type: "polygon", points: ["A", "B", "C"] } },
+        { id: "segRot", label: "segRot", kind: "segment", visible: true, definition: { type: "rotation", object: "seg", center: "center", degrees: 90 } },
+        { id: "circleRot", label: "circleRot", kind: "circle", visible: true, definition: { type: "rotation", object: "circle", center: "center", degrees: 90 } },
+        { id: "polyRot", label: "polyRot", kind: "polygon", visible: true, definition: { type: "rotation", object: "poly", center: "center", degrees: 90 } },
+      ],
+    };
+
+    const values = new GeometryGraph(doc).values;
+
+    const segRotVal = values.get("segRot");
+    expect(segRotVal).toMatchObject({ type: "segment" });
+    if (segRotVal?.type === "segment") {
+      expect(segRotVal.start.x).toBeCloseTo(-1, 9);
+      expect(segRotVal.start.y).toBeCloseTo(1, 9);
+      expect(segRotVal.end.x).toBeCloseTo(-1, 9);
+      expect(segRotVal.end.y).toBeCloseTo(3, 9);
+    }
+
+    const circleRotVal = values.get("circleRot");
+    expect(circleRotVal).toMatchObject({ type: "circle" });
+    if (circleRotVal?.type === "circle") {
+      expect(circleRotVal.center.x).toBeCloseTo(-1, 9);
+      expect(circleRotVal.center.y).toBeCloseTo(1, 9);
+      expect(circleRotVal.radius).toBeCloseTo(2, 9);
+    }
+
+    const polyRotVal = values.get("polyRot");
+    expect(polyRotVal).toMatchObject({ type: "polygon" });
+    if (polyRotVal?.type === "polygon") {
+      expect(polyRotVal.vertices[0].x).toBeCloseTo(-1, 9);
+      expect(polyRotVal.vertices[0].y).toBeCloseTo(1, 9);
+      expect(polyRotVal.vertices[1].x).toBeCloseTo(-1, 9);
+      expect(polyRotVal.vertices[1].y).toBeCloseTo(3, 9);
+      expect(polyRotVal.vertices[2].x).toBeCloseTo(-3, 9);
+      expect(polyRotVal.vertices[2].y).toBeCloseTo(1, 9);
+    }
+  });
 });
 
 // ─── Conformance: polygon construction variants ──────────────────────────────

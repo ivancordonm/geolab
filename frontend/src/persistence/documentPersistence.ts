@@ -212,7 +212,7 @@ function objectToScript(
     case "translation":
       return `${variable} = Translation(${reference(object.definition.point)}, ${reference(object.definition.from)}, ${reference(object.definition.to)})`;
     case "rotation":
-      return `${variable} = Rotation(${reference(object.definition.point)}, ${reference(object.definition.center)}, ${formatNumber(object.definition.degrees)})`;
+      return `${variable} = Rotation(${reference(object.definition.object ?? object.definition.point!)}, ${reference(object.definition.center)}, ${formatNumber(object.definition.degrees)})`;
     case "arc_through_points":
       return `${variable} = Arc(${reference(object.definition.pointA)}, ${reference(object.definition.pointMid)}, ${reference(object.definition.pointB)})`;
     case "polygon":

@@ -142,9 +142,9 @@ export interface TranslatedPoint extends GeometryObjectBase {
   definition: { type: "translation"; point: GeometryObjectId; from: GeometryObjectId; to: GeometryObjectId };
 }
 
-export interface RotatedPoint extends GeometryObjectBase {
-  kind: "point";
-  definition: { type: "rotation"; point: GeometryObjectId; center: GeometryObjectId; degrees: number };
+export interface RotatedObject<K extends ReflectableKind = ReflectableKind> extends GeometryObjectBase {
+  kind: K;
+  definition: { type: "rotation"; object?: GeometryObjectId; point?: GeometryObjectId; center: GeometryObjectId; degrees: number };
 }
 
 export interface Arc extends GeometryObjectBase {
@@ -193,7 +193,11 @@ export type GeometryObject =
   | HomothetyPoint
   | InversionInCircle
   | TranslatedPoint
-  | RotatedPoint
+  | RotatedObject<"point">
+  | RotatedObject<"line">
+  | RotatedObject<"segment">
+  | RotatedObject<"circle">
+  | RotatedObject<"polygon">
   | Arc
   | Polygon;
 

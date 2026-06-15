@@ -245,6 +245,33 @@ def test_reflection_can_transform_a_segment_and_circle() -> None:
     assert values["cr2"].radius == pytest.approx(2.0, abs=1e-9)
 
 
+def test_rotation_can_transform_a_segment_and_circle() -> None:
+    script = "\n".join(
+        [
+            "A = Point(1, 1)",
+            "B = Point(3, 1)",
+            "center = Point(0, 0)",
+            "s = Segment(A, B)",
+            "sr = Rotation(s, center, 90)",
+            "cr = Circle(A, B)",
+            "cr2 = Rotation(cr, center, 90)",
+        ]
+    )
+    document, values = evaluate_script(script)
+
+    rotated_segment = next(obj for obj in document.objects if obj.id == "sr")
+    assert rotated_segment.kind == "segment"
+    assert values["sr"].type == "segment"
+    assert values["sr"].start.model_dump() == pytest.approx({"x": -1.0, "y": 1.0}, abs=1e-9)
+    assert values["sr"].end.model_dump() == pytest.approx({"x": -1.0, "y": 3.0}, abs=1e-9)
+
+    rotated_circle = next(obj for obj in document.objects if obj.id == "cr2")
+    assert rotated_circle.kind == "circle"
+    assert values["cr2"].type == "circle"
+    assert values["cr2"].center.model_dump() == pytest.approx({"x": -1.0, "y": 1.0}, abs=1e-9)
+    assert values["cr2"].radius == pytest.approx(2.0, abs=1e-9)
+
+
 def test_midpoint_from_inline_coordinates() -> None:
     document, values = evaluate_script("M = Midpoint((0, 0), (4, 2))")
 

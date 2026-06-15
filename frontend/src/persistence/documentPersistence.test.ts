@@ -101,4 +101,25 @@ describe("document persistence", () => {
       "selected = Intersection(AB, circumference, left)",
     );
   });
+
+  it("saves and restores every polygon variant", () => {
+    const document: GeometryDocument = {
+      schemaVersion: 1,
+      id: "polygon-persistence",
+      title: "Polygon persistence",
+      objects: [
+        { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+        { id: "B", label: "B", kind: "point", visible: true, definition: { type: "free", x: 4, y: 0 } },
+        { id: "C", label: "C", kind: "point", visible: true, definition: { type: "free", x: 2, y: 3 } },
+        { id: "poly", label: "poly", kind: "polygon", visible: true, definition: { type: "polygon", points: ["A", "B", "C"] } },
+        { id: "regular", label: "regular", kind: "polygon", visible: true, definition: { type: "regular_polygon", pointA: "A", pointB: "B", sides: 5 } },
+        { id: "vector", label: "vector", kind: "polygon", visible: true, definition: { type: "vector_polygon", anchor: "A", offsets: [{ x: 4, y: 0 }, { x: 2, y: 3 }] } },
+      ],
+    };
+
+    saveDocument(document);
+
+    expect(loadDocument()).toEqual(document);
+    expect(importDocumentJson(exportDocumentJson(document))).toEqual(document);
+  });
 });

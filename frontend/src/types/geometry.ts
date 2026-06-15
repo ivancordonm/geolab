@@ -110,13 +110,15 @@ export interface CircumscribedCircle extends GeometryObjectBase {
 
 // ─── Transformations ───────────────────────────────────────────────────────
 
-export interface ReflectionOverLine extends GeometryObjectBase {
-  kind: "point" | "line" | "segment" | "circle" | "polygon";
+type ReflectableKind = "point" | "line" | "segment" | "circle" | "polygon";
+
+export interface ReflectionOverLine<K extends ReflectableKind = ReflectableKind> extends GeometryObjectBase {
+  kind: K;
   definition: { type: "reflection_over_line"; object: GeometryObjectId; line: GeometryObjectId; point?: GeometryObjectId };
 }
 
-export interface ReflectionOverPoint extends GeometryObjectBase {
-  kind: "point" | "line" | "segment" | "circle" | "polygon";
+export interface ReflectionOverPoint<K extends ReflectableKind = ReflectableKind> extends GeometryObjectBase {
+  kind: K;
   definition: { type: "reflection_over_point"; object: GeometryObjectId; center: GeometryObjectId; point?: GeometryObjectId };
 }
 
@@ -177,8 +179,16 @@ export type GeometryObject =
   | PerpendicularBisectorLine
   | AngleBisectorLine
   | CircumscribedCircle
-  | ReflectionOverLine
-  | ReflectionOverPoint
+  | ReflectionOverLine<"point">
+  | ReflectionOverLine<"line">
+  | ReflectionOverLine<"segment">
+  | ReflectionOverLine<"circle">
+  | ReflectionOverLine<"polygon">
+  | ReflectionOverPoint<"point">
+  | ReflectionOverPoint<"line">
+  | ReflectionOverPoint<"segment">
+  | ReflectionOverPoint<"circle">
+  | ReflectionOverPoint<"polygon">
   | HomothetyScalar
   | HomothetyPoint
   | InversionInCircle

@@ -57,6 +57,12 @@ type LineObject = Extract<GeometryObject, { kind: "line" }>;
 type CircleObject = Extract<GeometryObject, { kind: "circle" }>;
 type SegmentObject = Extract<GeometryObject, { kind: "segment" }>;
 type PolygonObject = Extract<GeometryObject, { kind: "polygon" }>;
+type ReflectableObject = Extract<GeometryObject, { kind: "point" | "line" | "segment" | "circle" | "polygon" }>;
+type ReflectionObject = ReflectionOverLine | ReflectionOverPoint;
+type SourceLineObject = Exclude<LineObject, ReflectionObject>;
+type SourceCircleObject = Exclude<CircleObject, ReflectionObject>;
+type SourceSegmentObject = Exclude<SegmentObject, ReflectionObject>;
+type SourcePolygonObject = Exclude<PolygonObject, ReflectionObject>;
 
 export interface ConstructionToolState {
   activeTool: ConstructionTool;
@@ -478,14 +484,18 @@ function createConstruction(
     case "reflect_line": {
       const id = nextObjectId(document, "rf");
       const source = requireObject(document, first);
-      const obj: ReflectionOverLine = { id, label: id, kind: source.kind, visible: true, definition: { type: "reflection_over_line", object: first, line: second } };
-      return [obj];
+      if (!isReflectableObject(source)) {
+        throw new Error("Reflection requires a point, line, segment, circle, or polygon");
+      }
+      return [makeReflectionOverLine(id, first, second, source.kind)];
     }
     case "reflect_point": {
       const id = nextObjectId(document, "rp");
       const source = requireObject(document, first);
-      const obj: ReflectionOverPoint = { id, label: id, kind: source.kind, visible: true, definition: { type: "reflection_over_point", object: first, center: second } };
-      return [obj];
+      if (!isReflectableObject(source)) {
+        throw new Error("Reflection requires a point, line, segment, circle, or polygon");
+      }
+      return [makeReflectionOverPoint(id, first, second, source.kind)];
     }
 
     // ─── New: other transformations ─────────────────────────────────────
@@ -573,7 +583,7 @@ function createInversionConstruction(
   const graph = new GeometryGraph(document);
   const source = requireObject(document, sourceId);
   const inversionCircle = requireObject(document, inversionCircleId);
-  if (inversionCircle.kind !== "circle") {
+  if (!isSourceCircleObject(inversionCircle)) {
     throw new Error("Inversion requires a circle as the second object");
   }
 
@@ -593,6 +603,9 @@ function createInversionConstruction(
     case "point":
       return [createInversionPoint(workingDocument, sourceId, inversionCircleId)];
     case "line":
+      if (!isSourceLineObject(source)) {
+        throw new Error("Inversion of reflected lines is not supported by the construction tool");
+      }
       return createLineInversion(
         source,
         sourceId,
@@ -604,6 +617,9 @@ function createInversionConstruction(
         (object) => pushCreatedObject(object, created, () => workingDocument, (next) => { workingDocument = next; }),
       );
     case "circle":
+      if (!isSourceCircleObject(source)) {
+        throw new Error("Inversion of reflected circles is not supported by the construction tool");
+      }
       return createCircleInversion(
         source,
         sourceId,
@@ -615,10 +631,16 @@ function createInversionConstruction(
         (object) => pushCreatedObject(object, created, () => workingDocument, (next) => { workingDocument = next; }),
       );
     case "segment":
+      if (!isSourceSegmentObject(source)) {
+        throw new Error("Inversion of reflected segments is not supported by the construction tool");
+      }
       return createSegmentInversion(source, inversionCircleId, created, currentValues, () => workingDocument, (object) =>
         pushCreatedObject(object, created, () => workingDocument, (next) => { workingDocument = next; }),
       );
     case "polygon":
+      if (!isSourcePolygonObject(source)) {
+        throw new Error("Inversion of reflected polygons is not supported by the construction tool");
+      }
       return createPolygonInversion(source, inversionCircleId, created, currentValues, () => workingDocument, (object) =>
         pushCreatedObject(object, created, () => workingDocument, (next) => { workingDocument = next; }),
       );
@@ -627,7 +649,7 @@ function createInversionConstruction(
 }
 
 function createLineInversion(
-  source: LineObject,
+  source: SourceLineObject,
   sourceId: string,
   inversionCircleId: string,
   inversionCenterId: string,
@@ -688,7 +710,7 @@ function createLineInversion(
 }
 
 function createCircleInversion(
-  source: CircleObject,
+  source: SourceCircleObject,
   sourceId: string,
   inversionCircleId: string,
   inversionCenterId: string,
@@ -802,7 +824,7 @@ function createCircleInversion(
 }
 
 function createSegmentInversion(
-  source: SegmentObject,
+  source: SourceSegmentObject,
   inversionCircleId: string,
   created: GeometryObject[],
   values: EvaluationMap,
@@ -821,7 +843,7 @@ function createSegmentInversion(
 }
 
 function createPolygonInversion(
-  source: PolygonObject,
+  source: SourcePolygonObject,
   inversionCircleId: string,
   created: GeometryObject[],
   values: EvaluationMap,
@@ -899,7 +921,7 @@ function createEdgeInversion(
 }
 
 function getPolygonVertexPointIds(
-  source: PolygonObject,
+  source: SourcePolygonObject,
   values: EvaluationMap,
   getDocument: () => GeometryDocument,
   push: (object: GeometryObject) => void,
@@ -946,7 +968,7 @@ function createInversionPoint(
 }
 
 function ensureCircleCenterPoint(
-  circle: CircleObject,
+  circle: SourceCircleObject,
   circleId: string,
   values: EvaluationMap,
   getDocument: () => GeometryDocument,
@@ -1001,6 +1023,56 @@ function requireObject(document: GeometryDocument, objectId: string): GeometryOb
     throw new Error(`Unknown object '${objectId}'`);
   }
   return object;
+}
+
+function isReflectableObject(object: GeometryObject): object is ReflectableObject {
+  return object.kind === "point" || object.kind === "line" || object.kind === "segment" || object.kind === "circle" || object.kind === "polygon";
+}
+
+function isSourceLineObject(object: GeometryObject): object is SourceLineObject {
+  return object.kind === "line" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point";
+}
+
+function isSourceCircleObject(object: GeometryObject): object is SourceCircleObject {
+  return object.kind === "circle" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point";
+}
+
+function isSourceSegmentObject(object: GeometryObject): object is SourceSegmentObject {
+  return object.kind === "segment" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point";
+}
+
+function isSourcePolygonObject(object: GeometryObject): object is SourcePolygonObject {
+  return object.kind === "polygon" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point";
+}
+
+function makeReflectionOverLine<K extends ReflectableObject["kind"]>(
+  id: string,
+  objectId: string,
+  lineId: string,
+  kind: K,
+): Extract<GeometryObject, { definition: { type: "reflection_over_line" }; kind: K }> {
+  return {
+    id,
+    label: id,
+    kind,
+    visible: true,
+    definition: { type: "reflection_over_line", object: objectId, line: lineId },
+  } as Extract<GeometryObject, { definition: { type: "reflection_over_line" }; kind: K }>;
+}
+
+function makeReflectionOverPoint<K extends ReflectableObject["kind"]>(
+  id: string,
+  objectId: string,
+  centerId: string,
+  kind: K,
+): Extract<GeometryObject, { definition: { type: "reflection_over_point" }; kind: K }> {
+  return {
+    id,
+    label: id,
+    kind,
+    visible: true,
+    definition: { type: "reflection_over_point", object: objectId, center: centerId },
+  } as Extract<GeometryObject, { definition: { type: "reflection_over_point" }; kind: K }>;
 }
 
 function pushCreatedObject(
@@ -1071,7 +1143,7 @@ function pointOnSegment(
   );
 }
 
-function getCircleRadiusPointId(circle: CircleObject): string {
+function getCircleRadiusPointId(circle: SourceCircleObject): string {
   if (circle.definition.type === "center_through_point") {
     return circle.definition.point;
   }

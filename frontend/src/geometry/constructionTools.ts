@@ -59,6 +59,7 @@ export interface ConstructionToolState {
 export interface ConstructionToolResult {
   state: ConstructionToolState;
   createdObjects?: readonly GeometryObject[];
+  removedObjectIds?: readonly string[];
   selectedObjectId?: string;
 }
 
@@ -117,6 +118,8 @@ function formatKind(required: RequiredKind): string {
 }
 
 export class ConstructionToolController {
+  private vectorPolygonCreatedPointIds = new Set<string>();
+
   private stateValue: ConstructionToolState = {
     activeTool: "select",
     selectedObjectIds: [],
@@ -130,6 +133,7 @@ export class ConstructionToolController {
   }
 
   activate(tool: ConstructionTool): ConstructionToolState {
+    this.vectorPolygonCreatedPointIds.clear();
     this.stateValue = {
       activeTool: tool,
       selectedObjectIds: [],
@@ -141,6 +145,7 @@ export class ConstructionToolController {
   }
 
   cancel(): ConstructionToolState {
+    this.vectorPolygonCreatedPointIds.clear();
     this.stateValue = { ...this.stateValue, selectedObjectIds: [], pointerWorld: null, error: null };
     return this.state;
   }
@@ -165,10 +170,13 @@ export class ConstructionToolController {
       return this.fail("Select at least 3 points before closing the polygon.");
     }
     const constructions = createConstruction(tool, selected, document);
+    const removedObjectIds = this.vectorPolygonAuxiliaryPointIds(tool, selected);
+    this.vectorPolygonCreatedPointIds.clear();
     this.stateValue = { ...this.stateValue, selectedObjectIds: [], pointerWorld: null, error: null };
     return {
       state: this.state,
       createdObjects: constructions,
+      removedObjectIds,
       selectedObjectId: constructions[constructions.length - 1]?.id,
     };
   }
@@ -201,6 +209,9 @@ export class ConstructionToolController {
     if (activeTool === "polygon" || activeTool === "vector_polygon") {
       const label = nextPointLabel(document);
       const newPoint: Point = { id: label, label, kind: "point", visible: true, definition: { type: "free", x: world.x, y: world.y } };
+      if (activeTool === "vector_polygon") {
+        this.vectorPolygonCreatedPointIds.add(newPoint.id);
+      }
       const selected = [...this.stateValue.selectedObjectIds, newPoint.id];
       this.stateValue = { ...this.stateValue, selectedObjectIds: selected, error: null };
       return { state: this.state, createdObjects: [newPoint], selectedObjectId: newPoint.id };
@@ -283,8 +294,15 @@ export class ConstructionToolController {
       // Close polygon if the user clicks the first vertex again (and ≥3 points).
       if (accumulated.length >= 3 && accumulated[0] === objectId) {
         const constructions = createConstruction(activeTool2, [...accumulated], document);
+        const removedObjectIds = this.vectorPolygonAuxiliaryPointIds(activeTool2, accumulated);
+        this.vectorPolygonCreatedPointIds.clear();
         this.stateValue = { ...this.stateValue, selectedObjectIds: [], pointerWorld: null, error: null };
-        return { state: this.state, createdObjects: constructions, selectedObjectId: constructions[constructions.length - 1]?.id };
+        return {
+          state: this.state,
+          createdObjects: constructions,
+          removedObjectIds,
+          selectedObjectId: constructions[constructions.length - 1]?.id,
+        };
       }
       if (accumulated.includes(objectId)) {
         return this.fail("Point already added. Click the first point to close the polygon.");
@@ -340,6 +358,16 @@ export class ConstructionToolController {
   private fail(message: string): ConstructionToolResult {
     this.stateValue = { ...this.stateValue, error: message };
     return { state: this.state };
+  }
+
+  private vectorPolygonAuxiliaryPointIds(
+    tool: ConstructionTool,
+    selected: readonly string[],
+  ): readonly string[] {
+    if (tool !== "vector_polygon") return [];
+    return selected
+      .slice(1)
+      .filter((objectId) => this.vectorPolygonCreatedPointIds.has(objectId));
   }
 }
 

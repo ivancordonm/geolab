@@ -59,7 +59,7 @@ export function App() {
 
   const constructionTools = useConstructionTools({
     document: geometry.document,
-    onCreateObjects: geometry.addObjects,
+    onApplyObjectChanges: geometry.applyObjectChanges,
     onSelectObject: setSelectedObjectId,
   });
 

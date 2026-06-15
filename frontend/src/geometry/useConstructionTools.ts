@@ -14,7 +14,10 @@ import type {
 
 interface UseConstructionToolsOptions {
   document: GeometryDocument;
-  onCreateObjects: (objects: readonly GeometryObject[]) => void;
+  onApplyObjectChanges: (
+    createdObjects: readonly GeometryObject[],
+    removedObjectIds: readonly string[],
+  ) => void;
   onSelectObject: (objectId: string) => void;
 }
 
@@ -31,7 +34,7 @@ export interface ConstructionToolsState extends ConstructionToolState {
 
 export function useConstructionTools({
   document,
-  onCreateObjects,
+  onApplyObjectChanges,
   onSelectObject,
 }: UseConstructionToolsOptions): ConstructionToolsState {
   const controllerRef = useRef(new ConstructionToolController());
@@ -40,14 +43,16 @@ export function useConstructionTools({
   const applyResult = useCallback(
     (result: ConstructionToolResult) => {
       setState(result.state);
-      if (result.createdObjects !== undefined && result.createdObjects.length > 0) {
-        onCreateObjects(result.createdObjects);
+      const createdObjects = result.createdObjects ?? [];
+      const removedObjectIds = result.removedObjectIds ?? [];
+      if (createdObjects.length > 0 || removedObjectIds.length > 0) {
+        onApplyObjectChanges(createdObjects, removedObjectIds);
       }
       if (result.selectedObjectId !== undefined) {
         onSelectObject(result.selectedObjectId);
       }
     },
-    [onCreateObjects, onSelectObject],
+    [onApplyObjectChanges, onSelectObject],
   );
 
   const activateTool = useCallback((tool: ConstructionTool) => {
@@ -104,4 +109,3 @@ export function useConstructionTools({
     updatePointer,
   };
 }
-

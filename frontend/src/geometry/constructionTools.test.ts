@@ -5,6 +5,7 @@ import type { GeometryDocument, GeometryObject } from "../types/geometry";
 import { ConstructionToolController } from "./constructionTools";
 import { GeometryGraph } from "./engine";
 import { useConstructionTools } from "./useConstructionTools";
+import { useGeometryState } from "./useGeometryState";
 
 const baseDocument: GeometryDocument = {
   schemaVersion: 1,
@@ -163,6 +164,50 @@ describe("ConstructionToolController", () => {
     const result = controller.handleCanvasClick({ x: 1, y: 1 }, baseDocument);
     expect(result.createdObjects).toBeUndefined();
   });
+
+  it("removes auto-created non-anchor points when finishing a vector polygon", () => {
+    const controller = new ConstructionToolController();
+    controller.activate("vector_polygon");
+    let document: GeometryDocument = {
+      schemaVersion: 1,
+      id: "vector-polygon",
+      title: "Vector polygon",
+      objects: [],
+    };
+
+    for (const coordinate of [{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 2, y: 3 }]) {
+      const result = controller.handleCanvasClick(coordinate, document);
+      document = { ...document, objects: [...document.objects, ...result.createdObjects!] };
+    }
+
+    const result = controller.finish(document);
+
+    expect(result.removedObjectIds).toEqual(["B", "C"]);
+    expect(result.createdObjects).toHaveLength(1);
+    expect(result.createdObjects![0].definition).toEqual({
+      type: "vector_polygon",
+      anchor: "A",
+      offsets: [{ x: 4, y: 0 }, { x: 2, y: 3 }],
+    });
+  });
+
+  it("preserves existing vector-polygon vertices and removes only auto-created ones", () => {
+    const controller = new ConstructionToolController();
+    controller.activate("vector_polygon");
+
+    controller.handleObjectClick("A", baseDocument);
+    controller.handleObjectClick("B", baseDocument);
+    const pointResult = controller.handleCanvasClick({ x: 2, y: 3 }, baseDocument);
+    const document = {
+      ...baseDocument,
+      objects: [...baseDocument.objects, ...pointResult.createdObjects!],
+    };
+    const result = controller.handleObjectClick("A", document);
+
+    expect(result.removedObjectIds).toEqual(["D"]);
+    expect(result.removedObjectIds).not.toContain("A");
+    expect(result.removedObjectIds).not.toContain("B");
+  });
 });
 
 describe("useConstructionTools", () => {
@@ -170,7 +215,7 @@ describe("useConstructionTools", () => {
     const { result } = renderHook(() =>
       useConstructionTools({
         document: baseDocument,
-        onCreateObjects: vi.fn(),
+        onApplyObjectChanges: vi.fn(),
         onSelectObject: vi.fn(),
       }),
     );
@@ -183,6 +228,44 @@ describe("useConstructionTools", () => {
 
     expect(result.current.activeTool).toBe("segment");
     expect(result.current.selectedObjectIds).toEqual([]);
+  });
+});
+
+describe("useGeometryState", () => {
+  it("applies vector-polygon creation and auxiliary-point removal atomically", () => {
+    const document: GeometryDocument = {
+      schemaVersion: 1,
+      id: "vector-polygon-state",
+      title: "Vector polygon state",
+      objects: [freePoint("A", 0, 0), freePoint("B", 4, 0), freePoint("C", 2, 3)],
+    };
+    const polygon: GeometryObject = {
+      id: "vpoly1",
+      label: "vpoly1",
+      kind: "polygon",
+      visible: true,
+      definition: {
+        type: "vector_polygon",
+        anchor: "A",
+        offsets: [{ x: 4, y: 0 }, { x: 2, y: 3 }],
+      },
+    };
+    const { result } = renderHook(() => useGeometryState(document));
+
+    act(() => result.current.applyObjectChanges([polygon], ["B", "C"]));
+
+    expect(result.current.document.objects.map((object) => object.id)).toEqual(["A", "vpoly1"]);
+    expect(result.current.values.get("vpoly1")).toEqual({
+      type: "polygon",
+      vertices: [{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 2, y: 3 }],
+    });
+
+    act(() => result.current.moveFreePoint("A", 1, -2));
+
+    expect(result.current.values.get("vpoly1")).toEqual({
+      type: "polygon",
+      vertices: [{ x: 1, y: -2 }, { x: 5, y: -2 }, { x: 3, y: 1 }],
+    });
   });
 });
 

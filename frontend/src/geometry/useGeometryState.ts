@@ -17,6 +17,10 @@ export interface GeometryState {
   moveFreePoint: (pointId: GeometryObjectId, x: number, y: number) => void;
   addObject: (object: GeometryObject) => void;
   addObjects: (objects: readonly GeometryObject[]) => void;
+  applyObjectChanges: (
+    createdObjects: readonly GeometryObject[],
+    removedObjectIds: readonly GeometryObjectId[],
+  ) => void;
   replaceDocument: (document: GeometryDocument) => void;
   toggleObjectVisibility: (objectId: GeometryObjectId) => void;
   setObjectLabel: (objectId: GeometryObjectId, label: string) => void;
@@ -65,6 +69,26 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
     const candidate: GeometryDocument = {
       ...currentDocument,
       objects: [...currentDocument.objects, ...objects],
+    };
+    const graph = new GeometryGraph(candidate);
+    graphRef.current = graph;
+    setDocument(graph.document);
+    setValues(graph.values);
+  }, []);
+
+  const applyObjectChanges = useCallback((
+    createdObjects: readonly GeometryObject[],
+    removedObjectIds: readonly GeometryObjectId[],
+  ) => {
+    if (createdObjects.length === 0 && removedObjectIds.length === 0) return;
+    const removedIds = new Set(removedObjectIds);
+    const currentDocument = graphRef.current!.document;
+    const candidate: GeometryDocument = {
+      ...currentDocument,
+      objects: [
+        ...currentDocument.objects.filter((object) => !removedIds.has(object.id)),
+        ...createdObjects,
+      ],
     };
     const graph = new GeometryGraph(candidate);
     graphRef.current = graph;
@@ -175,6 +199,7 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
     moveFreePoint,
     addObject,
     addObjects,
+    applyObjectChanges,
     replaceDocument,
     toggleObjectVisibility,
     setObjectLabel,

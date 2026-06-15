@@ -208,9 +208,16 @@ def evaluate_script(
     )
 
 
-@mcp.tool(annotations=READ_ONLY, meta=WIDGET_META)
+@mcp.tool(
+    description=(
+        "Returns the current validated geometry graph and triggers the GeoLab SVG widget "
+        "inside ChatGPT to render the construction visually."
+    ),
+    annotations=READ_ONLY,
+    meta=WIDGET_META,
+)
 def get_current_graph() -> dict[str, Any]:
-    """Return the current validated geometry graph, including values and dependency indexes."""
+    """Return the graph used by the GeoLab geometry widget."""
 
     return _execute("get_current_graph", {})
 

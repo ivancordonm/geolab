@@ -58,6 +58,10 @@ def test_mcp_lists_registered_tools_with_safety_annotations(mcp_client: TestClie
     tools = {tool["name"]: tool for tool in response.json()["result"]["tools"]}
     assert len(tools) == 10
     assert tools["get_current_graph"]["annotations"]["readOnlyHint"] is True
+    assert tools["get_current_graph"]["description"] == (
+        "Returns the current validated geometry graph and triggers the GeoLab SVG widget "
+        "inside ChatGPT to render the construction visually."
+    )
     assert tools["create_point"]["annotations"]["readOnlyHint"] is False
     assert tools["evaluate_script"]["annotations"]["destructiveHint"] is True
     assert tools["get_current_graph"]["_meta"]["ui"]["resourceUri"] == GEOMETRY_WIDGET_URI

@@ -84,7 +84,7 @@ export function ConstructionToolbar({
   controls,
 }: ConstructionToolbarProps) {
   return (
-    <div className="absolute left-3 top-3 z-10 flex flex-col gap-1 rounded-card border border-edge bg-surface/90 p-1.5 shadow-card backdrop-blur">
+    <div className="absolute left-3 top-3 z-10 w-[52px] flex flex-col gap-1 rounded-card border border-edge bg-surface/90 p-1.5 shadow-card backdrop-blur">
       <div role="toolbar" aria-label="Geometry construction tools" className="flex flex-col gap-1">
         {TOOLS.map((entry, i) => {
           if ("divider" in entry) {
@@ -136,7 +136,7 @@ export function ConstructionToolbar({
                 const v = parseInt(e.target.value, 10);
                 if (v >= 3 && v <= 20) onRegularPolygonSidesChange(v);
               }}
-              className="w-14 rounded border border-edge bg-surface px-1.5 py-0.5 text-xs text-content focus:outline-none focus:ring-1 focus:ring-brand-500"
+              className="w-full rounded border border-edge bg-surface px-1.5 py-0.5 text-xs text-content focus:outline-none focus:ring-1 focus:ring-brand-500"
             />
           </div>
         </>
@@ -158,7 +158,7 @@ export function ConstructionToolbar({
                 const v = parseFloat(e.target.value);
                 if (!isNaN(v)) onRotationAngleChange(v);
               }}
-              className="w-14 rounded border border-edge bg-surface px-1.5 py-0.5 text-xs text-content focus:outline-none focus:ring-1 focus:ring-brand-500"
+              className="w-full rounded border border-edge bg-surface px-1.5 py-0.5 text-xs text-content focus:outline-none focus:ring-1 focus:ring-brand-500"
             />
           </div>
         </>

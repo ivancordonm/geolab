@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Settings } from "lucide-react";
+import { KeyRound, Settings } from "lucide-react";
 import type { AssistantModels } from "../../agent/useAssistantConfig";
 import type { AssistantConfig, ProviderName } from "../../agent/types";
 import { PROVIDER_DEFAULTS } from "../../agent/types";
@@ -27,6 +27,14 @@ const PROVIDER_LABELS: Record<ProviderName, string> = {
 };
 
 const POPOVER_WIDTH = 288; // w-72
+
+
+const PROVIDER_KEY_URLS: Record<ProviderName, string> = {
+  huggingface: "https://huggingface.co/settings/tokens",
+  openai: "https://platform.openai.com/api-keys",
+  nvidia: "https://build.nvidia.com/settings/api-keys",
+};
+
 
 export function ConfigPopover({ config, remember, onChange, apiKeys, models }: ConfigPopoverProps) {
   const [open, setOpen] = useState(false);
@@ -223,6 +231,18 @@ export function ConfigPopover({ config, remember, onChange, apiKeys, models }: C
                       }}
                       className="min-w-0 flex-1 rounded-lg border border-edge bg-surface-muted px-2.5 py-1.5 text-xs text-content focus:border-brand-400 focus:outline-2 focus:outline-offset-1 focus:outline-brand-500/30"
                     />
+                    {!draft.apiKey ? (
+                      <a
+                        href={PROVIDER_KEY_URLS[draft.provider]}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={`Get ${PROVIDER_LABELS[draft.provider]} API key`}
+                        title={`Get ${PROVIDER_LABELS[draft.provider]} API key`}
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-edge text-muted transition-colors hover:border-brand-400 hover:text-content focus-visible:outline-2 focus-visible:outline-brand-500"
+                      >
+                        <KeyRound size={14} aria-hidden />
+                      </a>
+                    ) : null}
                     <button
                       type="button"
                       aria-label={showKey ? "Hide API key" : "Show API key"}

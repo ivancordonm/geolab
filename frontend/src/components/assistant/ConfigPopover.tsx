@@ -6,7 +6,8 @@ import { PROVIDER_DEFAULTS } from "../../agent/types";
 
 interface ConfigPopoverProps {
   config: AssistantConfig;
-  onChange: (c: AssistantConfig) => void;
+  remember: boolean;
+  onChange: (c: AssistantConfig, remember: boolean) => void;
 }
 
 interface PopoverPos {
@@ -23,10 +24,11 @@ const PROVIDER_LABELS: Record<ProviderName, string> = {
 
 const POPOVER_WIDTH = 288; // w-72
 
-export function ConfigPopover({ config, onChange }: ConfigPopoverProps) {
+export function ConfigPopover({ config, remember, onChange }: ConfigPopoverProps) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<PopoverPos | null>(null);
   const [draft, setDraft] = useState<AssistantConfig>(config);
+  const [draftRemember, setDraftRemember] = useState(remember);
   const [showKey, setShowKey] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -34,6 +36,10 @@ export function ConfigPopover({ config, onChange }: ConfigPopoverProps) {
   useEffect(() => {
     setDraft(config);
   }, [config]);
+
+  useEffect(() => {
+    setDraftRemember(remember);
+  }, [remember]);
 
   useEffect(() => {
     if (!open) return;
@@ -70,7 +76,8 @@ export function ConfigPopover({ config, onChange }: ConfigPopoverProps) {
   };
 
   const handleSave = (): void => {
-    onChange(draft);
+    onChange(draft, draftRemember);
+    setShowKey(false);
     setOpen(false);
   };
 
@@ -171,28 +178,45 @@ export function ConfigPopover({ config, onChange }: ConfigPopoverProps) {
               </label>
 
               {draft.provider !== "ollama" ? (
-                <label className="mb-4 block">
-                  <span className="mb-1 block text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-muted">
-                    API key
-                  </span>
-                  <div className="flex items-center gap-1">
+                <div className="mb-4">
+                  <label className="block">
+                    <span className="mb-1 block text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-muted">
+                      API key
+                    </span>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type={showKey ? "text" : "password"}
+                        value={draft.apiKey}
+                        placeholder={draft.provider === "nvidia" ? "nvapi-…" : "sk-…"}
+                        onChange={(e) => setDraft((d) => ({ ...d, apiKey: e.target.value }))}
+                        className="min-w-0 flex-1 rounded-lg border border-edge bg-surface-muted px-2.5 py-1.5 text-xs text-content focus:border-brand-400 focus:outline-2 focus:outline-offset-1 focus:outline-brand-500/30"
+                      />
+                      <button
+                        type="button"
+                        aria-label={showKey ? "Ocultar API key" : "Mostrar API key"}
+                        onClick={() => setShowKey((v) => !v)}
+                        className="shrink-0 rounded-lg border border-edge px-2 py-1.5 text-xs text-muted hover:text-content focus-visible:outline-2 focus-visible:outline-brand-500"
+                      >
+                        {showKey ? "🙈" : "👁"}
+                      </button>
+                    </div>
+                  </label>
+                  <label className="mt-2 flex cursor-pointer items-center gap-2">
                     <input
-                      type={showKey ? "text" : "password"}
-                      value={draft.apiKey}
-                      placeholder={draft.provider === "nvidia" ? "nvapi-…" : "sk-…"}
-                      onChange={(e) => setDraft((d) => ({ ...d, apiKey: e.target.value }))}
-                      className="min-w-0 flex-1 rounded-lg border border-edge bg-surface-muted px-2.5 py-1.5 text-xs text-content focus:border-brand-400 focus:outline-2 focus:outline-offset-1 focus:outline-brand-500/30"
+                      type="checkbox"
+                      checked={draftRemember}
+                      onChange={(e) => setDraftRemember(e.target.checked)}
+                      className="h-3.5 w-3.5 rounded accent-brand-600"
                     />
-                    <button
-                      type="button"
-                      aria-label={showKey ? "Ocultar API key" : "Mostrar API key"}
-                      onClick={() => setShowKey((v) => !v)}
-                      className="shrink-0 rounded-lg border border-edge px-2 py-1.5 text-xs text-muted hover:text-content focus-visible:outline-2 focus-visible:outline-brand-500"
-                    >
-                      {showKey ? "🙈" : "👁"}
-                    </button>
-                  </div>
-                </label>
+                    <span className="text-[0.65rem] text-muted">Recordar entre sesiones</span>
+                  </label>
+                  <p className="mt-2 text-[0.65rem] text-muted">
+                    🔒 La clave se guarda solo en tu navegador.{" "}
+                    {draftRemember
+                      ? "Persiste entre sesiones en este dispositivo."
+                      : "Se borra al cerrar la pestaña."}
+                  </p>
+                </div>
               ) : (
                 <p className="mb-4 text-[0.65rem] italic text-muted">
                   Ollama corre en local — no necesita API key.

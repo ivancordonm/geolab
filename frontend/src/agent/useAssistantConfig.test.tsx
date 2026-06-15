@@ -15,7 +15,7 @@ describe("useAssistantConfig", () => {
     });
     act(() => {
       first.result.current[1](
-        { ...PROVIDER_DEFAULTS.ollama, model: "qwen3:14b", apiKey: "" },
+        { ...PROVIDER_DEFAULTS.huggingface, model: "Qwen/Qwen3-235B-A22B", apiKey: "" },
         true,
       );
     });
@@ -23,9 +23,9 @@ describe("useAssistantConfig", () => {
 
     const second = renderHook(() => useAssistantConfig());
 
-    expect(second.result.current[0].model).toBe("qwen3:14b");
+    expect(second.result.current[0].model).toBe("Qwen/Qwen3-235B-A22B");
     expect(second.result.current[4]).toEqual({
-      ollama: "qwen3:14b",
+      huggingface: "Qwen/Qwen3-235B-A22B",
       openai: "gpt-5.1",
       nvidia: PROVIDER_DEFAULTS.nvidia.model,
     });

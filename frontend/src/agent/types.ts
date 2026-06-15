@@ -1,4 +1,4 @@
-export type ProviderName = "ollama" | "openai" | "nvidia";
+export type ProviderName = "huggingface" | "openai" | "nvidia";
 
 export interface AssistantConfig {
   provider: ProviderName;
@@ -9,12 +9,12 @@ export interface AssistantConfig {
 }
 
 export const PROVIDER_DEFAULTS: Record<ProviderName, AssistantConfig> = {
-  ollama: {
-    provider: "ollama",
-    model: "llama3.1",
-    baseUrl: "http://localhost:11434",
+  huggingface: {
+    provider: "huggingface",
+    model: "Qwen/Qwen2.5-72B-Instruct",
+    baseUrl: "https://router.huggingface.co/v1",
     apiKey: "",
-    temperature: 0,
+    temperature: 1,
   },
   openai: {
     provider: "openai",

@@ -17,14 +17,7 @@ def create_planner(config: ProviderConfig | None = None) -> Planner:
     If config is None, falls back to the MATHLLM_LLM_PROVIDER env var (legacy).
     """
     if config is not None:
-        if config.provider == "ollama":
-            return OllamaPlanner(
-                base_url=config.base_url,
-                api_key=config.api_key,
-                model=config.model,
-                temperature=config.temperature,
-            )
-        if config.provider in ("openai", "nvidia"):
+        if config.provider in ("huggingface", "openai", "nvidia"):
             return OpenAICompatiblePlanner(
                 base_url=config.base_url,
                 api_key=config.api_key,

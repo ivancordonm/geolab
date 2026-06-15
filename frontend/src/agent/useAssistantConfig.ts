@@ -10,9 +10,9 @@ const REMEMBER_KEY_STORAGE = "geolab_assistant_remember_key";
 type ApiKeys = Record<ProviderName, string>;
 export type AssistantModels = Record<ProviderName, string>;
 
-const EMPTY_API_KEYS: ApiKeys = { ollama: "", openai: "", nvidia: "" };
+const EMPTY_API_KEYS: ApiKeys = { huggingface: "", openai: "", nvidia: "" };
 const DEFAULT_MODELS: AssistantModels = {
-  ollama: PROVIDER_DEFAULTS.ollama.model,
+  huggingface: PROVIDER_DEFAULTS.huggingface.model,
   openai: PROVIDER_DEFAULTS.openai.model,
   nvidia: PROVIDER_DEFAULTS.nvidia.model,
 };
@@ -32,7 +32,7 @@ function parseApiKeys(raw: string | null, fallbackProvider: ProviderName): ApiKe
   try {
     const parsed = JSON.parse(raw) as Partial<ApiKeys>;
     return {
-      ollama: typeof parsed.ollama === "string" ? parsed.ollama : "",
+      huggingface: typeof parsed.huggingface === "string" ? parsed.huggingface : "",
       openai: typeof parsed.openai === "string" ? parsed.openai : "",
       nvidia: typeof parsed.nvidia === "string" ? parsed.nvidia : "",
     };
@@ -46,7 +46,7 @@ function parseModels(raw: string | null): AssistantModels {
   try {
     const parsed = JSON.parse(raw) as Partial<AssistantModels>;
     return {
-      ollama: typeof parsed.ollama === "string" && parsed.ollama ? parsed.ollama : DEFAULT_MODELS.ollama,
+      huggingface: typeof parsed.huggingface === "string" && parsed.huggingface ? parsed.huggingface : DEFAULT_MODELS.huggingface,
       openai: typeof parsed.openai === "string" && parsed.openai ? parsed.openai : DEFAULT_MODELS.openai,
       nvidia: typeof parsed.nvidia === "string" && parsed.nvidia ? parsed.nvidia : DEFAULT_MODELS.nvidia,
     };
@@ -61,7 +61,7 @@ function loadConfig(): {
   apiKeys: ApiKeys;
   models: AssistantModels;
 } {
-  let base: AssistantConfig = PROVIDER_DEFAULTS.ollama;
+  let base: AssistantConfig = PROVIDER_DEFAULTS.huggingface;
   let legacyApiKey = "";
   let legacyModel = "";
 

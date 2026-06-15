@@ -217,7 +217,7 @@ describe("assistant flow", () => {
     const planRequest = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
     expect(planRequest.userRequest).toBe("Draw segment PQ");
     expect(planRequest.currentScript).toContain("A = Point(-2, -1)");
-    expect(planRequest.config.temperature).toBe(0);
+    expect(planRequest.config.temperature).toBe(1);
 
     await user.click(screen.getByRole("button", { name: "Apply Script" }));
 

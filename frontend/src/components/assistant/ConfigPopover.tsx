@@ -21,7 +21,7 @@ interface PopoverPos {
 }
 
 const PROVIDER_LABELS: Record<ProviderName, string> = {
-  ollama: "Ollama",
+  huggingface: "HuggingFace",
   openai: "OpenAI",
   nvidia: "Nvidia",
 };
@@ -130,7 +130,7 @@ export function ConfigPopover({ config, remember, onChange, apiKeys, models }: C
                 Provider
               </p>
               <div className="mb-4 flex gap-1.5">
-                {(["ollama", "openai", "nvidia"] as ProviderName[]).map((p) => (
+                {(["huggingface", "openai", "nvidia"] as ProviderName[]).map((p) => (
                   <button
                     key={p}
                     type="button"
@@ -164,7 +164,7 @@ export function ConfigPopover({ config, remember, onChange, apiKeys, models }: C
 
               <label className="mb-3 block">
                 <span className="mb-1 block text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-muted">
-                  Base URL{draft.provider === "openai" ? " (optional)" : ""}
+                  Base URL{draft.provider === "openai" || draft.provider === "huggingface" ? " (optional)" : ""}
                 </span>
                 <input
                   type="text"
@@ -203,7 +203,7 @@ export function ConfigPopover({ config, remember, onChange, apiKeys, models }: C
               <div className="mb-4">
                 <label className="block">
                   <span className="mb-1 block text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-muted">
-                    API key{draft.provider === "ollama" ? " (optional)" : ""}
+                    API key
                   </span>
                   <div className="flex items-center gap-1">
                     <input
@@ -212,8 +212,8 @@ export function ConfigPopover({ config, remember, onChange, apiKeys, models }: C
                       placeholder={
                         draft.provider === "nvidia"
                           ? "nvapi-…"
-                          : draft.provider === "ollama"
-                            ? "Bearer token…"
+                          : draft.provider === "huggingface"
+                            ? "hf_…"
                             : "sk-…"
                       }
                       onChange={(e) => {
@@ -233,11 +233,6 @@ export function ConfigPopover({ config, remember, onChange, apiKeys, models }: C
                     </button>
                   </div>
                 </label>
-                {draft.provider === "ollama" && (
-                  <p className="mt-1 text-[0.65rem] italic text-muted">
-                    Only required when using a remote Ollama server with authentication.
-                  </p>
-                )}
                 <label className="mt-2 flex cursor-pointer items-center gap-2">
                   <input
                     type="checkbox"

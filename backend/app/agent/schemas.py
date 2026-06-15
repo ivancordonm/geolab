@@ -8,7 +8,7 @@ from app.geometry.models import GeometryModel
 
 
 class ProviderConfig(GeometryModel):
-    provider: Literal["ollama", "openai", "nvidia"]
+    provider: Literal["huggingface", "openai", "nvidia"]
     model: str = Field(min_length=1)
     base_url: str = Field(min_length=1)
     api_key: str = ""

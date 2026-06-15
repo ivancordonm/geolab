@@ -9,11 +9,11 @@ describe("ConfigPopover", () => {
     const user = userEvent.setup();
     render(
       <ConfigPopover
-        config={PROVIDER_DEFAULTS.ollama}
+        config={PROVIDER_DEFAULTS.huggingface}
         remember
         onChange={vi.fn()}
-        apiKeys={{ ollama: "", openai: "", nvidia: "" }}
-        models={{ ollama: "qwen3:14b", openai: "gpt-5.1", nvidia: "nemotron-custom" }}
+        apiKeys={{ huggingface: "", openai: "", nvidia: "" }}
+        models={{ huggingface: "Qwen/Qwen3-235B-A22B", openai: "gpt-5.1", nvidia: "nemotron-custom" }}
       />,
     );
 
@@ -21,7 +21,7 @@ describe("ConfigPopover", () => {
 
     expect(screen.getByRole("dialog", { name: "Assistant settings" })).toBeInTheDocument();
     expect(screen.getByText("Provider")).toBeInTheDocument();
-    expect(screen.getByLabelText("Model")).toHaveValue(PROVIDER_DEFAULTS.ollama.model);
+    expect(screen.getByLabelText("Model")).toHaveValue(PROVIDER_DEFAULTS.huggingface.model);
     expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
     expect(screen.queryByText("Proveedor")).not.toBeInTheDocument();
 

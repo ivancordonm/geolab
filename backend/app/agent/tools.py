@@ -7,7 +7,9 @@ from collections.abc import Callable
 from pydantic import BaseModel
 
 from app.agent.models import (
+    CircleCircleIntersectionInput,
     CircleConstructionInput,
+    CircleLineIntersectionInput,
     CreatePointInput,
     EmptyToolInput,
     EvaluateScriptToolInput,
@@ -15,8 +17,10 @@ from app.agent.models import (
     GetGraphToolOutput,
     GraphObjectView,
     GraphView,
+    LineLineIntersectionInput,
     MutationToolOutput,
     PointLineConstructionInput,
+    ThreePointConstructionInput,
     TwoPointConstructionInput,
     ValidateConstructionInput,
     ValidationToolOutput,
@@ -26,7 +30,14 @@ from app.geometry.engine import GeometryGraph
 from app.geometry.models import (
     Circle,
     CircleByCenterPointDefinition,
+    GeometryDocument,
     GeometryObject,
+    IntersectionCC,
+    IntersectionCCDefinition,
+    IntersectionLC,
+    IntersectionLCDefinition,
+    IntersectionLL,
+    IntersectionLLDefinition,
     Line,
     LineThroughPointsDefinition,
     Midpoint,
@@ -35,6 +46,12 @@ from app.geometry.models import (
     ParallelLineDefinition,
     PerpendicularLine,
     PerpendicularLineDefinition,
+    PerpendicularBisectorDefinition,
+    PerpendicularBisectorLine,
+    AngleBisectorDefinition,
+    AngleBisectorLine,
+    CircumscribedCircle,
+    CircumscribedDefinition,
     Point,
     Segment,
     SegmentBetweenPointsDefinition,
@@ -133,6 +150,66 @@ def create_geometry_tool_registry(workspace: GeometryWorkspace) -> ToolRegistry:
             MutationToolOutput,
             True,
             lambda model: _create_point_line(workspace, model, "perpendicular"),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_line_line_intersection",
+            "Create the deterministic intersection point of two existing lines.",
+            LineLineIntersectionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_line_line_intersection(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_circle_line_intersection",
+            "Create one selected intersection of an existing circle and line.",
+            CircleLineIntersectionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_circle_line_intersection(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_circle_circle_intersection",
+            "Create one directionally selected intersection of two existing circles.",
+            CircleCircleIntersectionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_circle_circle_intersection(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_perpendicular_bisector",
+            "Create the perpendicular bisector of two existing points.",
+            TwoPointConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_perpendicular_bisector(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_angle_bisector",
+            "Create the angle bisector through three existing points: arm, vertex, arm.",
+            ThreePointConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_angle_bisector(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_circumcircle",
+            "Create the circle through three existing non-collinear points.",
+            ThreePointConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_circumcircle(workspace, model),
         )
     )
     registry.register(
@@ -270,6 +347,129 @@ def _create_point_line(
     return _commit(workspace, obj)
 
 
+def _create_line_line_intersection(
+    workspace: GeometryWorkspace,
+    raw_input: BaseModel,
+) -> MutationToolOutput:
+    input_model = LineLineIntersectionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    line_a = _resolve_kind(access, input_model.line_a, "line")
+    line_b = _resolve_kind(access, input_model.line_b, "line")
+    obj = IntersectionLL(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=IntersectionLLDefinition(line_a=line_a.object.id, line_b=line_b.object.id),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_circle_line_intersection(
+    workspace: GeometryWorkspace,
+    raw_input: BaseModel,
+) -> MutationToolOutput:
+    input_model = CircleLineIntersectionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    circle = _resolve_kind(access, input_model.circle, "circle")
+    line = _resolve_kind(access, input_model.line, "line")
+    obj = IntersectionLC(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=IntersectionLCDefinition(
+            line=line.object.id,
+            circle=circle.object.id,
+            selector=input_model.selector,
+        ),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_circle_circle_intersection(
+    workspace: GeometryWorkspace,
+    raw_input: BaseModel,
+) -> MutationToolOutput:
+    input_model = CircleCircleIntersectionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    circle_a = _resolve_kind(access, input_model.circle_a, "circle")
+    circle_b = _resolve_kind(access, input_model.circle_b, "circle")
+    obj = IntersectionCC(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=IntersectionCCDefinition(
+            circle_a=circle_a.object.id,
+            circle_b=circle_b.object.id,
+            selector=input_model.selector,
+        ),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_perpendicular_bisector(
+    workspace: GeometryWorkspace,
+    raw_input: BaseModel,
+) -> MutationToolOutput:
+    input_model = TwoPointConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    point_a = _resolve_kind(access, input_model.point_a, "point")
+    point_b = _resolve_kind(access, input_model.point_b, "point")
+    obj = PerpendicularBisectorLine(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=PerpendicularBisectorDefinition(
+            point_a=point_a.object.id,
+            point_b=point_b.object.id,
+        ),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_angle_bisector(
+    workspace: GeometryWorkspace,
+    raw_input: BaseModel,
+) -> MutationToolOutput:
+    input_model = ThreePointConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    arm_a = _resolve_kind(access, input_model.point_a, "point")
+    vertex = _resolve_kind(access, input_model.point_b, "point")
+    arm_b = _resolve_kind(access, input_model.point_c, "point")
+    obj = AngleBisectorLine(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=AngleBisectorDefinition(
+            arm_a=arm_a.object.id,
+            vertex=vertex.object.id,
+            arm_b=arm_b.object.id,
+        ),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_circumcircle(
+    workspace: GeometryWorkspace,
+    raw_input: BaseModel,
+) -> MutationToolOutput:
+    input_model = ThreePointConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    point_a = _resolve_kind(access, input_model.point_a, "point")
+    point_b = _resolve_kind(access, input_model.point_b, "point")
+    point_c = _resolve_kind(access, input_model.point_c, "point")
+    obj = CircumscribedCircle(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=CircumscribedDefinition(
+            point_a=point_a.object.id,
+            point_b=point_b.object.id,
+            point_c=point_c.object.id,
+        ),
+    )
+    return _commit_defined(workspace, obj)
+
+
 def _validate_construction(
     workspace: GeometryWorkspace,
     raw_input: BaseModel,
@@ -316,6 +516,18 @@ def _commit(workspace: GeometryWorkspace, obj: GeometryObject) -> MutationToolOu
         created_object=obj,
         graph=graph_view_from_access_map(access),
     )
+
+
+def _commit_defined(workspace: GeometryWorkspace, obj: GeometryObject) -> MutationToolOutput:
+    candidate = workspace.document_snapshot().model_copy(
+        update={"objects": [*workspace.document_snapshot().objects, obj]},
+        deep=True,
+    )
+    graph = GeometryGraph(GeometryDocument.model_validate(candidate.model_dump(by_alias=True)))
+    value = graph.values[obj.id]
+    if value.type == "undefined":
+        raise ToolExecutionError(f"{value.code}: {value.message}")
+    return _commit(workspace, obj)
 
 
 def _ensure_name_available(access: GraphAccessMap, object_id: str, label: str | None) -> None:

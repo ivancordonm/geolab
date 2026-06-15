@@ -144,3 +144,27 @@ def test_dependency_cycles_are_rejected() -> None:
 
     with pytest.raises(GeometryValidationError, match="Dependency cycle detected"):
         GeometryGraph(GeometryDocument.model_validate(cyclic))
+
+
+def test_directional_selectors_recompute_from_current_parent_geometry() -> None:
+    document = GeometryDocument.model_validate(
+        {
+            "schemaVersion": 1,
+            "id": "dynamic-selector",
+            "title": "Dynamic selector",
+            "objects": [
+                {"id": "A", "label": "A", "kind": "point", "definition": {"type": "free", "x": 0, "y": 0}},
+                {"id": "B", "label": "B", "kind": "point", "definition": {"type": "free", "x": 4, "y": 0}},
+                {"id": "cA", "label": "cA", "kind": "circle", "definition": {"type": "center_through_point", "center": "A", "point": "B"}},
+                {"id": "cB", "label": "cB", "kind": "circle", "definition": {"type": "center_through_point", "center": "B", "point": "A"}},
+                {"id": "C", "label": "C", "kind": "point", "definition": {"type": "intersection_cc", "circleA": "cA", "circleB": "cB", "selector": "upper"}},
+            ],
+        }
+    )
+    graph = GeometryGraph(document)
+
+    assert graph.values["C"].type == "point"
+    assert graph.values["C"].y > 0  # type: ignore[union-attr]
+    moved = graph.move_free_point("B", 0, 4)
+    assert moved.values["C"].type == "undefined"
+    assert moved.values["C"].code == "ambiguous_selector"  # type: ignore[union-attr]

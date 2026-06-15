@@ -14,4 +14,29 @@ describe("GeometryDocumentScriptGenerator", () => {
     expect(script).toContain("altitude = PerpendicularLine(C, AB)");
     expect(() => new GeometryGraph(exampleGeometryDocument)).not.toThrow();
   });
+
+  it("prefers generic Intersection syntax for selector-based documents", () => {
+    const document = {
+      ...exampleGeometryDocument,
+      objects: [
+        ...exampleGeometryDocument.objects,
+        {
+          id: "selected",
+          label: "selected",
+          kind: "point" as const,
+          visible: true,
+          definition: {
+            type: "intersection_lc" as const,
+            line: "AB",
+            circle: "circumference",
+            selector: "left" as const,
+          },
+        },
+      ],
+    };
+
+    expect(scriptGenerator.generate(document)).toContain(
+      "selected = Intersection(AB, circumference, left)",
+    );
+  });
 });

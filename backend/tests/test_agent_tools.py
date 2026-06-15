@@ -15,6 +15,12 @@ EXPECTED_TOOLS = {
     "create_midpoint",
     "create_parallel_line",
     "create_perpendicular_line",
+    "create_line_line_intersection",
+    "create_circle_line_intersection",
+    "create_circle_circle_intersection",
+    "create_perpendicular_bisector",
+    "create_angle_bisector",
+    "create_circumcircle",
     "validate_construction",
     "evaluate_script",
     "get_current_graph",
@@ -146,3 +152,26 @@ def test_evaluate_script_tool_replaces_graph_only_after_validation() -> None:
     assert output.revision == 2  # type: ignore[attr-defined]
     assert [obj.id for obj in workspace.document_snapshot().objects] == ["A", "B", "AB"]
 
+
+def test_directional_intersection_tool_is_atomic_on_ambiguity() -> None:
+    workspace = GeometryWorkspace()
+    registry = create_geometry_tool_registry(workspace)
+    execute(registry, "create_point", {"objectId": "A", "x": 0, "y": 0})
+    execute(registry, "create_point", {"objectId": "B", "x": 4, "y": 0})
+    execute(registry, "create_circle", {"objectId": "cA", "center": "A", "point": "B"})
+    execute(registry, "create_circle", {"objectId": "cB", "center": "B", "point": "A"})
+
+    with pytest.raises(ToolExecutionError, match="ambiguous_selector"):
+        execute(
+            registry,
+            "create_circle_circle_intersection",
+            {
+                "objectId": "C",
+                "circleA": "cA",
+                "circleB": "cB",
+                "selector": "left",
+            },
+        )
+
+    assert workspace.revision == 4
+    assert "C" not in workspace.graph_access_map().by_id

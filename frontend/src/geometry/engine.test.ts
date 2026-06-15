@@ -140,4 +140,36 @@ describe("GeometryGraph", () => {
 
     expect(() => new GeometryGraph(cyclic)).toThrow("Dependency cycle detected");
   });
+
+  it("evaluates directional circle intersections and rejects ambiguous selectors", () => {
+    const base: GeometryDocument = {
+      schemaVersion: 1,
+      id: "selectors",
+      title: "Directional intersections",
+      objects: [
+        { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+        { id: "B", label: "B", kind: "point", visible: true, definition: { type: "free", x: 4, y: 0 } },
+        { id: "cA", label: "cA", kind: "circle", visible: true, definition: { type: "center_through_point", center: "A", point: "B" } },
+        { id: "cB", label: "cB", kind: "circle", visible: true, definition: { type: "center_through_point", center: "B", point: "A" } },
+        { id: "C", label: "C", kind: "point", visible: true, definition: { type: "intersection_cc", circleA: "cA", circleB: "cB", index: null, selector: "upper" } },
+      ],
+    };
+
+    const upper = new GeometryGraph(base).values.get("C");
+    expect(upper).toMatchObject({ type: "point", x: 2 });
+    expect(upper?.type === "point" ? upper.y : Number.NaN).toBeCloseTo(3.464101615, 9);
+
+    const ambiguous: GeometryDocument = {
+      ...base,
+      objects: base.objects.map((object) =>
+        object.id === "C"
+          ? { ...object, definition: { type: "intersection_cc", circleA: "cA", circleB: "cB", selector: "left" as const } }
+          : object,
+      ) as GeometryDocument["objects"],
+    };
+    expect(new GeometryGraph(ambiguous).values.get("C")).toMatchObject({
+      type: "undefined",
+      code: "ambiguous_selector",
+    });
+  });
 });

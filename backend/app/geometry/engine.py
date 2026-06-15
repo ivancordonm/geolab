@@ -332,7 +332,7 @@ class GeometryGraph:
                 return cr
             assert isinstance(ln, LineValue)
             assert isinstance(cr, CircleValue)
-            return _intersect_line_circle(ln, cr, definition.index)
+            return _intersect_line_circle(ln, cr, definition.index, definition.selector)
 
         if isinstance(definition, IntersectionCCDefinition):
             cA = self._require_value(obj.id, definition.circle_a, "circle")
@@ -343,7 +343,7 @@ class GeometryGraph:
                 return cB
             assert isinstance(cA, CircleValue)
             assert isinstance(cB, CircleValue)
-            return _intersect_circle_circle(cA, cB, definition.index)
+            return _intersect_circle_circle(cA, cB, definition.index, definition.selector)
 
         # ─── New: bisectors / circumcircle ────────────────────────────────
 
@@ -551,7 +551,12 @@ def _intersect_lines(lA: LineValue, lB: LineValue) -> EvaluatedValue:
     return PointValue(x=_clean_zero((lA.b * lB.c - lB.b * lA.c) / det), y=_clean_zero((lB.a * lA.c - lA.a * lB.c) / det))
 
 
-def _intersect_line_circle(ln: LineValue, cr: CircleValue, index: int) -> EvaluatedValue:
+def _intersect_line_circle(
+    ln: LineValue,
+    cr: CircleValue,
+    index: int | None,
+    selector: str | None,
+) -> EvaluatedValue:
     d_signed = ln.a * cr.center.x + ln.b * cr.center.y + ln.c
     h2 = cr.radius * cr.radius - d_signed * d_signed
     if h2 < -GEOMETRY_EPSILON:
@@ -561,12 +566,19 @@ def _intersect_line_circle(ln: LineValue, cr: CircleValue, index: int) -> Evalua
     fy = cr.center.y - ln.b * d_signed
     p1 = (fx - ln.b * h, fy + ln.a * h)
     p2 = (fx + ln.b * h, fy - ln.a * h)
-    hi, lo = _sorted_pair(p1, p2)
-    x, y = hi if index == 1 else lo
+    selected = _select_intersection(p1, p2, index=index, selector=selector)
+    if isinstance(selected, UndefinedValue):
+        return selected
+    x, y = selected
     return PointValue(x=_clean_zero(x), y=_clean_zero(y))
 
 
-def _intersect_circle_circle(cA: CircleValue, cB: CircleValue, index: int) -> EvaluatedValue:
+def _intersect_circle_circle(
+    cA: CircleValue,
+    cB: CircleValue,
+    index: int | None,
+    selector: str | None,
+) -> EvaluatedValue:
     dx = cB.center.x - cA.center.x
     dy = cB.center.y - cA.center.y
     d = hypot(dx, dy)
@@ -582,8 +594,10 @@ def _intersect_circle_circle(cA: CircleValue, cB: CircleValue, index: int) -> Ev
     fy = cA.center.y + a * ey
     p1 = (fx - h * ey, fy + h * ex)
     p2 = (fx + h * ey, fy - h * ex)
-    hi, lo = _sorted_pair(p1, p2)
-    x, y = hi if index == 1 else lo
+    selected = _select_intersection(p1, p2, index=index, selector=selector)
+    if isinstance(selected, UndefinedValue):
+        return selected
+    x, y = selected
     return PointValue(x=_clean_zero(x), y=_clean_zero(y))
 
 
@@ -635,6 +649,45 @@ def _sorted_pair(
     """Return (higher-y-or-smaller-x, other) for deterministic two-solution ordering."""
     p_first = p[1] > q[1] + GEOMETRY_EPSILON or (abs(p[1] - q[1]) <= GEOMETRY_EPSILON and p[0] <= q[0])
     return (p, q) if p_first else (q, p)
+
+
+def _select_intersection(
+    p: tuple[float, float],
+    q: tuple[float, float],
+    *,
+    index: int | None,
+    selector: str | None,
+) -> tuple[float, float] | UndefinedValue:
+    """Select one of two solutions without silently guessing directional ties."""
+
+    if hypot(p[0] - q[0], p[1] - q[1]) <= GEOMETRY_EPSILON:
+        return p
+    first, second = _sorted_pair(p, q)
+    if index is not None:
+        return first if index == 1 else second
+    if selector == "first":
+        return first
+    if selector == "second":
+        return second
+    if selector in ("upper", "lower"):
+        if abs(p[1] - q[1]) <= GEOMETRY_EPSILON:
+            return UndefinedValue(
+                code="ambiguous_selector",
+                message=f"Selector '{selector}' cannot distinguish intersections with equal y",
+            )
+        if selector == "upper":
+            return p if p[1] > q[1] else q
+        return p if p[1] < q[1] else q
+    if selector in ("left", "right"):
+        if abs(p[0] - q[0]) <= GEOMETRY_EPSILON:
+            return UndefinedValue(
+                code="ambiguous_selector",
+                message=f"Selector '{selector}' cannot distinguish intersections with equal x",
+            )
+        if selector == "left":
+            return p if p[0] < q[0] else q
+        return p if p[0] > q[0] else q
+    return UndefinedValue(code="invalid_selector", message="Intersection selector is invalid")
 
 
 def _clean_zero(value: float) -> float:

@@ -75,4 +75,30 @@ describe("document persistence", () => {
     expect(script).toContain("circumference = Circle(A, C)");
     expect(script.indexOf("A = Point")).toBeLessThan(script.indexOf("AB = Line"));
   });
+
+  it("preserves directional intersection selectors in JSON and script exports", () => {
+    const selected: GeometryDocument = {
+      ...exampleGeometryDocument,
+      objects: [
+        ...exampleGeometryDocument.objects,
+        {
+          id: "selected",
+          label: "selected",
+          kind: "point",
+          visible: true,
+          definition: {
+            type: "intersection_lc",
+            line: "AB",
+            circle: "circumference",
+            selector: "left",
+          },
+        },
+      ],
+    };
+
+    expect(importDocumentJson(exportDocumentJson(selected))).toEqual(selected);
+    expect(documentToScript(selected)).toContain(
+      "selected = Intersection(AB, circumference, left)",
+    );
+  });
 });

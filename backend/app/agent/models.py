@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -74,6 +74,37 @@ class PointLineConstructionInput(GeometryModel):
     line: str
 
 
+class LineLineIntersectionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    line_a: str
+    line_b: str
+
+
+class CircleLineIntersectionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    circle: str
+    line: str
+    selector: Literal["first", "second", "left", "right"]
+
+
+class CircleCircleIntersectionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    circle_a: str
+    circle_b: str
+    selector: Literal["upper", "lower", "left", "right"]
+
+
+class ThreePointConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    point_a: str
+    point_b: str
+    point_c: str
+
+
 class ValidateConstructionInput(GeometryModel):
     document: GeometryDocument | None = None
 
@@ -104,4 +135,3 @@ class EvaluateScriptToolOutput(GeometryModel):
 
 class GetGraphToolOutput(GeometryModel):
     graph: GraphView
-

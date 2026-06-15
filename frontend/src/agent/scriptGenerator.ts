@@ -32,9 +32,13 @@ function objectToStatement(object: GeometryObject): string {
     case "intersection_ll":
       return `${object.id} = IntersectionLL(${definition.lineA}, ${definition.lineB})`;
     case "intersection_lc":
-      return `${object.id} = IntersectionLC(${definition.line}, ${definition.circle}, ${definition.index})`;
+      return definition.selector != null
+        ? `${object.id} = Intersection(${definition.line}, ${definition.circle}, ${definition.selector})`
+        : `${object.id} = IntersectionLC(${definition.line}, ${definition.circle}, ${definition.index})`;
     case "intersection_cc":
-      return `${object.id} = IntersectionCC(${definition.circleA}, ${definition.circleB}, ${definition.index})`;
+      return definition.selector != null
+        ? `${object.id} = Intersection(${definition.circleA}, ${definition.circleB}, ${definition.selector})`
+        : `${object.id} = IntersectionCC(${definition.circleA}, ${definition.circleB}, ${definition.index})`;
     case "perpendicular_bisector":
       return `${object.id} = PerpendicularBisector(${definition.pointA}, ${definition.pointB})`;
     case "angle_bisector":
@@ -61,4 +65,3 @@ function objectToStatement(object: GeometryObject): string {
 function formatNumber(value: number): string {
   return Number(value.toFixed(10)).toString();
 }
-

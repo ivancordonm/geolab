@@ -227,3 +227,48 @@ def test_script_with_inline_coordinates_is_deterministic() -> None:
     ids2 = [obj.id for obj in doc2.objects]
     assert ids1 == ids2
 
+
+def test_generic_intersection_builds_equilateral_triangle_without_manual_coordinates() -> None:
+    script = """A = Point(0,0)
+B = Point(4,0)
+cA = Circle(A,B)
+cB = Circle(B,A)
+C = Intersection(cA,cB,upper)
+AB = Segment(A,B)
+AC = Segment(A,C)
+BC = Segment(B,C)"""
+
+    document, values = evaluate_script(script)
+
+    assert document.objects[4].definition.selector == "upper"
+    assert values["C"].type == "point"
+    assert values["C"].x == pytest.approx(2)
+    assert values["C"].y == pytest.approx(3.464101615)
+
+
+def test_generic_intersection_rejects_ambiguous_direction() -> None:
+    script = """A = Point(0,0)
+B = Point(4,0)
+cA = Circle(A,B)
+cB = Circle(B,A)
+C = Intersection(cA,cB,left)"""
+
+    with pytest.raises(ConstructionScriptError) as error_info:
+        evaluate_script(script)
+
+    assert error_info.value.diagnostic.code == "ambiguous_selector"
+    assert error_info.value.diagnostic.line == 5
+
+
+def test_legacy_numeric_intersection_script_remains_supported() -> None:
+    script = """A = Point(0,0)
+B = Point(4,0)
+cA = Circle(A,B)
+cB = Circle(B,A)
+C = IntersectionCC(cA,cB,1)"""
+
+    document, values = evaluate_script(script)
+
+    assert document.objects[-1].definition.index == 1
+    assert document.objects[-1].definition.selector is None
+    assert values["C"].type == "point"

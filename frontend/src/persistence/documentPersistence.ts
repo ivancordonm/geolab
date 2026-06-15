@@ -184,9 +184,13 @@ function objectToScript(
     case "intersection_ll":
       return `${variable} = IntersectionLL(${reference(object.definition.lineA)}, ${reference(object.definition.lineB)})`;
     case "intersection_lc":
-      return `${variable} = IntersectionLC(${reference(object.definition.line)}, ${reference(object.definition.circle)}, ${object.definition.index})`;
+      return object.definition.selector != null
+        ? `${variable} = Intersection(${reference(object.definition.line)}, ${reference(object.definition.circle)}, ${object.definition.selector})`
+        : `${variable} = IntersectionLC(${reference(object.definition.line)}, ${reference(object.definition.circle)}, ${object.definition.index})`;
     case "intersection_cc":
-      return `${variable} = IntersectionCC(${reference(object.definition.circleA)}, ${reference(object.definition.circleB)}, ${object.definition.index})`;
+      return object.definition.selector != null
+        ? `${variable} = Intersection(${reference(object.definition.circleA)}, ${reference(object.definition.circleB)}, ${object.definition.selector})`
+        : `${variable} = IntersectionCC(${reference(object.definition.circleA)}, ${reference(object.definition.circleB)}, ${object.definition.index})`;
     case "perpendicular_bisector":
       return `${variable} = PerpendicularBisector(${reference(object.definition.pointA)}, ${reference(object.definition.pointB)})`;
     case "angle_bisector":

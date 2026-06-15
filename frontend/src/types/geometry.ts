@@ -66,12 +66,24 @@ export interface IntersectionLL extends GeometryObjectBase {
 
 export interface IntersectionLC extends GeometryObjectBase {
   kind: "point";
-  definition: { type: "intersection_lc"; line: GeometryObjectId; circle: GeometryObjectId; index: 1 | 2 };
+  definition: {
+    type: "intersection_lc";
+    line: GeometryObjectId;
+    circle: GeometryObjectId;
+    index?: 1 | 2 | null;
+    selector?: "first" | "second" | "left" | "right" | null;
+  };
 }
 
 export interface IntersectionCC extends GeometryObjectBase {
   kind: "point";
-  definition: { type: "intersection_cc"; circleA: GeometryObjectId; circleB: GeometryObjectId; index: 1 | 2 };
+  definition: {
+    type: "intersection_cc";
+    circleA: GeometryObjectId;
+    circleB: GeometryObjectId;
+    index?: 1 | 2 | null;
+    selector?: "upper" | "lower" | "left" | "right" | null;
+  };
 }
 
 // ─── Bisectors and special lines ───────────────────────────────────────────

@@ -17,7 +17,7 @@ def test_agent_tool_discovery_endpoint() -> None:
 
     assert response.status_code == 200
     tools = {item["name"]: item for item in response.json()}
-    assert len(tools) == 10
+    assert len(tools) == 16
     assert tools["create_point"]["mutatesGeometryState"] is True
     assert tools["get_current_graph"]["mutatesGeometryState"] is False
     assert tools["create_line"]["inputSchema"]["properties"]["pointA"]["type"] == "string"
@@ -82,4 +82,3 @@ def test_invalid_calls_return_errors_without_partial_mutation() -> None:
     assert invalid_reference.status_code == 422
     assert invalid_reference.json()["detail"]["code"] == "tool_execution_failed"
     assert client.get("/geometry/graph").json()["revision"] == 0
-

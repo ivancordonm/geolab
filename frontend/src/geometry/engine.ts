@@ -205,10 +205,20 @@ export class GeometryGraph {
       case "intersection_lc":
         requireKind(def.line, "line");
         requireKind(def.circle, "circle");
+        if ((def.index == null) === (def.selector == null)) {
+          throw new GeometryValidationError(
+            `Object '${object.id}' requires exactly one intersection index or selector`,
+          );
+        }
         return;
       case "intersection_cc":
         requireKind(def.circleA, "circle");
         requireKind(def.circleB, "circle");
+        if ((def.index == null) === (def.selector == null)) {
+          throw new GeometryValidationError(
+            `Object '${object.id}' requires exactly one intersection index or selector`,
+          );
+        }
         return;
       case "angle_bisector":
         requireKind(def.armA, "point");
@@ -381,7 +391,7 @@ export class GeometryGraph {
         if (isUndefined(ln)) return ln;
         const cr = this.requireValue<CircleValue>(object.id, def.circle, "circle");
         if (isUndefined(cr)) return cr;
-        return intersectLineCircle(ln, cr, def.index);
+        return intersectLineCircle(ln, cr, def.index, def.selector);
       }
 
       case "intersection_cc": {
@@ -389,7 +399,7 @@ export class GeometryGraph {
         if (isUndefined(cA)) return cA;
         const cB = this.requireValue<CircleValue>(object.id, def.circleB, "circle");
         if (isUndefined(cB)) return cB;
-        return intersectCircleCircle(cA, cB, def.index);
+        return intersectCircleCircle(cA, cB, def.index, def.selector);
       }
 
       // ─── New: bisectors / circumcircle ────────────────────────────────
@@ -608,7 +618,12 @@ function intersectLines(lA: LineValue, lB: LineValue): EvaluatedValue {
   };
 }
 
-function intersectLineCircle(ln: LineValue, cr: CircleValue, index: 1 | 2): EvaluatedValue {
+function intersectLineCircle(
+  ln: LineValue,
+  cr: CircleValue,
+  index?: 1 | 2 | null,
+  selector?: "first" | "second" | "left" | "right" | null,
+): EvaluatedValue {
   // ln is normalized (a²+b²=1). signed distance from center to line:
   const dSigned = ln.a * cr.center.x + ln.b * cr.center.y + ln.c;
   const d2 = dSigned * dSigned;
@@ -623,12 +638,17 @@ function intersectLineCircle(ln: LineValue, cr: CircleValue, index: 1 | 2): Eval
   // Two candidate points: foot ± h * tangent direction (-b, a)
   const p1 = { x: fx - ln.b * h, y: fy + ln.a * h };
   const p2 = { x: fx + ln.b * h, y: fy - ln.a * h };
-  const [hi, lo] = sortedPair(p1, p2);
-  const pt = index === 1 ? hi : lo;
+  const pt = selectIntersection(p1, p2, index, selector);
+  if ("type" in pt) return pt;
   return { type: "point", x: cleanZero(pt.x), y: cleanZero(pt.y) };
 }
 
-function intersectCircleCircle(cA: CircleValue, cB: CircleValue, index: 1 | 2): EvaluatedValue {
+function intersectCircleCircle(
+  cA: CircleValue,
+  cB: CircleValue,
+  index?: 1 | 2 | null,
+  selector?: "upper" | "lower" | "left" | "right" | null,
+): EvaluatedValue {
   const dx = cB.center.x - cA.center.x;
   const dy = cB.center.y - cA.center.y;
   const d = Math.hypot(dx, dy);
@@ -647,8 +667,8 @@ function intersectCircleCircle(cA: CircleValue, cB: CircleValue, index: 1 | 2): 
   const fy = cA.center.y + a * ey;
   const p1 = { x: fx - h * ey, y: fy + h * ex };
   const p2 = { x: fx + h * ey, y: fy - h * ex };
-  const [hi, lo] = sortedPair(p1, p2);
-  const pt = index === 1 ? hi : lo;
+  const pt = selectIntersection(p1, p2, index, selector);
+  if ("type" in pt) return pt;
   return { type: "point", x: cleanZero(pt.x), y: cleanZero(pt.y) };
 }
 
@@ -715,6 +735,32 @@ function sortedPair(
     p.y > q.y + GEOMETRY_EPSILON ||
     (Math.abs(p.y - q.y) <= GEOMETRY_EPSILON && p.x <= q.x);
   return pFirst ? [p, q] : [q, p];
+}
+
+function selectIntersection(
+  p: { x: number; y: number },
+  q: { x: number; y: number },
+  index?: 1 | 2 | null,
+  selector?: string | null,
+): { x: number; y: number } | Extract<EvaluatedValue, { type: "undefined" }> {
+  if (Math.hypot(p.x - q.x, p.y - q.y) <= GEOMETRY_EPSILON) return p;
+  const [first, second] = sortedPair(p, q);
+  if (index != null) return index === 1 ? first : second;
+  if (selector === "first") return first;
+  if (selector === "second") return second;
+  if (selector === "upper" || selector === "lower") {
+    if (Math.abs(p.y - q.y) <= GEOMETRY_EPSILON) {
+      return { type: "undefined", code: "ambiguous_selector", message: `Selector '${selector}' cannot distinguish intersections with equal y` };
+    }
+    return selector === "upper" ? (p.y > q.y ? p : q) : (p.y < q.y ? p : q);
+  }
+  if (selector === "left" || selector === "right") {
+    if (Math.abs(p.x - q.x) <= GEOMETRY_EPSILON) {
+      return { type: "undefined", code: "ambiguous_selector", message: `Selector '${selector}' cannot distinguish intersections with equal x` };
+    }
+    return selector === "left" ? (p.x < q.x ? p : q) : (p.x > q.x ? p : q);
+  }
+  return { type: "undefined", code: "invalid_selector", message: "Intersection selector is invalid" };
 }
 
 function cleanZero(value: number): number {

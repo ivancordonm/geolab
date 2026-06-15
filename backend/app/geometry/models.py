@@ -101,14 +101,28 @@ class IntersectionLCDefinition(GeometryModel):
     type: Literal["intersection_lc"] = "intersection_lc"
     line: str
     circle: str
-    index: Literal[1, 2]
+    index: Literal[1, 2] | None = None
+    selector: Literal["first", "second", "left", "right"] | None = None
+
+    @model_validator(mode="after")
+    def exactly_one_solution_selector(self) -> IntersectionLCDefinition:
+        if (self.index is None) == (self.selector is None):
+            raise ValueError("intersection_lc requires exactly one of index or selector")
+        return self
 
 
 class IntersectionCCDefinition(GeometryModel):
     type: Literal["intersection_cc"] = "intersection_cc"
     circle_a: str
     circle_b: str
-    index: Literal[1, 2]
+    index: Literal[1, 2] | None = None
+    selector: Literal["upper", "lower", "left", "right"] | None = None
+
+    @model_validator(mode="after")
+    def exactly_one_solution_selector(self) -> IntersectionCCDefinition:
+        if (self.index is None) == (self.selector is None):
+            raise ValueError("intersection_cc requires exactly one of index or selector")
+        return self
 
 
 # ─── New: bisectors and circumcircle ───────────────────────────────────────

@@ -64,6 +64,7 @@ CommandName = Literal[
     "IntersectionLL",
     "IntersectionLC",
     "IntersectionCC",
+    "Intersection",
     "PerpendicularBisector",
     "AngleBisector",
     "Circumcircle",
@@ -86,6 +87,7 @@ SUPPORTED_COMMANDS: frozenset[str] = frozenset(
         "IntersectionLL",
         "IntersectionLC",
         "IntersectionCC",
+        "Intersection",
         "PerpendicularBisector",
         "AngleBisector",
         "Circumcircle",
@@ -260,6 +262,19 @@ def evaluate_script(
         viewport=GeometryViewport(),
     )
     graph = GeometryGraph(document)
+    statements_by_target = {statement.target: statement for statement in statements}
+    for obj in graph.document.objects:
+        definition = obj.definition
+        selector = getattr(definition, "selector", None)
+        value = graph.values[obj.id]
+        if selector is not None and value.type == "undefined":
+            statement = statements_by_target[obj.id]
+            _raise(
+                value.code,
+                value.message,
+                statement.line,
+                statement.source_line,
+            )
     return graph.document, graph.values
 
 
@@ -333,6 +348,55 @@ def _build_object(
         _require_kind(cB, "circle", statement, 2)
         idx = _parse_index(arguments[2], statement, argument_position=3)
         return [IntersectionCC(id=statement.target, label=statement.target, definition=IntersectionCCDefinition(circle_a=cA.id, circle_b=cB.id, index=idx))]
+
+    if command == "Intersection":
+        if len(arguments) not in (2, 3):
+            _raise(
+                "invalid_arity",
+                "Command 'Intersection' expects 2 or 3 arguments",
+                statement.line,
+                statement.source_line,
+            )
+        first = _resolve_reference(arguments[0], statement, symbols, argument_position=1)
+        second = _resolve_reference(arguments[1], statement, symbols, argument_position=2)
+        if first.kind == "line" and second.kind == "line":
+            if len(arguments) != 2:
+                _raise(
+                    "invalid_arity",
+                    "Line-line Intersection expects exactly 2 arguments",
+                    statement.line,
+                    statement.source_line,
+                )
+            return [IntersectionLL(id=statement.target, label=statement.target, definition=IntersectionLLDefinition(line_a=first.id, line_b=second.id))]
+        if len(arguments) != 3:
+            _raise(
+                "invalid_arity",
+                "Circle intersections require a selector",
+                statement.line,
+                statement.source_line,
+            )
+        if {first.kind, second.kind} == {"line", "circle"}:
+            selector = _parse_selector(
+                arguments[2],
+                statement,
+                allowed=("first", "second", "left", "right"),
+            )
+            line = first if first.kind == "line" else second
+            circle = first if first.kind == "circle" else second
+            return [IntersectionLC(id=statement.target, label=statement.target, definition=IntersectionLCDefinition(line=line.id, circle=circle.id, selector=selector))]
+        if first.kind == "circle" and second.kind == "circle":
+            selector = _parse_selector(
+                arguments[2],
+                statement,
+                allowed=("upper", "lower", "left", "right"),
+            )
+            return [IntersectionCC(id=statement.target, label=statement.target, definition=IntersectionCCDefinition(circle_a=first.id, circle_b=second.id, selector=selector))]
+        _raise(
+            "invalid_reference_type",
+            "Intersection requires line-line, line-circle, or circle-circle parents",
+            statement.line,
+            statement.source_line,
+        )
 
     # ─── New: bisectors / circumcircle ────────────────────────────────────
 
@@ -478,6 +542,24 @@ def _parse_index(token: str, statement: ParsedStatement, *, argument_position: i
             token,
         )
     return 1 if token.strip() == "1" else 2
+
+
+def _parse_selector(
+    token: str,
+    statement: ParsedStatement,
+    *,
+    allowed: tuple[str, ...],
+) -> str:
+    selector = token.strip().lower()
+    if selector not in allowed:
+        _raise(
+            "expected_selector",
+            f"Argument 3 of Intersection must be one of {', '.join(allowed)}, received '{token}'",
+            statement.line,
+            statement.source_line,
+            token,
+        )
+    return selector
 
 
 def _resolve_reference(

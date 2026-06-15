@@ -20,16 +20,20 @@ from app.agent.models import (
     LineLineIntersectionInput,
     MutationToolOutput,
     PointLineConstructionInput,
+    PolygonConstructionInput,
+    RegularPolygonConstructionInput,
     ThreePointConstructionInput,
     TwoPointConstructionInput,
     ValidateConstructionInput,
     ValidationToolOutput,
+    VectorPolygonConstructionInput,
 )
 from app.agent.registry import ToolDefinition, ToolExecutionError, ToolRegistry
 from app.geometry.engine import GeometryGraph
 from app.geometry.models import (
     Circle,
     CircleByCenterPointDefinition,
+    Coordinate,
     GeometryDocument,
     GeometryObject,
     IntersectionCC,
@@ -53,8 +57,12 @@ from app.geometry.models import (
     CircumscribedCircle,
     CircumscribedDefinition,
     Point,
+    Polygon,
+    PolygonDefinition,
+    RegularPolygonDefinition,
     Segment,
     SegmentBetweenPointsDefinition,
+    VectorPolygonDefinition,
 )
 from app.geometry.script import ConstructionScriptError, evaluate_script
 from app.geometry.workspace import (
@@ -210,6 +218,36 @@ def create_geometry_tool_registry(workspace: GeometryWorkspace) -> ToolRegistry:
             MutationToolOutput,
             True,
             lambda model: _create_circumcircle(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_polygon",
+            "Create a basic closed polygon from three or more existing points (in vertex order).",
+            PolygonConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_polygon(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_regular_polygon",
+            "Create a regular n-gon: provide two adjacent vertices and the number of sides.",
+            RegularPolygonConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_regular_polygon(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_vector_polygon",
+            "Create a vector polygon from an anchor point and a list of (x, y) offset vectors.",
+            VectorPolygonConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_vector_polygon(workspace, model),
         )
     )
     registry.register(
@@ -507,6 +545,66 @@ def _evaluate_script(
         document=workspace.document_snapshot(),
         graph=graph_view_from_access_map(access),
     )
+
+
+def _create_polygon(
+    workspace: GeometryWorkspace,
+    raw_input: BaseModel,
+) -> MutationToolOutput:
+    input_model = PolygonConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    if len(input_model.point_ids) < 3:
+        raise ToolExecutionError("A polygon requires at least 3 vertex points")
+    point_ids = [_resolve_kind(access, pid, "point").object.id for pid in input_model.point_ids]
+    obj = Polygon(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=PolygonDefinition(point_ids=point_ids),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_regular_polygon(
+    workspace: GeometryWorkspace,
+    raw_input: BaseModel,
+) -> MutationToolOutput:
+    input_model = RegularPolygonConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    if input_model.sides < 3:
+        raise ToolExecutionError("A regular polygon requires at least 3 sides")
+    point_a = _resolve_kind(access, input_model.point_a, "point")
+    point_b = _resolve_kind(access, input_model.point_b, "point")
+    obj = Polygon(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=RegularPolygonDefinition(
+            point_a=point_a.object.id,
+            point_b=point_b.object.id,
+            sides=input_model.sides,
+        ),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_vector_polygon(
+    workspace: GeometryWorkspace,
+    raw_input: BaseModel,
+) -> MutationToolOutput:
+    input_model = VectorPolygonConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    anchor = _resolve_kind(access, input_model.anchor, "point")
+    if len(input_model.offsets) < 2:
+        raise ToolExecutionError("A vector polygon requires at least 2 offset vectors")
+    offsets = [Coordinate(x=o["x"], y=o["y"]) for o in input_model.offsets]
+    obj = Polygon(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=VectorPolygonDefinition(anchor=anchor.object.id, offsets=offsets),
+    )
+    return _commit_defined(workspace, obj)
 
 
 def _commit(workspace: GeometryWorkspace, obj: GeometryObject) -> MutationToolOutput:

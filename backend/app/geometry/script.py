@@ -14,6 +14,7 @@ from app.geometry.models import (
     CircleByCenterPointDefinition,
     CircumscribedCircle,
     CircumscribedDefinition,
+    Coordinate,
     EvaluatedValue,
     GeometryDocument,
     GeometryObject,
@@ -41,16 +42,20 @@ from app.geometry.models import (
     PerpendicularLine,
     PerpendicularLineDefinition,
     Point,
+    Polygon,
+    PolygonDefinition,
     ReflectionOverLine,
     ReflectionOverLineDefinition,
     ReflectionOverPoint,
     ReflectionOverPointDefinition,
+    RegularPolygonDefinition,
     RotatedPoint,
     RotationDefinition,
     Segment,
     SegmentBetweenPointsDefinition,
     TranslatedPoint,
     TranslationDefinition,
+    VectorPolygonDefinition,
 )
 
 CommandName = Literal[
@@ -73,6 +78,8 @@ CommandName = Literal[
     "Inversion",
     "Translation",
     "Rotation",
+    "Polygon",
+    "VectorPolygon",
 ]
 
 SUPPORTED_COMMANDS: frozenset[str] = frozenset(
@@ -96,6 +103,8 @@ SUPPORTED_COMMANDS: frozenset[str] = frozenset(
         "Inversion",
         "Translation",
         "Rotation",
+        "Polygon",
+        "VectorPolygon",
     }
 )
 
@@ -468,6 +477,76 @@ def _build_object(
         center = _resolve_point_argument(arguments[1], statement, symbols, objects, argument_position=2)
         degrees = _parse_number(arguments[2], statement, argument_position=3)
         return [RotatedPoint(id=statement.target, label=statement.target, definition=RotationDefinition(point=pt.id, center=center.id, degrees=degrees))]
+
+    # ─── New: polygons ─────────────────────────────────────────────────────────
+
+    if command == "Polygon":
+        # Polygon(A, B, C, …)               → basic polygon (≥3 point args)
+        # Polygon(A, B, n)                  → regular polygon when last arg is int ≥3
+        if len(arguments) < 3:
+            _raise(
+                "invalid_arity",
+                "Command 'Polygon' requires at least 3 arguments",
+                statement.line,
+                statement.source_line,
+            )
+        # Detect regular polygon: last arg is a plain integer ≥3
+        last_token = arguments[-1].strip()
+        is_int_literal = re.fullmatch(r"\d+", last_token) is not None
+        if is_int_literal and len(arguments) == 3:
+            sides = int(last_token)
+            if sides < 3:
+                _raise(
+                    "invalid_arity",
+                    "Regular polygon requires at least 3 sides",
+                    statement.line,
+                    statement.source_line,
+                )
+            pA = _resolve_point_argument(arguments[0], statement, symbols, objects, argument_position=1)
+            pB = _resolve_point_argument(arguments[1], statement, symbols, objects, argument_position=2)
+            return [Polygon(
+                id=statement.target,
+                label=statement.target,
+                definition=RegularPolygonDefinition(point_a=pA.id, point_b=pB.id, sides=sides),
+            )]
+        # Basic polygon: all args are point references/coordinates
+        point_objs = []
+        for i, arg in enumerate(arguments):
+            pt = _resolve_point_argument(arg, statement, symbols, objects, argument_position=i + 1)
+            point_objs.append(pt)
+        return [Polygon(
+            id=statement.target,
+            label=statement.target,
+            definition=PolygonDefinition(point_ids=[p.id for p in point_objs]),
+        )]
+
+    if command == "VectorPolygon":
+        # VectorPolygon(anchor, (dx1,dy1), (dx2,dy2), …)
+        if len(arguments) < 3:
+            _raise(
+                "invalid_arity",
+                "Command 'VectorPolygon' requires an anchor point and at least 2 offset vectors",
+                statement.line,
+                statement.source_line,
+            )
+        anchor = _resolve_point_argument(arguments[0], statement, symbols, objects, argument_position=1)
+        offsets: list[Coordinate] = []
+        for i, arg in enumerate(arguments[1:], start=2):
+            coord_match = _COORDINATE_PATTERN.fullmatch(arg.strip())
+            if coord_match is None:
+                _raise(
+                    "expected_coordinate",
+                    f"Argument {i} of VectorPolygon must be an (x, y) offset coordinate",
+                    statement.line,
+                    statement.source_line,
+                    arg,
+                )
+            offsets.append(Coordinate(x=float(coord_match.group("x")), y=float(coord_match.group("y"))))
+        return [Polygon(
+            id=statement.target,
+            label=statement.target,
+            definition=VectorPolygonDefinition(anchor=anchor.id, offsets=offsets),
+        )]
 
     _raise("unknown_command", f"Unknown command '{command}'", statement.line, statement.source_line)
 

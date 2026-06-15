@@ -211,6 +211,14 @@ function objectToScript(
       return `${variable} = Translation(${reference(object.definition.point)}, ${reference(object.definition.from)}, ${reference(object.definition.to)})`;
     case "rotation":
       return `${variable} = Rotation(${reference(object.definition.point)}, ${reference(object.definition.center)}, ${formatNumber(object.definition.degrees)})`;
+    case "polygon":
+      return `${variable} = Polygon(${object.definition.points.map((id) => reference(id)).join(", ")})`;
+    case "regular_polygon":
+      return `${variable} = Polygon(${reference(object.definition.pointA)}, ${reference(object.definition.pointB)}, ${object.definition.sides})`;
+    case "vector_polygon": {
+      const offsetArgs = object.definition.offsets.map((o) => `(${formatNumber(o.x)}, ${formatNumber(o.y)})`).join(", ");
+      return `${variable} = VectorPolygon(${reference(object.definition.anchor)}, ${offsetArgs})`;
+    }
   }
 }
 

@@ -105,6 +105,27 @@ class ThreePointConstructionInput(GeometryModel):
     point_c: str
 
 
+class PolygonConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    point_ids: list[str]
+
+
+class RegularPolygonConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    point_a: str
+    point_b: str
+    sides: int
+
+
+class VectorPolygonConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    anchor: str
+    offsets: list[dict[str, float]]
+
+
 class ValidateConstructionInput(GeometryModel):
     document: GeometryDocument | None = None
 

@@ -12,6 +12,7 @@ export const geometryColors = {
   segment: "var(--geo-segment)",
   circle: "var(--geo-circle)",
   line: "var(--geo-line)",
+  polygon: "var(--geo-polygon)",
   label: "var(--geo-label)",
   accent: "var(--geo-accent)",
 } as const;

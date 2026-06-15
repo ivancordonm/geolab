@@ -48,6 +48,7 @@
   --geo-segment: #0f766e;
   --geo-circle: #2563eb;
   --geo-line: #64748b;
+  --geo-polygon: #d97706;
   --geo-label: #172033;
   --geo-accent: #7c3aed;
   --label-halo: rgb(255 255 255 / 92%);
@@ -89,6 +90,7 @@
   --geo-segment: #2dd4bf;
   --geo-circle: #60a5fa;
   --geo-line: #94a3b8;
+  --geo-polygon: #fbbf24;
   --geo-label: #e7ecf4;
   --geo-accent: #c4b5fd;
   --label-halo: rgb(13 21 38 / 92%);

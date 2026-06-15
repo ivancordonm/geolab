@@ -238,6 +238,8 @@ export function App() {
       <ConstructionToolbar
         activeTool={constructionTools.activeTool}
         onActivateTool={constructionTools.activateTool}
+        regularPolygonSides={constructionTools.regularPolygonSides}
+        onRegularPolygonSidesChange={constructionTools.setRegularPolygonSides}
         controls={toolbarControls}
       />
 

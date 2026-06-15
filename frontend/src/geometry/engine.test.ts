@@ -173,3 +173,99 @@ describe("GeometryGraph", () => {
     });
   });
 });
+
+// ─── Conformance: polygon construction variants ──────────────────────────────
+
+function makeDoc(objects: GeometryDocument["objects"]): GeometryDocument {
+  return { schemaVersion: 1, id: "test", title: "test", objects };
+}
+
+describe("polygon conformance", () => {
+  it("basic polygon copies free point coordinates as vertices", () => {
+    const doc = makeDoc([
+      { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+      { id: "B", label: "B", kind: "point", visible: true, definition: { type: "free", x: 4, y: 0 } },
+      { id: "C", label: "C", kind: "point", visible: true, definition: { type: "free", x: 2, y: 3 } },
+      { id: "poly", label: "poly", kind: "polygon", visible: true, definition: { type: "polygon", points: ["A", "B", "C"] } },
+    ]);
+
+    const values = new GeometryGraph(doc).values;
+    const v = values.get("poly");
+    expect(v?.type).toBe("polygon");
+    if (v?.type !== "polygon") return;
+    expect(v.vertices).toHaveLength(3);
+    expectNestedClose(v.vertices[0], { x: 0, y: 0 });
+    expectNestedClose(v.vertices[1], { x: 4, y: 0 });
+    expectNestedClose(v.vertices[2], { x: 2, y: 3 });
+  });
+
+  it("regular polygon (square) generates correct 4 vertices", () => {
+    // A=(0,0), B=(1,0), 4 sides → CCW: (0,0),(1,0),(1,1),(0,1)
+    const doc = makeDoc([
+      { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+      { id: "B", label: "B", kind: "point", visible: true, definition: { type: "free", x: 1, y: 0 } },
+      { id: "poly", label: "poly", kind: "polygon", visible: true, definition: { type: "regular_polygon", pointA: "A", pointB: "B", sides: 4 } },
+    ]);
+
+    const values = new GeometryGraph(doc).values;
+    const v = values.get("poly");
+    expect(v?.type).toBe("polygon");
+    if (v?.type !== "polygon") return;
+    expect(v.vertices).toHaveLength(4);
+    expectNestedClose(v.vertices[0], { x: 0, y: 0 });
+    expectNestedClose(v.vertices[1], { x: 1, y: 0 });
+    expectNestedClose(v.vertices[2], { x: 1, y: 1 });
+    expectNestedClose(v.vertices[3], { x: 0, y: 1 });
+  });
+
+  it("regular polygon equilateral triangle has equal side lengths", () => {
+    const doc = makeDoc([
+      { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+      { id: "B", label: "B", kind: "point", visible: true, definition: { type: "free", x: 2, y: 0 } },
+      { id: "poly", label: "poly", kind: "polygon", visible: true, definition: { type: "regular_polygon", pointA: "A", pointB: "B", sides: 3 } },
+    ]);
+
+    const values = new GeometryGraph(doc).values;
+    const v = values.get("poly");
+    expect(v?.type).toBe("polygon");
+    if (v?.type !== "polygon") return;
+    expect(v.vertices).toHaveLength(3);
+    for (let i = 0; i < 3; i++) {
+      const j = (i + 1) % 3;
+      const dx = v.vertices[j].x - v.vertices[i].x;
+      const dy = v.vertices[j].y - v.vertices[i].y;
+      expect(Math.sqrt(dx * dx + dy * dy)).toBeCloseTo(2.0, 9);
+    }
+  });
+
+  it("vector polygon places vertices relative to anchor", () => {
+    const doc = makeDoc([
+      { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 1, y: 1 } },
+      { id: "poly", label: "poly", kind: "polygon", visible: true, definition: { type: "vector_polygon", anchor: "A", offsets: [{ x: 1, y: 0 }, { x: 0, y: 1 }] } },
+    ]);
+
+    const values = new GeometryGraph(doc).values;
+    const v = values.get("poly");
+    expect(v?.type).toBe("polygon");
+    if (v?.type !== "polygon") return;
+    expect(v.vertices).toHaveLength(3);
+    expectNestedClose(v.vertices[0], { x: 1, y: 1 });
+    expectNestedClose(v.vertices[1], { x: 2, y: 1 });
+    expectNestedClose(v.vertices[2], { x: 1, y: 2 });
+  });
+
+  it("vector polygon translates all vertices when anchor moves", () => {
+    const doc = makeDoc([
+      { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 1, y: 1 } },
+      { id: "poly", label: "poly", kind: "polygon", visible: true, definition: { type: "vector_polygon", anchor: "A", offsets: [{ x: 1, y: 0 }, { x: 0, y: 1 }] } },
+    ]);
+
+    const { values } = new GeometryGraph(doc).moveFreePoint("A", 3, 4);
+    const v = values.get("poly");
+    expect(v?.type).toBe("polygon");
+    if (v?.type !== "polygon") return;
+    expectNestedClose(v.vertices[0], { x: 3, y: 4 });
+    expectNestedClose(v.vertices[1], { x: 4, y: 4 });
+    expectNestedClose(v.vertices[2], { x: 3, y: 5 });
+  });
+});

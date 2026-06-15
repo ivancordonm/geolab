@@ -56,7 +56,7 @@ def test_mcp_lists_registered_tools_with_safety_annotations(mcp_client: TestClie
 
     assert response.status_code == 200
     tools = {tool["name"]: tool for tool in response.json()["result"]["tools"]}
-    assert len(tools) == 19
+    assert len(tools) == 22
     assert "get_current_graph" not in tools
     assert tools["render_current_graph"]["annotations"]["readOnlyHint"] is True
     assert "Always use this tool" in tools["render_current_graph"]["description"]

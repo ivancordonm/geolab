@@ -71,6 +71,15 @@ def render_graph_svg(graph: GraphView) -> str:
                 f'<circle cx="{cx:.3f}" cy="{cy:.3f}" r="{value.radius * transform.scale:.3f}" '
                 f'fill="none" stroke="{escape(color)}" stroke-width="2.25"/>'
             )
+        elif value.type == "polygon":
+            screen_pts = [transform.point(v.x, v.y) for v in value.vertices]
+            points_str = " ".join(f"{x:.3f},{y:.3f}" for x, y in screen_pts)
+            fill_color = _lighten_for_fill(color)
+            elements.append(
+                f'<polygon points="{points_str}" '
+                f'fill="{escape(fill_color)}" fill-opacity="0.15" '
+                f'stroke="{escape(color)}" stroke-width="2.25" stroke-linejoin="round"/>'
+            )
         elif value.type == "point":
             x, y = transform.point(value.x, value.y)
             labels.append((x, y, item.object.label, color))
@@ -114,6 +123,11 @@ def render_graph_png(graph: GraphView) -> bytes:
             cx, cy = transform.point(value.center.x, value.center.y)
             radius = value.radius * transform.scale
             draw.ellipse((cx - radius, cy - radius, cx + radius, cy + radius), outline=color, width=2)
+        elif value.type == "polygon":
+            screen_pts = [transform.point(v.x, v.y) for v in value.vertices]
+            if len(screen_pts) >= 2:
+                # PIL polygon accepts a flat list of (x, y) tuples
+                draw.polygon(screen_pts, fill=None, outline=color, width=2)
         elif value.type == "point":
             x, y = transform.point(value.x, value.y)
             points.append((x, y, item.object.label, color))
@@ -156,6 +170,10 @@ def _bounds(graph: GraphView) -> RenderBounds:
         elif value.type == "circle":
             xs.extend((value.center.x - value.radius, value.center.x + value.radius))
             ys.extend((value.center.y - value.radius, value.center.y + value.radius))
+        elif value.type == "polygon":
+            for v in value.vertices:
+                xs.append(v.x)
+                ys.append(v.y)
     if not xs:
         return RenderBounds(-5, 5, -4, 4)
     min_x, max_x, min_y, max_y = min(xs), max(xs), min(ys), max(ys)
@@ -242,3 +260,8 @@ def _svg_line(
         f'<line x1="{x1:.3f}" y1="{y1:.3f}" x2="{x2:.3f}" y2="{y2:.3f}" '
         f'stroke="{escape(color)}" stroke-width="{width}"/>'
     )
+
+
+def _lighten_for_fill(color: str) -> str:
+    """Return the same color without modification; fill-opacity handles transparency in SVG."""
+    return color

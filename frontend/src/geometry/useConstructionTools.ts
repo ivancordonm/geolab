@@ -22,6 +22,8 @@ export interface ConstructionToolsState extends ConstructionToolState {
   instruction: string;
   activateTool: (tool: ConstructionTool) => void;
   cancel: () => void;
+  finish: () => void;
+  setRegularPolygonSides: (sides: number) => void;
   handleCanvasClick: (world: Coordinate) => void;
   handleObjectClick: (objectId: string) => void;
   updatePointer: (world: Coordinate | null) => void;
@@ -56,6 +58,14 @@ export function useConstructionTools({
     setState(controllerRef.current.cancel());
   }, []);
 
+  const finish = useCallback(() => {
+    applyResult(controllerRef.current.finish(document));
+  }, [applyResult, document]);
+
+  const setRegularPolygonSides = useCallback((sides: number) => {
+    setState(controllerRef.current.setRegularPolygonSides(sides));
+  }, []);
+
   const handleCanvasClick = useCallback(
     (world: Coordinate) => applyResult(controllerRef.current.handleCanvasClick(world, document)),
     [applyResult, document],
@@ -74,17 +84,21 @@ export function useConstructionTools({
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === "Escape") {
         setState(controllerRef.current.cancel());
+      } else if (event.key === "Enter") {
+        applyResult(controllerRef.current.finish(document));
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [applyResult, document]);
 
   return {
     ...state,
     instruction: TOOL_INSTRUCTIONS[state.activeTool],
     activateTool,
     cancel,
+    finish,
+    setRegularPolygonSides,
     handleCanvasClick,
     handleObjectClick,
     updatePointer,

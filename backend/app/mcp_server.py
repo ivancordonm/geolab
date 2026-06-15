@@ -271,6 +271,45 @@ def create_circumcircle(
     return _mutate(document, "create_circumcircle", {"objectId": object_id, "label": label, "pointA": point_a, "pointB": point_b, "pointC": point_c})
 
 
+@mcp.tool(annotations=CREATE)
+def create_polygon(
+    object_id: str,
+    point_ids: list[str],
+    document: GeometryDocument | None = None,
+    label: str | None = None,
+) -> dict[str, Any]:
+    """Create a closed polygon from three or more existing points (in vertex order)."""
+
+    return _mutate(document, "create_polygon", {"objectId": object_id, "label": label, "pointIds": point_ids})
+
+
+@mcp.tool(annotations=CREATE)
+def create_regular_polygon(
+    object_id: str,
+    point_a: str,
+    point_b: str,
+    sides: int,
+    document: GeometryDocument | None = None,
+    label: str | None = None,
+) -> dict[str, Any]:
+    """Create a regular n-gon from two adjacent vertices and a number of sides (≥3)."""
+
+    return _mutate(document, "create_regular_polygon", {"objectId": object_id, "label": label, "pointA": point_a, "pointB": point_b, "sides": sides})
+
+
+@mcp.tool(annotations=CREATE)
+def create_vector_polygon(
+    object_id: str,
+    anchor: str,
+    offsets: list[dict[str, float]],
+    document: GeometryDocument | None = None,
+    label: str | None = None,
+) -> dict[str, Any]:
+    """Create a vector polygon from an anchor point and a list of {x, y} offset dicts (≥2 offsets)."""
+
+    return _mutate(document, "create_vector_polygon", {"objectId": object_id, "label": label, "anchor": anchor, "offsets": offsets})
+
+
 @mcp.tool(
     description="Checks geometric consistency only. Does not render anything.",
     annotations=READ_ONLY,

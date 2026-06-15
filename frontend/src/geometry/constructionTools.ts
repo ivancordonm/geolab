@@ -15,6 +15,7 @@ import type {
   PerpendicularBisectorLine,
   PerpendicularLine,
   Point,
+  Polygon,
   ReflectionOverLine,
   ReflectionOverPoint,
   RotatedPoint,
@@ -41,13 +42,18 @@ export type ConstructionTool =
   | "homothety"
   | "inversion"
   | "translation"
-  | "rotation90";
+  | "rotation90"
+  | "polygon"
+  | "regular_polygon"
+  | "vector_polygon";
 
 export interface ConstructionToolState {
   activeTool: ConstructionTool;
   selectedObjectIds: readonly string[];
   pointerWorld: Coordinate | null;
   error: string | null;
+  /** Number of sides for the regular_polygon tool. */
+  regularPolygonSides: number;
 }
 
 export interface ConstructionToolResult {
@@ -75,6 +81,9 @@ export const TOOL_INSTRUCTIONS: Record<ConstructionTool, string> = {
   inversion: "Select the point to invert, then select the inversion circle.",
   translation: "Click the point to translate, then the start of the translation vector, then the end.",
   rotation90: "Click the point to rotate, then the rotation center (90° counter-clockwise).",
+  polygon: "Click 3+ points to define a polygon. Click the first point again or press Enter to close.",
+  regular_polygon: "Click two adjacent vertices, then set the number of sides in the toolbar.",
+  vector_polygon: "Click an anchor point and then additional vertices; drag the anchor to translate the whole polygon.",
 };
 
 type RequiredKind = "point" | "line" | "circle" | "line_or_circle";
@@ -113,6 +122,7 @@ export class ConstructionToolController {
     selectedObjectIds: [],
     pointerWorld: null,
     error: null,
+    regularPolygonSides: 5,
   };
 
   get state(): ConstructionToolState {
@@ -120,13 +130,47 @@ export class ConstructionToolController {
   }
 
   activate(tool: ConstructionTool): ConstructionToolState {
-    this.stateValue = { activeTool: tool, selectedObjectIds: [], pointerWorld: null, error: null };
+    this.stateValue = {
+      activeTool: tool,
+      selectedObjectIds: [],
+      pointerWorld: null,
+      error: null,
+      regularPolygonSides: this.stateValue.regularPolygonSides,
+    };
     return this.state;
   }
 
   cancel(): ConstructionToolState {
     this.stateValue = { ...this.stateValue, selectedObjectIds: [], pointerWorld: null, error: null };
     return this.state;
+  }
+
+  setRegularPolygonSides(sides: number): ConstructionToolState {
+    if (sides < 3) return this.state;
+    this.stateValue = { ...this.stateValue, regularPolygonSides: sides };
+    return this.state;
+  }
+
+  /**
+   * Finish a variable-arity polygon construction (polygon / vector_polygon).
+   * Requires ≥3 accumulated points. For regular_polygon this is automatic.
+   */
+  finish(document: GeometryDocument): ConstructionToolResult {
+    const tool = this.stateValue.activeTool;
+    if (tool !== "polygon" && tool !== "vector_polygon") {
+      return { state: this.state };
+    }
+    const selected = [...this.stateValue.selectedObjectIds];
+    if (selected.length < 3) {
+      return this.fail("Select at least 3 points before closing the polygon.");
+    }
+    const constructions = createConstruction(tool, selected, document);
+    this.stateValue = { ...this.stateValue, selectedObjectIds: [], pointerWorld: null, error: null };
+    return {
+      state: this.state,
+      createdObjects: constructions,
+      selectedObjectId: constructions[constructions.length - 1]?.id,
+    };
   }
 
   updatePointer(world: Coordinate | null): ConstructionToolState {
@@ -150,6 +194,30 @@ export class ConstructionToolController {
       };
       this.stateValue = { ...this.stateValue, error: null };
       return { state: this.state, createdObjects: [point], selectedObjectId: point.id };
+    }
+
+    // ─── Variable-arity polygon tools ───────────────────────────────────────
+    const activeTool = this.stateValue.activeTool;
+    if (activeTool === "polygon" || activeTool === "vector_polygon") {
+      const label = nextPointLabel(document);
+      const newPoint: Point = { id: label, label, kind: "point", visible: true, definition: { type: "free", x: world.x, y: world.y } };
+      const selected = [...this.stateValue.selectedObjectIds, newPoint.id];
+      this.stateValue = { ...this.stateValue, selectedObjectIds: selected, error: null };
+      return { state: this.state, createdObjects: [newPoint], selectedObjectId: newPoint.id };
+    }
+
+    if (activeTool === "regular_polygon") {
+      const label = nextPointLabel(document);
+      const newPoint: Point = { id: label, label, kind: "point", visible: true, definition: { type: "free", x: world.x, y: world.y } };
+      const selected = [...this.stateValue.selectedObjectIds, newPoint.id];
+      if (selected.length < 2) {
+        this.stateValue = { ...this.stateValue, selectedObjectIds: selected, error: null };
+        return { state: this.state, createdObjects: [newPoint], selectedObjectId: newPoint.id };
+      }
+      const candidateDoc: GeometryDocument = { ...document, objects: [...document.objects, newPoint] };
+      const constructions = createConstruction(activeTool, selected, candidateDoc, this.stateValue.regularPolygonSides);
+      this.stateValue = { ...this.stateValue, selectedObjectIds: [], pointerWorld: null, error: null };
+      return { state: this.state, createdObjects: [newPoint, ...constructions], selectedObjectId: constructions[constructions.length - 1]?.id };
     }
 
     const requirements = MULTI_STEP_REQUIREMENTS[this.stateValue.activeTool];
@@ -205,6 +273,41 @@ export class ConstructionToolController {
       return { state: this.state };
     }
 
+    // ─── Variable-arity polygon tools ───────────────────────────────────────
+    const activeTool2 = this.stateValue.activeTool;
+    if (activeTool2 === "polygon" || activeTool2 === "vector_polygon") {
+      if (object.kind !== "point") {
+        return this.fail("Select a point to add as a polygon vertex.");
+      }
+      const accumulated = this.stateValue.selectedObjectIds;
+      // Close polygon if the user clicks the first vertex again (and ≥3 points).
+      if (accumulated.length >= 3 && accumulated[0] === objectId) {
+        const constructions = createConstruction(activeTool2, [...accumulated], document);
+        this.stateValue = { ...this.stateValue, selectedObjectIds: [], pointerWorld: null, error: null };
+        return { state: this.state, createdObjects: constructions, selectedObjectId: constructions[constructions.length - 1]?.id };
+      }
+      if (accumulated.includes(objectId)) {
+        return this.fail("Point already added. Click the first point to close the polygon.");
+      }
+      const selected2 = [...accumulated, objectId];
+      this.stateValue = { ...this.stateValue, selectedObjectIds: selected2, error: null };
+      return { state: this.state, selectedObjectId: objectId };
+    }
+
+    if (activeTool2 === "regular_polygon") {
+      if (object.kind !== "point") {
+        return this.fail("Select a point as a polygon vertex.");
+      }
+      const selected2 = [...this.stateValue.selectedObjectIds, objectId];
+      if (selected2.length < 2) {
+        this.stateValue = { ...this.stateValue, selectedObjectIds: selected2, error: null };
+        return { state: this.state, selectedObjectId: objectId };
+      }
+      const constructions = createConstruction(activeTool2, selected2, document, this.stateValue.regularPolygonSides);
+      this.stateValue = { ...this.stateValue, selectedObjectIds: [], pointerWorld: null, error: null };
+      return { state: this.state, createdObjects: constructions, selectedObjectId: constructions[constructions.length - 1]?.id };
+    }
+
     const requirements = MULTI_STEP_REQUIREMENTS[this.stateValue.activeTool];
     if (requirements === undefined) {
       return { state: this.state };
@@ -244,6 +347,7 @@ function createConstruction(
   tool: ConstructionTool,
   selected: readonly string[],
   document: GeometryDocument,
+  regularPolygonSides = 5,
 ): readonly GeometryObject[] {
   const [first, second, third] = selected;
 
@@ -361,6 +465,57 @@ function createConstruction(
       return [obj];
     }
 
+    // ─── Polygons ──────────────────────────────────────────────────────────
+    case "polygon": {
+      const id = nextObjectId(document, "poly");
+      const obj: Polygon = {
+        id,
+        label: id,
+        kind: "polygon",
+        visible: true,
+        definition: { type: "polygon", points: [...selected] },
+      };
+      return [obj];
+    }
+    case "regular_polygon": {
+      const id = nextObjectId(document, "poly");
+      const obj: Polygon = {
+        id,
+        label: id,
+        kind: "polygon",
+        visible: true,
+        definition: { type: "regular_polygon", pointA: first, pointB: second, sides: regularPolygonSides },
+      };
+      return [obj];
+    }
+    case "vector_polygon": {
+      // The first selected point is the anchor. We don't know its coords
+      // (they live in the document values), so we store a basic polygon here;
+      // the evaluation engine converts it to a PolygonValue with relative offsets
+      // computed from the document. For the interactive tool we model it as a
+      // basic polygon whose anchor is the first clicked point.
+      const id = nextObjectId(document, "vpoly");
+      // Compute offsets relative to the first (anchor) point using world coords.
+      // This requires looking up the point definitions; for free points we can do it directly.
+      const anchorObj = document.objects.find((o) => o.id === first);
+      if (anchorObj?.kind === "point" && anchorObj.definition.type === "free") {
+        const ax = anchorObj.definition.x;
+        const ay = anchorObj.definition.y;
+        const offsets = selected.slice(1).map((pid) => {
+          const pObj = document.objects.find((o) => o.id === pid);
+          if (pObj?.kind === "point" && pObj.definition.type === "free") {
+            return { x: pObj.definition.x - ax, y: pObj.definition.y - ay };
+          }
+          return { x: 0, y: 0 };
+        });
+        const obj: Polygon = { id, label: id, kind: "polygon", visible: true, definition: { type: "vector_polygon", anchor: first, offsets } };
+        return [obj];
+      }
+      // Fallback: basic polygon
+      const obj: Polygon = { id, label: id, kind: "polygon", visible: true, definition: { type: "polygon", points: [...selected] } };
+      return [obj];
+    }
+
     default:
       throw new Error(`Tool '${tool}' does not create a multi-step construction`);
   }
@@ -391,5 +546,6 @@ function cloneState(state: ConstructionToolState): ConstructionToolState {
     ...state,
     selectedObjectIds: [...state.selectedObjectIds],
     pointerWorld: state.pointerWorld === null ? null : { ...state.pointerWorld },
+    regularPolygonSides: state.regularPolygonSides,
   };
 }

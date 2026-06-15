@@ -544,6 +544,9 @@ function describeObject(object: GeometryObject): string {
     inversion_in_circle: "Inversion in circle",
     translation: "Translation",
     rotation: "Rotation",
+    polygon: "Polygon",
+    regular_polygon: "Regular polygon",
+    vector_polygon: "Vector polygon",
   };
   return descriptions[object.definition.type];
 }

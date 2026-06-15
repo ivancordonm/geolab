@@ -20,6 +20,7 @@ import type {
   GeometryObject,
   GeometryViewport,
   LineValue,
+  PolygonValue,
   PointValue,
   SegmentValue,
   StrokeDash,
@@ -28,6 +29,7 @@ import { CircleView } from "./CircleView";
 import { Grid } from "./Grid";
 import { LineView } from "./LineView";
 import { PointView } from "./PointView";
+import { PolygonView } from "./PolygonView";
 import { SegmentView } from "./SegmentView";
 
 interface GeometryCanvasProps {
@@ -271,7 +273,20 @@ export function GeometryCanvas({
         <rect className="canvas-background" width={size.width} height={size.height} />
         <Grid viewport={viewport} size={size} />
         <g className="geometry-objects">
-          {document.objects.filter((object) => object.kind !== "point").map((object) =>
+          {document.objects.filter((object) => object.kind === "polygon").map((object) =>
+            renderGeometryObject(
+              object,
+              values.get(object.id),
+              viewport,
+              size,
+              activeTool,
+              selectedObjectIds,
+              handleObjectPointerDown,
+              onMoveFreePoint,
+              onSetLabelOffset,
+            ),
+          )}
+          {document.objects.filter((object) => object.kind !== "point" && object.kind !== "polygon").map((object) =>
             renderGeometryObject(
               object,
               values.get(object.id),
@@ -350,6 +365,10 @@ function renderGeometryObject(
   const onLabelOffsetChange = onSetLabelOffset
     ? (ox: number, oy: number) => onSetLabelOffset(object.id, ox, oy)
     : undefined;
+
+  if (value.type === "polygon") {
+    return renderPolygon(object, value, viewport, size, color, strokeWidth, strokeDash, selectedObjectIds.includes(object.id), labelOffset, onPointerDown, onLabelOffsetChange);
+  }
 
   if (value.type === "point") {
     return renderPoint(
@@ -531,6 +550,38 @@ function renderCircle(
       value={value}
       center={worldToScreen(value.center, viewport, size)}
       radius={value.radius * viewport.scale}
+      color={color}
+      strokeWidth={strokeWidth}
+      strokeDash={strokeDash}
+      selected={selected}
+      labelOffset={labelOffset}
+      onPointerDown={onPointerDown}
+      onLabelOffsetChange={onLabelOffsetChange}
+    />
+  );
+}
+
+function renderPolygon(
+  object: GeometryObject,
+  value: PolygonValue,
+  viewport: GeometryViewport,
+  size: CanvasSize,
+  color: string | undefined,
+  strokeWidth: number | undefined,
+  strokeDash: StrokeDash | undefined,
+  selected: boolean,
+  labelOffset: { x: number; y: number } | undefined,
+  onPointerDown: (objectId: string, event: ReactPointerEvent<SVGElement>) => void,
+  onLabelOffsetChange: ((ox: number, oy: number) => void) | undefined,
+) {
+  const screenVertices = value.vertices.map((v) => worldToScreen(v, viewport, size));
+  return (
+    <PolygonView
+      key={object.id}
+      objectId={object.id}
+      label={object.label}
+      value={value}
+      screenVertices={screenVertices}
       color={color}
       strokeWidth={strokeWidth}
       strokeDash={strokeDash}

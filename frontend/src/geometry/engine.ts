@@ -7,6 +7,7 @@ import type {
   GeometryObjectId,
   LineValue,
   Point,
+  PolygonValue,
   PointValue,
   UndefinedValue,
 } from "../types/geometry";
@@ -64,6 +65,13 @@ export function getParentIds(object: GeometryObject): GeometryObjectId[] {
       return [object.definition.point, object.definition.from, object.definition.to];
     case "rotation":
       return [object.definition.point, object.definition.center];
+    // ─── Polygons ─────────────────────────────────────────────────────────
+    case "polygon":
+      return [...object.definition.points];
+    case "regular_polygon":
+      return [object.definition.pointA, object.definition.pointB];
+    case "vector_polygon":
+      return [object.definition.anchor];
   }
 }
 
@@ -261,6 +269,26 @@ export class GeometryGraph {
         requireKind(def.point, "point");
         requireKind(def.center, "point");
         assertFiniteNumber(def.degrees, `${object.id}.degrees`);
+        return;
+      // ─── Polygons ───────────────────────────────────────────────────────
+      case "polygon":
+        if (def.points.length < 3) {
+          throw new GeometryValidationError(`Polygon '${object.id}' requires at least 3 vertices`);
+        }
+        for (const pid of def.points) requireKind(pid, "point");
+        return;
+      case "regular_polygon":
+        if (def.sides < 3) {
+          throw new GeometryValidationError(`RegularPolygon '${object.id}' requires at least 3 sides`);
+        }
+        requireKind(def.pointA, "point");
+        requireKind(def.pointB, "point");
+        return;
+      case "vector_polygon":
+        if (def.offsets.length < 2) {
+          throw new GeometryValidationError(`VectorPolygon '${object.id}' requires at least 2 offsets`);
+        }
+        requireKind(def.anchor, "point");
     }
   }
 
@@ -531,6 +559,38 @@ export class GeometryGraph {
           y: cleanZero(ctr.y + dx * sin + dy * cos),
         };
       }
+
+      // ─── Polygons ─────────────────────────────────────────────────────────
+
+      case "polygon": {
+        const vertices: { x: number; y: number }[] = [];
+        for (const pid of def.points) {
+          const pv = this.requireValue<PointValue>(object.id, pid, "point");
+          if (isUndefined(pv)) return pv;
+          vertices.push({ x: pv.x, y: pv.y });
+        }
+        return { type: "polygon", vertices } satisfies PolygonValue;
+      }
+
+      case "regular_polygon": {
+        const pA = this.requireValue<PointValue>(object.id, def.pointA, "point");
+        if (isUndefined(pA)) return pA;
+        const pB = this.requireValue<PointValue>(object.id, def.pointB, "point");
+        if (isUndefined(pB)) return pB;
+        return regularPolygonVertices(pA, pB, def.sides);
+      }
+
+      case "vector_polygon": {
+        const anchor = this.requireValue<PointValue>(object.id, def.anchor, "point");
+        if (isUndefined(anchor)) return anchor;
+        const ax = anchor.x;
+        const ay = anchor.y;
+        const vertices: { x: number; y: number }[] = [{ x: ax, y: ay }];
+        for (const offset of def.offsets) {
+          vertices.push({ x: cleanZero(ax + offset.x), y: cleanZero(ay + offset.y) });
+        }
+        return { type: "polygon", vertices } satisfies PolygonValue;
+      }
     }
   }
 
@@ -765,6 +825,35 @@ function selectIntersection(
 
 function cleanZero(value: number): number {
   return Math.abs(value) <= GEOMETRY_EPSILON ? 0 : value;
+}
+
+/**
+ * Compute vertices of a regular n-gon whose first edge is A→B.
+ * Vertices are generated counter-clockwise (exterior angle 2π/n),
+ * matching the Python backend and GeoGebra's convention.
+ */
+function regularPolygonVertices(pA: PointValue, pB: PointValue, n: number): EvaluatedValue {
+  if (n < 3) {
+    return { type: "undefined", code: "invalid_sides", message: "Regular polygon requires at least 3 sides" };
+  }
+  const angle = (2 * Math.PI) / n;
+  const cosA = Math.cos(angle);
+  const sinA = Math.sin(angle);
+  let vx = pB.x - pA.x;
+  let vy = pB.y - pA.y;
+  const vertices: { x: number; y: number }[] = [{ x: pA.x, y: pA.y }, { x: pB.x, y: pB.y }];
+  let curX = pB.x;
+  let curY = pB.y;
+  for (let i = 0; i < n - 2; i++) {
+    const newVx = vx * cosA - vy * sinA;
+    const newVy = vx * sinA + vy * cosA;
+    vx = newVx;
+    vy = newVy;
+    curX = cleanZero(curX + vx);
+    curY = cleanZero(curY + vy);
+    vertices.push({ x: curX, y: curY });
+  }
+  return { type: "polygon", vertices };
 }
 
 function isUndefined<T>(value: T | EvaluatedValue): value is Extract<EvaluatedValue, { type: "undefined" }> {

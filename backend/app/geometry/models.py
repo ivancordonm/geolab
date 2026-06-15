@@ -311,6 +311,43 @@ class RotatedPoint(GeometryObjectBase):
     definition: RotationDefinition
 
 
+# ─── New: polygons ──────────────────────────────────────────────────────────
+
+class PolygonDefinition(GeometryModel):
+    """Basic polygon: N ≥ 3 existing point IDs define the vertices in order."""
+
+    type: Literal["polygon"] = "polygon"
+    point_ids: list[str]
+
+
+class RegularPolygonDefinition(GeometryModel):
+    """Regular polygon: two adjacent vertices + number of sides."""
+
+    type: Literal["regular_polygon"] = "regular_polygon"
+    point_a: str
+    point_b: str
+    sides: int
+
+
+class VectorPolygonDefinition(GeometryModel):
+    """Vector polygon: one anchor point + a list of (dx, dy) offsets.
+
+    Vertices are [anchor, anchor+offset_0, anchor+offset_1, …].
+    """
+
+    type: Literal["vector_polygon"] = "vector_polygon"
+    anchor: str
+    offsets: list[Coordinate]
+
+
+PolygonVariantDefinition: TypeAlias = PolygonDefinition | RegularPolygonDefinition | VectorPolygonDefinition
+
+
+class Polygon(GeometryObjectBase):
+    kind: Literal["polygon"] = "polygon"
+    definition: PolygonVariantDefinition
+
+
 GeometryObject: TypeAlias = (
     Point
     | Line
@@ -332,6 +369,7 @@ GeometryObject: TypeAlias = (
     | InversionInCircle
     | TranslatedPoint
     | RotatedPoint
+    | Polygon
 )
 
 
@@ -403,7 +441,12 @@ class UndefinedValue(GeometryModel):
     message: str
 
 
-EvaluatedValue: TypeAlias = PointValue | LineValue | SegmentValue | CircleValue | UndefinedValue
+class PolygonValue(GeometryModel):
+    type: Literal["polygon"] = "polygon"
+    vertices: list[Coordinate]
+
+
+EvaluatedValue: TypeAlias = PointValue | LineValue | SegmentValue | CircleValue | PolygonValue | UndefinedValue
 
 
 def geometry_document_to_json(document: GeometryDocument, *, indent: int | None = 2) -> str:

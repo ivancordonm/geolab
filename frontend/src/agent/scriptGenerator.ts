@@ -59,6 +59,14 @@ function objectToStatement(object: GeometryObject): string {
       return `${object.id} = Translation(${definition.point}, ${definition.from}, ${definition.to})`;
     case "rotation":
       return `${object.id} = Rotation(${definition.point}, ${definition.center}, ${formatNumber(definition.degrees)})`;
+    case "polygon":
+      return `${object.id} = Polygon(${definition.points.join(", ")})`;
+    case "regular_polygon":
+      return `${object.id} = Polygon(${definition.pointA}, ${definition.pointB}, ${definition.sides})`;
+    case "vector_polygon": {
+      const offsetArgs = definition.offsets.map((o) => `(${formatNumber(o.x)}, ${formatNumber(o.y)})`).join(", ");
+      return `${object.id} = VectorPolygon(${definition.anchor}, ${offsetArgs})`;
+    }
   }
 }
 

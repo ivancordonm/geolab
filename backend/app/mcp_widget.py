@@ -77,6 +77,9 @@ GEOMETRY_WIDGET_HTML = r"""<!doctype html>
           add(value.center.x - value.radius, value.center.y - value.radius);
           add(value.center.x + value.radius, value.center.y + value.radius);
         }
+        if (value.type === "polygon" && Array.isArray(value.vertices)) {
+          for (const v of value.vertices) add(v.x, v.y);
+        }
       }
       if (!xs.length) return { minX: -5, maxX: 5, minY: -4, maxY: 4 };
       let minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
@@ -142,6 +145,9 @@ GEOMETRY_WIDGET_HTML = r"""<!doctype html>
           svg.appendChild(el("line", { x1: sx(value.start.x), y1: sy(value.start.y), x2: sx(value.end.x), y2: sy(value.end.y), class: "geometry", ...(style ? { style } : {}) }));
         } else if (value.type === "circle") {
           svg.appendChild(el("circle", { cx: sx(value.center.x), cy: sy(value.center.y), r: value.radius * scale, class: "geometry", ...(style ? { style } : {}) }));
+        } else if (value.type === "polygon" && Array.isArray(value.vertices) && value.vertices.length >= 2) {
+          const pts = value.vertices.map(v => `${sx(v.x).toFixed(2)},${sy(v.y).toFixed(2)}`).join(" ");
+          svg.appendChild(el("polygon", { points: pts, fill: color, "fill-opacity": "0.15", stroke: color, "stroke-width": "2.25", "stroke-linejoin": "round" }));
         } else if (value.type === "point") {
           pointLabels.push({ value, object, color });
         }

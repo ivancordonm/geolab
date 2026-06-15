@@ -64,7 +64,7 @@ def test_valid_script_converts_to_shared_model_and_evaluates() -> None:
     ("script", "code", "line"),
     [
         ("A Point(0, 0)", "invalid_syntax", 1),
-        ("A = Polygon(0, 0)", "unknown_command", 1),
+        ("A = Hexagon(0, 0)", "unknown_command", 1),
         ("A = Point(0)", "invalid_arity", 1),
         ("A = Point(x, 0)", "expected_number", 1),
         ("AB = Line(A, B)", "undefined_reference", 1),
@@ -101,6 +101,67 @@ def test_references_must_be_defined_before_use() -> None:
     assert diagnostic.code == "undefined_reference"
     assert diagnostic.line == 1
     assert "defined before" in diagnostic.message
+
+
+# ─── Conformance: polygon construction variants ──────────────────────────────
+
+import math  # noqa: E402 (conformance fixtures share the module)
+
+
+def test_basic_polygon_evaluates_to_triangle_vertices() -> None:
+    """Polígono básico — 3 puntos libres, vértices copiados tal cual."""
+    script = "A = Point(0, 0)\nB = Point(4, 0)\nC = Point(2, 3)\npoly = Polygon(A, B, C)"
+    _, values = evaluate_script(script)
+
+    v = values["poly"]
+    assert v.type == "polygon"
+    assert len(v.vertices) == 3
+    assert v.vertices[0].model_dump() == pytest.approx({"x": 0.0, "y": 0.0}, abs=1e-9)
+    assert v.vertices[1].model_dump() == pytest.approx({"x": 4.0, "y": 0.0}, abs=1e-9)
+    assert v.vertices[2].model_dump() == pytest.approx({"x": 2.0, "y": 3.0}, abs=1e-9)
+
+
+def test_regular_polygon_square_vertices_are_correct() -> None:
+    """Polígono regular — cuadrado a partir de A=(0,0), B=(1,0), 4 lados.
+    Vértices esperados (CCW exterior angle = 2π/4 = π/2):
+      v0=(0,0), v1=(1,0), v2=(1,1), v3=(0,1)
+    """
+    script = "A = Point(0, 0)\nB = Point(1, 0)\npoly = Polygon(A, B, 4)"
+    _, values = evaluate_script(script)
+
+    v = values["poly"]
+    assert v.type == "polygon"
+    assert len(v.vertices) == 4
+    assert v.vertices[0].model_dump() == pytest.approx({"x": 0.0, "y": 0.0}, abs=1e-9)
+    assert v.vertices[1].model_dump() == pytest.approx({"x": 1.0, "y": 0.0}, abs=1e-9)
+    assert v.vertices[2].model_dump() == pytest.approx({"x": 1.0, "y": 1.0}, abs=1e-9)
+    assert v.vertices[3].model_dump() == pytest.approx({"x": 0.0, "y": 1.0}, abs=1e-9)
+
+
+def test_regular_polygon_equilateral_triangle_side_length() -> None:
+    """Triángulo equilátero: todos los lados tienen la misma longitud."""
+    script = "A = Point(0, 0)\nB = Point(2, 0)\npoly = Polygon(A, B, 3)"
+    _, values = evaluate_script(script)
+
+    verts = values["poly"].vertices
+    assert len(verts) == 3
+    for i in range(3):
+        j = (i + 1) % 3
+        dist = math.sqrt((verts[j].x - verts[i].x) ** 2 + (verts[j].y - verts[i].y) ** 2)
+        assert dist == pytest.approx(2.0, abs=1e-9)
+
+
+def test_vector_polygon_vertices_relative_to_anchor() -> None:
+    """Polígono vectorial — ancla en (1,1), offsets relativos (1,0) y (0,1)."""
+    script = "A = Point(1, 1)\npoly = VectorPolygon(A, (1, 0), (0, 1))"
+    _, values = evaluate_script(script)
+
+    v = values["poly"]
+    assert v.type == "polygon"
+    assert len(v.vertices) == 3
+    assert v.vertices[0].model_dump() == pytest.approx({"x": 1.0, "y": 1.0}, abs=1e-9)
+    assert v.vertices[1].model_dump() == pytest.approx({"x": 2.0, "y": 1.0}, abs=1e-9)
+    assert v.vertices[2].model_dump() == pytest.approx({"x": 1.0, "y": 2.0}, abs=1e-9)
 
 
 # ---------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 export const GEOMETRY_SCHEMA_VERSION = 1 as const;
 
 export type GeometryObjectId = string;
-export type GeometryKind = "point" | "line" | "segment" | "circle";
+export type GeometryKind = "point" | "line" | "segment" | "circle" | "polygon";
 
 export type StrokeDash = "solid" | "dashed" | "dotted";
 
@@ -140,6 +140,16 @@ export interface RotatedPoint extends GeometryObjectBase {
   definition: { type: "rotation"; point: GeometryObjectId; center: GeometryObjectId; degrees: number };
 }
 
+// ─── Polygons ──────────────────────────────────────────────────────────────
+
+export interface Polygon extends GeometryObjectBase {
+  kind: "polygon";
+  definition:
+    | { type: "polygon"; points: GeometryObjectId[] }
+    | { type: "regular_polygon"; pointA: GeometryObjectId; pointB: GeometryObjectId; sides: number }
+    | { type: "vector_polygon"; anchor: GeometryObjectId; offsets: { x: number; y: number }[] };
+}
+
 // ─── Union ─────────────────────────────────────────────────────────────────
 
 export type GeometryObject =
@@ -162,7 +172,8 @@ export type GeometryObject =
   | HomothetyPoint
   | InversionInCircle
   | TranslatedPoint
-  | RotatedPoint;
+  | RotatedPoint
+  | Polygon;
 
 // ─── Viewport and document ─────────────────────────────────────────────────
 
@@ -214,11 +225,17 @@ export interface UndefinedValue {
   message: string;
 }
 
+export interface PolygonValue {
+  type: "polygon";
+  vertices: { x: number; y: number }[];
+}
+
 export type EvaluatedValue =
   | PointValue
   | LineValue
   | SegmentValue
   | CircleValue
+  | PolygonValue
   | UndefinedValue;
 
 export type EvaluationMap = ReadonlyMap<GeometryObjectId, EvaluatedValue>;

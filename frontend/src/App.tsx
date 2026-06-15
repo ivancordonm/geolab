@@ -141,7 +141,7 @@ export function App() {
     try {
       downloadTextFile(
         documentToScript(currentDocument()),
-        `${safeFilename(geometry.document.title)}.mathllm.txt`,
+        `${safeFilename(geometry.document.title)}.geolab.txt`,
         "text/plain",
       );
       setPersistenceNotice({ message: "Construction script export created.", error: null });

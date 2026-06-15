@@ -6,9 +6,9 @@ from app.agent.router import router as agent_router
 from app.geometry.router import router as geometry_router
 
 app = FastAPI(
-    title="MathLLM API",
+    title="GeoLab API",
     version="0.1.0",
-    description="Deterministic mathematics services for the MathLLM workspace.",
+    description="Deterministic mathematics services for the GeoLab workspace.",
 )
 
 app.include_router(geometry_router)
@@ -19,7 +19,7 @@ app.include_router(agent_router)
 def root() -> dict[str, str]:
     """Describe the current scaffold without implying feature completeness."""
     return {
-        "name": "MathLLM API",
+        "name": "GeoLab API",
         "status": "mvp-in-development",
         "docs": "/docs",
     }

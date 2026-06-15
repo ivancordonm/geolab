@@ -21,7 +21,7 @@ from app.geometry.script import ConstructionScriptError, evaluate_script
 MAX_TOKENS = 2000
 
 SYSTEM_PROMPT = """\
-You are the construction planner for MathLLM, an interactive 2D geometry workspace.
+You are the construction planner for GeoLab, an interactive 2D geometry workspace.
 Translate the user's natural-language request (in ANY language, including Spanish)
 into a construction script written ONLY in the deterministic grammar below.
 

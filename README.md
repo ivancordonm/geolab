@@ -1,6 +1,6 @@
-# MathLLM
+# GeoLab
 
-MathLLM is an agentic mathematics workspace inspired by GeoGebra. The first
+GeoLab is an agentic mathematics workspace inspired by GeoGebra. The first
 milestone targets classical 2D geometry while keeping the architecture open to
 algebra, functions, linear algebra, calculus, and sandboxed Python execution.
 

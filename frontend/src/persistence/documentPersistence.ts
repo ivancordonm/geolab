@@ -1,7 +1,7 @@
 import { GeometryGraph, getParentIds } from "../geometry/engine";
 import type { GeometryDocument, GeometryObject } from "../types/geometry";
 
-export const GEOMETRY_STORAGE_KEY = "mathllm.geometry-document.v1";
+export const GEOMETRY_STORAGE_KEY = "geolab.geometry-document.v1";
 
 export interface DocumentStorage {
   getItem(key: string): string | null;

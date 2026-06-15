@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 export type Theme = "light" | "dark";
 
-const STORAGE_KEY = "mathllm-theme";
+const STORAGE_KEY = "geolab-theme";
 
 function readStoredTheme(): Theme | null {
   try {

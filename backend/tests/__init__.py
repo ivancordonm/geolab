@@ -1,1 +1,1 @@
-"""MathLLM backend test package."""
+"""GeoLab backend test package."""

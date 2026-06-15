@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project overview
 
-MathLLM is an agentic mathematics workspace (inspired by GeoGebra) with a strict epistemic boundary: the LLM proposes constructions, but deterministic tools are the authority for mathematical state. The MVP targets interactive classical 2D geometry while keeping the architecture extensible to algebra, calculus, and sandboxed Python execution.
+GeoLab is an agentic mathematics workspace (inspired by GeoGebra) with a strict epistemic boundary: the LLM proposes constructions, but deterministic tools are the authority for mathematical state. The MVP targets interactive classical 2D geometry while keeping the architecture extensible to algebra, calculus, and sandboxed Python execution.
 
 The codebase is a full-stack React + TypeScript frontend paired with a Python FastAPI backend, sharing versioned JSON contracts and conformance fixtures. See `docs/ARCHITECTURE.md` for the complete technical design.
 

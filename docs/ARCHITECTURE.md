@@ -1,8 +1,8 @@
-# MathLLM Architecture
+# GeoLab Architecture
 
 ## 1. Goals and constraints
 
-MathLLM is a local-first agentic mathematics platform. The MVP must make simple
+GeoLab is a local-first agentic mathematics platform. The MVP must make simple
 classical geometry interactive and reproducible while establishing boundaries
 that remain useful when algebra, calculus, matrices, plotting, and isolated
 Python execution are added.

@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { AssistantConfig } from "./types";
 import { PROVIDER_DEFAULTS } from "./types";
 
-const STORAGE_KEY = "mathllm_assistant_config";
+const STORAGE_KEY = "geolab_assistant_config";
 
 function loadConfig(): AssistantConfig {
   try {

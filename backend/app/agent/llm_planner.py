@@ -1,6 +1,6 @@
 """Anthropic (Claude API) planner.
 
-Preserves MathLLM's epistemic boundary: Claude only *proposes* a script; the
+Preserves GeoLab's epistemic boundary: Claude only *proposes* a script; the
 deterministic `evaluate_script` (in the shared base) is the authority and the
 script is never applied without explicit user approval in the UI.
 """

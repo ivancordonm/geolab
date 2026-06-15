@@ -133,10 +133,14 @@ export function GeometryCanvas({
     (objectId: string, event: ReactPointerEvent<SVGElement>) => {
       event.stopPropagation();
       onObjectClick(objectId);
+      if (activeTool !== "select") {
+        return;
+      }
       const object = document.objects.find((candidate) => candidate.id === objectId);
       const isFreePoint = object?.kind === "point" && object.definition.type === "free";
-      const isSelectedForTranslation = selectedObjectId === objectId;
-      if (activeTool !== "select" || (!isFreePoint && !isSelectedForTranslation)) {
+      // Non-free-point objects can be translated directly by dragging (no pre-selection required).
+      const canTranslate = !isFreePoint && onTranslateObject !== undefined;
+      if (!isFreePoint && !canTranslate) {
         return;
       }
       const svg = svgRef.current;
@@ -147,13 +151,13 @@ export function GeometryCanvas({
       event.preventDefault();
       svg.setPointerCapture(event.pointerId);
       onBeginFreePointMove?.();
-      if (isSelectedForTranslation && onTranslateObject !== undefined) {
+      if (canTranslate) {
         draggedObjectRef.current = { objectId, pointerId: event.pointerId, lastWorld: world };
         return;
       }
       draggedPointRef.current = { objectId, pointerId: event.pointerId };
     },
-    [activeTool, clientToWorld, document.objects, onBeginFreePointMove, onObjectClick, onTranslateObject, selectedObjectId],
+    [activeTool, clientToWorld, document.objects, onBeginFreePointMove, onObjectClick, onTranslateObject],
   );
 
   const eventToWorld = useCallback(

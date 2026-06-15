@@ -5,6 +5,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.mcp_widget import GEOMETRY_WIDGET_MIME_TYPE, GEOMETRY_WIDGET_URI
 from app.services import geometry_workspace
 
 MCP_HEADERS = {
@@ -59,6 +60,7 @@ def test_mcp_lists_registered_tools_with_safety_annotations(mcp_client: TestClie
     assert tools["get_current_graph"]["annotations"]["readOnlyHint"] is True
     assert tools["create_point"]["annotations"]["readOnlyHint"] is False
     assert tools["evaluate_script"]["annotations"]["destructiveHint"] is True
+    assert tools["get_current_graph"]["_meta"]["ui"]["resourceUri"] == GEOMETRY_WIDGET_URI
     assert tools["create_line"]["inputSchema"]["required"] == [
         "object_id",
         "point_a",
@@ -83,3 +85,20 @@ def test_mcp_tool_call_uses_existing_validated_registry(mcp_client: TestClient) 
     assert result["structuredContent"]["revision"] == 1
     assert result["structuredContent"]["createdObject"]["label"] == "A"
     assert geometry_workspace.document_snapshot().objects[0].id == "point_a"
+
+
+def test_mcp_exposes_svg_widget_resource(mcp_client: TestClient) -> None:
+    listed = rpc(mcp_client, "resources/list", {}, request_id=4)
+    assert listed.status_code == 200
+    resources = listed.json()["result"]["resources"]
+    widget = next(resource for resource in resources if resource["uri"] == GEOMETRY_WIDGET_URI)
+    assert widget["mimeType"] == GEOMETRY_WIDGET_MIME_TYPE
+    assert widget["_meta"]["ui"]["prefersBorder"] is True
+
+    read = rpc(mcp_client, "resources/read", {"uri": GEOMETRY_WIDGET_URI}, request_id=5)
+    assert read.status_code == 200
+    content = read.json()["result"]["contents"][0]
+    assert content["mimeType"] == GEOMETRY_WIDGET_MIME_TYPE
+    assert content["_meta"]["ui"]["csp"] == {"connectDomains": [], "resourceDomains": []}
+    assert "ui/notifications/tool-result" in content["text"]
+    assert "<svg" not in content["text"]  # SVG is generated safely from structured data.

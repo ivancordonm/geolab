@@ -165,6 +165,10 @@ The API will be available at `http://localhost:8000`; interactive docs are at
 - `POST /agent/plan`
 - `POST /mcp` (MCP Streamable HTTP endpoint for ChatGPT and other MCP clients)
 
+MCP geometry tools return structured graph data and reference a self-contained
+MCP App widget. ChatGPT renders that widget as an inline SVG construction with
+points, labels, lines, segments, circles, axes, and an adaptive grid.
+
 The deployed ChatGPT connector URL is:
 
 ```text

@@ -7,6 +7,11 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 from mcp.types import ToolAnnotations
 
+from app.mcp_widget import (
+    GEOMETRY_WIDGET_HTML,
+    GEOMETRY_WIDGET_MIME_TYPE,
+    GEOMETRY_WIDGET_URI,
+)
 from app.services import tool_registry
 
 
@@ -15,8 +20,9 @@ mcp = FastMCP(
     instructions=(
         "Use GeoLab tools for deterministic Euclidean geometry. Read the current graph before "
         "adding objects that reference existing points or lines. Prefer evaluate_script when a "
-        "complete construction can be expressed atomically. Validate constructions before making "
-        "mathematical claims about them."
+        "complete construction can be expressed atomically. After creating or changing a "
+        "construction, always call get_current_graph so the final figure is rendered in ChatGPT. "
+        "Validate constructions before making mathematical claims about them."
     ),
     website_url="https://geolab-seven.vercel.app",
     host="0.0.0.0",
@@ -51,6 +57,26 @@ REPLACE_GRAPH = ToolAnnotations(
     idempotentHint=True,
     openWorldHint=False,
 )
+WIDGET_META = {"ui": {"resourceUri": GEOMETRY_WIDGET_URI}}
+
+
+@mcp.resource(
+    GEOMETRY_WIDGET_URI,
+    name="GeoLab geometry viewer",
+    title="GeoLab geometry viewer",
+    description="Interactive SVG rendering of a validated GeoLab construction.",
+    mime_type=GEOMETRY_WIDGET_MIME_TYPE,
+    meta={
+        "ui": {
+            "prefersBorder": True,
+            "csp": {"connectDomains": [], "resourceDomains": []},
+        }
+    },
+)
+def geometry_widget() -> str:
+    """Return the self-contained ChatGPT widget HTML."""
+
+    return GEOMETRY_WIDGET_HTML
 
 
 @mcp.tool(annotations=CREATE)
@@ -158,7 +184,7 @@ def create_perpendicular_line(
     )
 
 
-@mcp.tool(annotations=READ_ONLY)
+@mcp.tool(annotations=READ_ONLY, meta=WIDGET_META)
 def validate_construction(document: dict[str, Any] | None = None) -> dict[str, Any]:
     """Validate a supplied GeoLab document, or the current graph when omitted."""
 
@@ -168,7 +194,7 @@ def validate_construction(document: dict[str, Any] | None = None) -> dict[str, A
     return _execute("validate_construction", arguments)
 
 
-@mcp.tool(annotations=REPLACE_GRAPH)
+@mcp.tool(annotations=REPLACE_GRAPH, meta=WIDGET_META)
 def evaluate_script(
     script: str,
     document_id: str = "script_document",
@@ -182,7 +208,7 @@ def evaluate_script(
     )
 
 
-@mcp.tool(annotations=READ_ONLY)
+@mcp.tool(annotations=READ_ONLY, meta=WIDGET_META)
 def get_current_graph() -> dict[str, Any]:
     """Return the current validated geometry graph, including values and dependency indexes."""
 

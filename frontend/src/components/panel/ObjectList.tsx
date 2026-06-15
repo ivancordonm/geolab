@@ -15,8 +15,7 @@ interface ObjectListProps {
   onSetObjectStyle?: (objectId: string, patch: Partial<GeometryStyle>) => void;
 }
 
-const PALETTE: Array<{ label: string; value: string | null }> = [
-  { label: "Default", value: null },
+const PALETTE: Array<{ label: string; value: string }> = [
   { label: "Red", value: "#ef4444" },
   { label: "Orange", value: "#f97316" },
   { label: "Yellow", value: "#eab308" },
@@ -26,6 +25,8 @@ const PALETTE: Array<{ label: string; value: string | null }> = [
   { label: "Violet", value: "#8b5cf6" },
   { label: "Pink", value: "#ec4899" },
 ];
+
+const PALETTE_VALUES = new Set(PALETTE.map((p) => p.value));
 
 interface MenuState {
   objectId: string;
@@ -332,6 +333,21 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
         <div className="mb-3">
           <p className="mb-1.5 text-xs text-muted">Color</p>
           <div className="flex flex-wrap gap-1.5">
+            {/* Botón Auto: resetea al color automático del objeto */}
+            <button
+              type="button"
+              aria-label="Automático"
+              aria-pressed={currentColor === null}
+              title="Automático"
+              onClick={() => onSetColor(null)}
+              className={`h-5 w-5 rounded-full border-2 text-[0.5rem] font-bold leading-none transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-500 ${
+                currentColor === null ? "border-content bg-surface-muted text-content" : "border-dashed border-edge text-muted"
+              }`}
+            >
+              A
+            </button>
+
+            {/* Swatches de colores prefijados */}
             {PALETTE.map(({ label: colorLabel, value }) => {
               const active = value === currentColor;
               return (
@@ -345,17 +361,36 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
                   className={`h-5 w-5 rounded-full border-2 transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-500 ${
                     active ? "border-content" : "border-transparent"
                   }`}
-                  style={
-                    value === null
-                      ? {
-                          background:
-                            "conic-gradient(#ef4444 0deg 60deg, #3b82f6 60deg 120deg, #22c55e 120deg 180deg, #eab308 180deg 240deg, #8b5cf6 240deg 300deg, #ec4899 300deg 360deg)",
-                        }
-                      : { background: value }
-                  }
+                  style={{ background: value }}
                 />
               );
             })}
+
+            {/* Selector de color personalizado */}
+            <label
+              title="Color personalizado"
+              aria-label="Color personalizado"
+              className={`relative h-5 w-5 cursor-pointer rounded-full border-2 transition-transform hover:scale-110 focus-within:outline-2 focus-within:outline-offset-1 focus-within:outline-brand-500 ${
+                currentColor !== null && !PALETTE_VALUES.has(currentColor)
+                  ? "border-content"
+                  : "border-transparent"
+              }`}
+              style={
+                currentColor !== null && !PALETTE_VALUES.has(currentColor)
+                  ? { background: currentColor }
+                  : {
+                      background:
+                        "conic-gradient(#ef4444 0deg 60deg, #3b82f6 60deg 120deg, #22c55e 120deg 180deg, #eab308 180deg 240deg, #8b5cf6 240deg 300deg, #ec4899 300deg 360deg)",
+                    }
+              }
+            >
+              <input
+                type="color"
+                value={currentColor !== null && !PALETTE_VALUES.has(currentColor) ? currentColor : "#000000"}
+                onChange={(e) => onSetColor(e.target.value)}
+                className="sr-only"
+              />
+            </label>
           </div>
         </div>
       )}

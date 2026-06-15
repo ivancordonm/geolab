@@ -39,11 +39,13 @@ interface GeometryCanvasProps {
   values: EvaluationMap;
   viewport: GeometryViewport;
   onMoveFreePoint: (pointId: string, x: number, y: number) => void;
+  onTranslateObject?: (objectId: string, dx: number, dy: number) => void;
   onBeginFreePointMove?: () => void;
   onEndFreePointMove?: () => void;
   onViewportChange: (viewport: GeometryViewport) => void;
   activeTool: ConstructionTool;
   selectedObjectIds: readonly string[];
+  selectedObjectId?: string | null;
   pointerWorld: Coordinate | null;
   onCanvasClick: (world: Coordinate) => void;
   onObjectClick: (objectId: string) => void;
@@ -57,11 +59,13 @@ export function GeometryCanvas({
   values,
   viewport,
   onMoveFreePoint,
+  onTranslateObject,
   onBeginFreePointMove,
   onEndFreePointMove,
   onViewportChange,
   activeTool,
   selectedObjectIds,
+  selectedObjectId = null,
   pointerWorld,
   onCanvasClick,
   onObjectClick,
@@ -71,6 +75,11 @@ export function GeometryCanvas({
 }: GeometryCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const draggedPointRef = useRef<{ objectId: string; pointerId: number } | null>(null);
+  const draggedObjectRef = useRef<{
+    objectId: string;
+    pointerId: number;
+    lastWorld: Coordinate;
+  } | null>(null);
   const canvasDragRef = useRef<{
     pointerId: number;
     lastClientX: number;
@@ -104,25 +113,47 @@ export function GeometryCanvas({
     return () => observer.disconnect();
   }, []);
 
+  const clientToWorld = useCallback(
+    (clientX: number, clientY: number): Coordinate | null => {
+      const svg = svgRef.current;
+      if (svg === null) {
+        return null;
+      }
+      const screen = clientToSvgScreen(
+        { x: clientX, y: clientY },
+        svg.getBoundingClientRect(),
+        size,
+      );
+      return screenToWorld(screen, viewportRef.current, size);
+    },
+    [size],
+  );
+
   const handleObjectPointerDown = useCallback(
     (objectId: string, event: ReactPointerEvent<SVGElement>) => {
       event.stopPropagation();
       onObjectClick(objectId);
       const object = document.objects.find((candidate) => candidate.id === objectId);
       const isFreePoint = object?.kind === "point" && object.definition.type === "free";
-      if (activeTool !== "select" || !isFreePoint) {
+      const isSelectedForTranslation = selectedObjectId === objectId;
+      if (activeTool !== "select" || (!isFreePoint && !isSelectedForTranslation)) {
         return;
       }
       const svg = svgRef.current;
-      if (svg === null) {
+      const world = clientToWorld(event.clientX, event.clientY);
+      if (svg === null || world === null) {
         return;
       }
       event.preventDefault();
       svg.setPointerCapture(event.pointerId);
       onBeginFreePointMove?.();
+      if (isSelectedForTranslation && onTranslateObject !== undefined) {
+        draggedObjectRef.current = { objectId, pointerId: event.pointerId, lastWorld: world };
+        return;
+      }
       draggedPointRef.current = { objectId, pointerId: event.pointerId };
     },
-    [activeTool, document.objects, onBeginFreePointMove, onObjectClick],
+    [activeTool, clientToWorld, document.objects, onBeginFreePointMove, onObjectClick, onTranslateObject, selectedObjectId],
   );
 
   const eventToWorld = useCallback(
@@ -168,6 +199,18 @@ export function GeometryCanvas({
       const pointDrag = draggedPointRef.current;
       if (pointDrag !== null && pointDrag.pointerId === event.pointerId) {
         onMoveFreePoint(pointDrag.objectId, world.x, world.y);
+      }
+
+      const objectDrag = draggedObjectRef.current;
+      if (
+        objectDrag !== null &&
+        objectDrag.pointerId === event.pointerId &&
+        onTranslateObject !== undefined
+      ) {
+        const dx = world.x - objectDrag.lastWorld.x;
+        const dy = world.y - objectDrag.lastWorld.y;
+        onTranslateObject(objectDrag.objectId, dx, dy);
+        draggedObjectRef.current = { ...objectDrag, lastWorld: world };
       }
 
       // Canvas pan.
@@ -216,6 +259,15 @@ export function GeometryCanvas({
           event.currentTarget.releasePointerCapture(event.pointerId);
         }
         draggedPointRef.current = null;
+        onEndFreePointMove?.();
+      }
+
+      const objectDrag = draggedObjectRef.current;
+      if (objectDrag?.pointerId === event.pointerId) {
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+        draggedObjectRef.current = null;
         onEndFreePointMove?.();
       }
 
@@ -289,6 +341,7 @@ export function GeometryCanvas({
               size,
               activeTool,
               selectedObjectIds,
+              selectedObjectId,
               handleObjectPointerDown,
               onMoveFreePoint,
               onSetLabelOffset,
@@ -302,6 +355,7 @@ export function GeometryCanvas({
               size,
               activeTool,
               selectedObjectIds,
+              selectedObjectId,
               handleObjectPointerDown,
               onMoveFreePoint,
               onSetLabelOffset,
@@ -315,6 +369,7 @@ export function GeometryCanvas({
               size,
               activeTool,
               selectedObjectIds,
+              selectedObjectId,
               handleObjectPointerDown,
               onMoveFreePoint,
               onSetLabelOffset,
@@ -358,6 +413,7 @@ function renderGeometryObject(
   size: CanvasSize,
   activeTool: ConstructionTool,
   selectedObjectIds: readonly string[],
+  selectedObjectId: string | null,
   onPointerDown: (objectId: string, event: ReactPointerEvent<SVGElement>) => void,
   onKeyboardMove: (objectId: string, x: number, y: number) => void,
   onSetLabelOffset?: (objectId: string, offsetX: number, offsetY: number) => void,
@@ -374,8 +430,10 @@ function renderGeometryObject(
     ? (ox: number, oy: number) => onSetLabelOffset(object.id, ox, oy)
     : undefined;
 
+  const selected = selectedObjectIds.includes(object.id) || selectedObjectId === object.id;
+
   if (value.type === "polygon") {
-    return renderPolygon(object, value, viewport, size, color, strokeWidth, strokeDash, selectedObjectIds.includes(object.id), labelOffset, onPointerDown, onLabelOffsetChange);
+    return renderPolygon(object, value, viewport, size, color, strokeWidth, strokeDash, selected, labelOffset, onPointerDown, onLabelOffsetChange);
   }
 
   if (value.type === "arc") {
@@ -387,7 +445,7 @@ function renderGeometryObject(
       color,
       strokeWidth,
       strokeDash,
-      selectedObjectIds.includes(object.id),
+      selected,
       labelOffset,
       onPointerDown,
       onLabelOffsetChange,
@@ -402,7 +460,7 @@ function renderGeometryObject(
       size,
       color,
       activeTool === "select",
-      selectedObjectIds.includes(object.id),
+      selected,
       labelOffset,
       onPointerDown,
       onKeyboardMove,
@@ -418,7 +476,7 @@ function renderGeometryObject(
       color,
       strokeWidth,
       strokeDash,
-      selectedObjectIds.includes(object.id),
+      selected,
       labelOffset,
       onPointerDown,
       onLabelOffsetChange,
@@ -433,7 +491,7 @@ function renderGeometryObject(
       color,
       strokeWidth,
       strokeDash,
-      selectedObjectIds.includes(object.id),
+      selected,
       labelOffset,
       onPointerDown,
       onLabelOffsetChange,
@@ -447,7 +505,7 @@ function renderGeometryObject(
     color,
     strokeWidth,
     strokeDash,
-    selectedObjectIds.includes(object.id),
+    selected,
     labelOffset,
     onPointerDown,
     onLabelOffsetChange,

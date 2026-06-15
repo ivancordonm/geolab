@@ -9,6 +9,7 @@ import type {
   GeometryViewport,
 } from "../types/geometry";
 import { GeometryGraph, getParentIds } from "./engine";
+import { translateObjectDocument } from "./objectTranslation";
 
 export interface GeometryState {
   document: GeometryDocument;
@@ -17,6 +18,7 @@ export interface GeometryState {
   canUndo: boolean;
   canRedo: boolean;
   moveFreePoint: (pointId: GeometryObjectId, x: number, y: number) => void;
+  translateObject: (objectId: GeometryObjectId, dx: number, dy: number) => void;
   beginDocumentInteraction: () => void;
   endDocumentInteraction: () => void;
   addObject: (object: GeometryObject) => void;
@@ -133,6 +135,15 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
     setDocument(graphRef.current.document);
     setValues(graphRef.current.values);
   }, [recordDocumentChange]);
+
+  const translateObject = useCallback((objectId: GeometryObjectId, dx: number, dy: number) => {
+    if (dx === 0 && dy === 0) return;
+    const currentDocument = graphRef.current!.document;
+    const nextDocument = translateObjectDocument(currentDocument, objectId, dx, dy);
+    if (nextDocument === currentDocument) return;
+    recordDocumentChange();
+    applyDocument(nextDocument);
+  }, [applyDocument, recordDocumentChange]);
 
   const addObject = useCallback((object: GeometryObject) => {
     recordDocumentChange();
@@ -312,6 +323,7 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
     canUndo: historyState.canUndo,
     canRedo: historyState.canRedo,
     moveFreePoint,
+    translateObject,
     beginDocumentInteraction,
     endDocumentInteraction,
     addObject,

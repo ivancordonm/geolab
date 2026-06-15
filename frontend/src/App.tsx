@@ -283,8 +283,10 @@ export function App() {
           viewport={geometry.viewport}
           activeTool={constructionTools.activeTool}
           selectedObjectIds={constructionTools.selectedObjectIds}
+          selectedObjectId={selectedObjectId}
           pointerWorld={constructionTools.pointerWorld}
           onMoveFreePoint={geometry.moveFreePoint}
+          onTranslateObject={geometry.translateObject}
           onBeginFreePointMove={geometry.beginDocumentInteraction}
           onEndFreePointMove={geometry.endDocumentInteraction}
           onViewportChange={geometry.setViewport}

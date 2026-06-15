@@ -163,6 +163,13 @@ The API will be available at `http://localhost:8000`; interactive docs are at
 - `GET /agent/tools`
 - `POST /agent/execute-tool`
 - `POST /agent/plan`
+- `POST /mcp` (MCP Streamable HTTP endpoint for ChatGPT and other MCP clients)
+
+The deployed ChatGPT connector URL is:
+
+```text
+https://geolab-seven.vercel.app/mcp
+```
 
 ### Checks
 

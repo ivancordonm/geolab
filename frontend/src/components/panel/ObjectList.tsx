@@ -1,4 +1,4 @@
-import { MoreVertical, X } from "lucide-react";
+import { MoreVertical, Trash2, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -14,6 +14,7 @@ interface ObjectListProps {
   onSetObjectLabel?: (objectId: string, label: string) => void;
   onSetObjectColor?: (objectId: string, color: string | null) => void;
   onSetObjectStyle?: (objectId: string, patch: Partial<GeometryStyle>) => void;
+  onDeleteObject?: (objectId: string) => void;
 }
 
 const PALETTE: Array<{ label: string; value: string }> = [
@@ -62,6 +63,7 @@ export function ObjectList({
   onSetObjectLabel,
   onSetObjectColor,
   onSetObjectStyle,
+  onDeleteObject,
 }: ObjectListProps) {
   const labelsById = new Map(document.objects.map((object) => [object.id, object.label]));
   const [menu, setMenu] = useState<MenuState | null>(null);
@@ -183,7 +185,7 @@ export function ObjectList({
                 </button>
 
                 {/* Botón tres puntos */}
-                {(onSetObjectLabel !== undefined || onSetObjectColor !== undefined || onSetObjectStyle !== undefined) && (
+                {(onSetObjectLabel !== undefined || onSetObjectColor !== undefined || onSetObjectStyle !== undefined || onDeleteObject !== undefined) && (
                   <button
                     type="button"
                     aria-label={`Edit ${object.label}`}
@@ -235,6 +237,14 @@ export function ObjectList({
                 }
               : undefined
           }
+          onDelete={
+            onDeleteObject
+              ? () => {
+                  onDeleteObject(menu.objectId);
+                  setMenu(null);
+                }
+              : undefined
+          }
         />
       )}
     </section>
@@ -262,10 +272,11 @@ interface ObjectMenuProps {
   onSetLabel?: (label: string) => void;
   onSetColor?: (color: string | null) => void;
   onSetStyle?: (patch: Partial<GeometryStyle>) => void;
+  onDelete?: () => void;
   ref: React.RefObject<HTMLDivElement | null>;
 }
 
-function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle, ref }: ObjectMenuProps) {
+function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle, onDelete, ref }: ObjectMenuProps) {
   const [label, setLabel] = useState(object.label);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -448,6 +459,19 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
               />
             </div>
           )}
+        </div>
+      )}
+
+      {onDelete !== undefined && (
+        <div className="mt-4 border-t border-edge pt-3">
+          <button
+            type="button"
+            onClick={onDelete}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-danger-fg/20 bg-danger-fg/5 px-3 py-2 text-sm font-semibold text-danger-fg transition-colors hover:bg-danger-fg/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+          >
+            <Trash2 size={14} aria-hidden />
+            Delete object
+          </button>
         </div>
       )}
 

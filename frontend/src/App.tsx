@@ -82,6 +82,12 @@ export function App() {
     [geometry.document, geometry.viewport],
   );
 
+  const handleDeleteObject = useCallback((objectId: string) => {
+    geometry.removeObject(objectId);
+    constructionTools.cancel();
+    setSelectedObjectId(null);
+  }, [constructionTools, geometry]);
+
   const handleSave = useCallback(() => {
     try {
       saveDocument(currentDocument());
@@ -325,6 +331,7 @@ export function App() {
                     onSetObjectLabel={geometry.setObjectLabel}
                     onSetObjectColor={geometry.setObjectColor}
                     onSetObjectStyle={geometry.setObjectStyle}
+                    onDeleteObject={handleDeleteObject}
                   />
                 ),
               },

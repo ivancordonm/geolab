@@ -60,4 +60,28 @@ describe("ObjectList", () => {
     await user.click(screen.getByRole("button", { name: "Hide A" }));
     expect(onToggleVisibility).toHaveBeenCalledWith("A");
   });
+
+  it("shows a delete action in the three-dot menu", async () => {
+    const user = userEvent.setup();
+    const graph = new GeometryGraph(exampleGeometryDocument);
+    const onDeleteObject = vi.fn();
+
+    render(
+      <ObjectList
+        document={graph.document}
+        values={graph.values}
+        selectedObjectId={null}
+        onSelectObject={() => undefined}
+        onToggleVisibility={() => undefined}
+        onSetObjectLabel={() => undefined}
+        onDeleteObject={onDeleteObject}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Edit A" }));
+    await user.click(screen.getByRole("button", { name: "Delete object" }));
+
+    expect(onDeleteObject).toHaveBeenCalledWith("A");
+  });
+
 });

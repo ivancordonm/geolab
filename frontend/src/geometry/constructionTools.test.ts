@@ -267,6 +267,41 @@ describe("useGeometryState", () => {
       vertices: [{ x: 1, y: -2 }, { x: 5, y: -2 }, { x: 3, y: 1 }],
     });
   });
+
+  it("removes an object together with its dependants", () => {
+    const document: GeometryDocument = {
+      schemaVersion: 1,
+      id: "remove-object-state",
+      title: "Remove object state",
+      objects: [
+        freePoint("A", 0, 0),
+        freePoint("B", 4, 0),
+        {
+          id: "AB",
+          label: "AB",
+          kind: "line",
+          visible: true,
+          definition: { type: "through_points", pointA: "A", pointB: "B" },
+        },
+        {
+          id: "M",
+          label: "M",
+          kind: "point",
+          visible: true,
+          definition: { type: "midpoint", pointA: "A", pointB: "B" },
+        },
+      ],
+    };
+    const { result } = renderHook(() => useGeometryState(document));
+
+    act(() => result.current.removeObject("A"));
+
+    expect(result.current.document.objects.map((object) => object.id)).toEqual(["B"]);
+    expect(result.current.values.has("A")).toBe(false);
+    expect(result.current.values.has("AB")).toBe(false);
+    expect(result.current.values.has("M")).toBe(false);
+  });
+
 });
 
 function freePoint(id: string, x: number, y: number): GeometryObject {

@@ -8,7 +8,7 @@ import type {
   GeometryStyle,
   GeometryViewport,
 } from "../types/geometry";
-import { GeometryGraph } from "./engine";
+import { GeometryGraph, getParentIds } from "./engine";
 
 export interface GeometryState {
   document: GeometryDocument;
@@ -26,6 +26,7 @@ export interface GeometryState {
   setObjectLabel: (objectId: GeometryObjectId, label: string) => void;
   setObjectColor: (objectId: GeometryObjectId, color: string | null) => void;
   setObjectStyle: (objectId: GeometryObjectId, patch: Partial<GeometryStyle>) => void;
+  removeObject: (objectId: GeometryObjectId) => void;
   setObjectLabelOffset: (objectId: GeometryObjectId, x: number, y: number) => void;
   setViewport: (viewport: GeometryViewport) => void;
   resetViewport: () => void;
@@ -169,6 +170,35 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
     setValues(graph.values);
   }, []);
 
+  const removeObject = useCallback((objectId: GeometryObjectId) => {
+    const currentDocument = graphRef.current!.document;
+    const removedIds = new Set<GeometryObjectId>([objectId]);
+
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const object of currentDocument.objects) {
+        if (removedIds.has(object.id)) continue;
+        const parentIds = getParentIds(object);
+        if (parentIds.some((parentId) => removedIds.has(parentId))) {
+          removedIds.add(object.id);
+          changed = true;
+        }
+      }
+    }
+
+    if (!currentDocument.objects.some((object) => removedIds.has(object.id))) return;
+
+    const nextDocument: GeometryDocument = {
+      ...currentDocument,
+      objects: currentDocument.objects.filter((object) => !removedIds.has(object.id)),
+    };
+    const graph = new GeometryGraph(nextDocument);
+    graphRef.current = graph;
+    setDocument(graph.document);
+    setValues(graph.values);
+  }, []);
+
   const setObjectLabelOffset = useCallback((objectId: GeometryObjectId, x: number, y: number) => {
     const currentDocument = graphRef.current!.document;
     const nextDocument: GeometryDocument = {
@@ -205,6 +235,7 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
     setObjectLabel,
     setObjectColor,
     setObjectStyle,
+    removeObject,
     setObjectLabelOffset,
     setViewport,
     resetViewport,

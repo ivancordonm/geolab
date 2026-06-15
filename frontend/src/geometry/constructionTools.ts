@@ -59,10 +59,10 @@ type SegmentObject = Extract<GeometryObject, { kind: "segment" }>;
 type PolygonObject = Extract<GeometryObject, { kind: "polygon" }>;
 type ReflectableObject = Extract<GeometryObject, { kind: "point" | "line" | "segment" | "circle" | "polygon" }>;
 type ReflectionObject = ReflectionOverLine | ReflectionOverPoint;
-type SourceLineObject = Exclude<LineObject, ReflectionObject>;
-type SourceCircleObject = Exclude<CircleObject, ReflectionObject>;
-type SourceSegmentObject = Exclude<SegmentObject, ReflectionObject>;
-type SourcePolygonObject = Exclude<PolygonObject, ReflectionObject>;
+type SourceLineObject = Exclude<LineObject, ReflectionObject | RotatedObject>;
+type SourceCircleObject = Exclude<CircleObject, ReflectionObject | RotatedObject>;
+type SourceSegmentObject = Exclude<SegmentObject, ReflectionObject | RotatedObject>;
+type SourcePolygonObject = Exclude<PolygonObject, ReflectionObject | RotatedObject>;
 
 export interface ConstructionToolState {
   activeTool: ConstructionTool;
@@ -548,7 +548,7 @@ function createConstruction(
         visible: true,
         definition: { type: "rotation", object: first, center: second, degrees: rotationAngle },
       };
-      return [obj];
+      return [obj as GeometryObject];
     }
 
     // ─── Polygons ──────────────────────────────────────────────────────────
@@ -1062,19 +1062,19 @@ function isReflectableObject(object: GeometryObject): object is ReflectableObjec
 }
 
 function isSourceLineObject(object: GeometryObject): object is SourceLineObject {
-  return object.kind === "line" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point";
+  return object.kind === "line" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point" && object.definition.type !== "rotation";
 }
 
 function isSourceCircleObject(object: GeometryObject): object is SourceCircleObject {
-  return object.kind === "circle" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point";
+  return object.kind === "circle" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point" && object.definition.type !== "rotation";
 }
 
 function isSourceSegmentObject(object: GeometryObject): object is SourceSegmentObject {
-  return object.kind === "segment" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point";
+  return object.kind === "segment" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point" && object.definition.type !== "rotation";
 }
 
 function isSourcePolygonObject(object: GeometryObject): object is SourcePolygonObject {
-  return object.kind === "polygon" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point";
+  return object.kind === "polygon" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point" && object.definition.type !== "rotation";
 }
 
 function makeReflectionOverLine<K extends ReflectableObject["kind"]>(

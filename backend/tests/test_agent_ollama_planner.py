@@ -138,7 +138,7 @@ def test_unexpected_response_shape_raises_planner_error() -> None:
     def transport(url: str, body: dict) -> dict:
         return {"unexpected": "shape"}
 
-    with pytest.raises(PlannerError):
+    with pytest.raises(PlannerError, match='"unexpected": "shape"'):
         OllamaPlanner(transport=transport).generate_plan("dibuja algo")
 
 

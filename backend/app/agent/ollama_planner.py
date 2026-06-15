@@ -93,9 +93,15 @@ class OllamaPlanner(BaseScriptPlanner):
         except json.JSONDecodeError as error:
             raise PlannerError("The Ollama server returned malformed JSON.") from error
         try:
-            return data["message"]["content"]
-        except (KeyError, TypeError) as error:
-            raise PlannerError("The Ollama planner returned an unexpected response.") from error
+            content = data["message"]["content"]
+        except (KeyError, TypeError):
+            content = None
+        if isinstance(content, str) and content:
+            return content
+        raise PlannerError(
+            "The Ollama planner returned an unexpected response. "
+            f"Response: {_response_preview(data)}"
+        )
 
 
 def _http_post_json(url: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -112,3 +118,14 @@ def _resolve_chat_url(base_url: str) -> str:
     if base_url.lower().endswith("/api/chat"):
         return base_url
     return f"{base_url}/api/chat"
+
+
+def _response_preview(data: Any, limit: int = 2000) -> str:
+    """Return a bounded JSON diagnostic from Ollama's response."""
+    try:
+        preview = json.dumps(data, ensure_ascii=False, default=str)
+    except (TypeError, ValueError):
+        preview = repr(data)
+    if len(preview) <= limit:
+        return preview
+    return f"{preview[:limit]}… [truncated]"

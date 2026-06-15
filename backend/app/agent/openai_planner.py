@@ -84,10 +84,14 @@ class OpenAICompatiblePlanner(BaseScriptPlanner):
         except json.JSONDecodeError as error:
             raise PlannerError("The provider returned malformed JSON.") from error
 
-        try:
-            return data["choices"][0]["message"]["content"]
-        except (KeyError, IndexError, TypeError) as error:
-            raise PlannerError("The provider returned an unexpected response shape.") from error
+        content = _extract_message_content(data)
+        if content is not None:
+            return content
+
+        raise PlannerError(
+            "The provider returned an unexpected response shape. "
+            f"Response: {_response_preview(data)}"
+        )
 
 
 def _http_post_json(url: str, payload: dict[str, Any], api_key: str) -> dict[str, Any]:
@@ -112,3 +116,34 @@ def _resolve_chat_completions_url(base_url: str) -> str:
     if base_url.lower().endswith("/chat/completions"):
         return base_url
     return f"{base_url}/chat/completions"
+
+
+def _extract_message_content(data: Any) -> str | None:
+    """Read text from common OpenAI-compatible chat response variants."""
+    try:
+        content = data["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError):
+        return None
+
+    if isinstance(content, str) and content:
+        return content
+    if isinstance(content, list):
+        parts = [
+            part.get("text")
+            for part in content
+            if isinstance(part, dict) and isinstance(part.get("text"), str)
+        ]
+        combined = "".join(parts)
+        return combined or None
+    return None
+
+
+def _response_preview(data: Any, limit: int = 2000) -> str:
+    """Return a bounded JSON diagnostic without exposing request credentials."""
+    try:
+        preview = json.dumps(data, ensure_ascii=False, default=str)
+    except (TypeError, ValueError):
+        preview = repr(data)
+    if len(preview) <= limit:
+        return preview
+    return f"{preview[:limit]}… [truncated]"

@@ -83,6 +83,61 @@ def test_configured_temperature_is_sent_to_provider() -> None:
     assert calls[0]["temperature"] == 1.0
 
 
+def test_content_blocks_are_accepted() -> None:
+    payload = {
+        "reasoning": "ok",
+        "plan": ["Crear A"],
+        "generated_script": "A = Point(0, 0)",
+    }
+
+    def transport(url: str, body: dict, api_key: str) -> dict:
+        return {
+            "choices": [
+                {
+                    "message": {
+                        "content": [
+                            {"type": "text", "text": json.dumps(payload)},
+                        ]
+                    }
+                }
+            ]
+        }
+
+    response = OpenAICompatiblePlanner(
+        base_url="https://api.openai.com/v1",
+        api_key="sk-test",
+        model="gpt-4o",
+        transport=transport,
+    ).generate_plan("crea un punto")
+
+    assert response.generated_script == "A = Point(0, 0)"
+
+
+def test_unexpected_response_includes_provider_payload() -> None:
+    def transport(url: str, body: dict, api_key: str) -> dict:
+        return {
+            "choices": [
+                {
+                    "finish_reason": "length",
+                    "message": {"content": None, "refusal": "Output limit reached"},
+                }
+            ]
+        }
+
+    with pytest.raises(PlannerError) as exc_info:
+        OpenAICompatiblePlanner(
+            base_url="https://api.openai.com/v1",
+            api_key="sk-test",
+            model="gpt-4o",
+            transport=transport,
+        ).generate_plan("crea un punto")
+
+    message = str(exc_info.value)
+    assert "unexpected response shape" in message
+    assert '"finish_reason": "length"' in message
+    assert '"refusal": "Output limit reached"' in message
+
+
 @pytest.mark.parametrize(
     ("configured_url", "expected_url"),
     [

@@ -1,7 +1,8 @@
-"""Local Ollama planner — zero per-token cost, no API key, runs on your machine.
+"""Local or remote Ollama planner — zero per-token cost, runs on your machine or a
+remote Ollama server.
 
-Talks to a local Ollama server (https://ollama.com) over its native chat API.
-Requires Ollama running locally with a pulled model, e.g.:
+Talks to an Ollama server (https://ollama.com) over its native chat API.
+Requires Ollama running with a pulled model, e.g.:
 
     ollama pull llama3.1
     ollama serve            # usually already running as a background service
@@ -9,6 +10,10 @@ Requires Ollama running locally with a pulled model, e.g.:
 Configuration (environment variables, all optional):
     OLLAMA_BASE_URL   default http://localhost:11434
     OLLAMA_MODEL      default llama3.1
+
+For remote Ollama servers that require authentication, pass an api_key; it will
+be sent as an ``Authorization: Bearer`` header.  Local servers without auth do
+not need an api_key (the header is omitted when the key is empty).
 
 Like the Claude planner, this only *proposes* a script; the deterministic
 `evaluate_script` in the shared base validates it before it is ever returned.
@@ -29,18 +34,19 @@ DEFAULT_BASE_URL = "http://localhost:11434"
 DEFAULT_MODEL = "llama3.1"
 _TIMEOUT_SECONDS = 300
 
-# A transport takes (url, json_payload) and returns the decoded JSON response.
-Transport = Callable[[str, dict[str, Any]], dict[str, Any]]
+# A transport takes (url, json_payload, api_key) and returns the decoded JSON response.
+Transport = Callable[[str, dict[str, Any], str], dict[str, Any]]
 
 
 class OllamaPlanner(BaseScriptPlanner):
-    """Planner backed by a local Ollama model."""
+    """Planner backed by a local or remote Ollama model."""
 
     def __init__(
         self,
         *,
         model: str | None = None,
         base_url: str | None = None,
+        api_key: str = "",
         temperature: float = 0.0,
         transport: Transport | None = None,
     ) -> None:
@@ -49,6 +55,7 @@ class OllamaPlanner(BaseScriptPlanner):
             (base_url or os.getenv("OLLAMA_BASE_URL", DEFAULT_BASE_URL)).strip().rstrip("/")
         )
         self._endpoint_url = _resolve_chat_url(self._base_url)
+        self._api_key = api_key
         self._temperature = temperature
         self._transport = transport or _http_post_json
 
@@ -61,7 +68,7 @@ class OllamaPlanner(BaseScriptPlanner):
             "options": {"temperature": self._temperature},
         }
         try:
-            data = self._transport(self._endpoint_url, payload)
+            data = self._transport(self._endpoint_url, payload, self._api_key)
         except TimeoutError as error:
             raise ProviderTimeoutError(
                 f"Ollama did not respond within {_TIMEOUT_SECONDS} seconds. "
@@ -70,6 +77,11 @@ class OllamaPlanner(BaseScriptPlanner):
         except urllib.error.HTTPError as error:
             model = payload.get("model", DEFAULT_MODEL)
             detail = error.read().decode("utf-8", "replace") if error.fp else ""
+            if error.code == 401:
+                raise PlannerError(
+                    "The Ollama server rejected the request: invalid or missing API key. "
+                    "Check the Bearer token configured for this Ollama server."
+                ) from error
             if error.code == 404:
                 raise PlannerError(
                     f"Ollama is running but the model `{model}` is not installed. "
@@ -104,11 +116,12 @@ class OllamaPlanner(BaseScriptPlanner):
         )
 
 
-def _http_post_json(url: str, payload: dict[str, Any]) -> dict[str, Any]:
+def _http_post_json(url: str, payload: dict[str, Any], api_key: str = "") -> dict[str, Any]:
     body = json.dumps(payload).encode("utf-8")
-    request = urllib.request.Request(
-        url, data=body, headers={"Content-Type": "application/json"}, method="POST"
-    )
+    headers: dict[str, str] = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    request = urllib.request.Request(url, data=body, headers=headers, method="POST")
     with urllib.request.urlopen(request, timeout=_TIMEOUT_SECONDS) as response:
         return json.loads(response.read().decode("utf-8"))
 

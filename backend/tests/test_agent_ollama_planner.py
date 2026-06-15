@@ -13,7 +13,7 @@ from app.geometry.script import evaluate_script
 def _raise_http_error(code: int, reason: str = "Error"):
     """Build a fake transport that raises an HTTP error with the given status code."""
 
-    def transport(url: str, body: dict) -> dict:
+    def transport(url: str, body: dict, api_key: str = "") -> dict:
         raise urllib.error.HTTPError(url, code, reason, hdrs=None, fp=None)
 
     return transport
@@ -23,8 +23,8 @@ def _transport_returning(*payloads: dict):
     """Build a fake transport that returns each payload in turn as an Ollama reply."""
     calls: list[dict] = []
 
-    def transport(url: str, body: dict) -> dict:
-        calls.append({"url": url, "body": body})
+    def transport(url: str, body: dict, api_key: str = "") -> dict:
+        calls.append({"url": url, "body": body, "api_key": api_key})
         payload = payloads[len(calls) - 1]
         return {"message": {"role": "assistant", "content": json.dumps(payload)}}
 
@@ -119,7 +119,7 @@ def test_markdown_fenced_json_is_tolerated() -> None:
         + "\n```"
     )
 
-    def transport(url: str, body: dict) -> dict:
+    def transport(url: str, body: dict, api_key: str = "") -> dict:
         return {"message": {"role": "assistant", "content": fenced}}
 
     response = OllamaPlanner(transport=transport).generate_plan("segmento AB")
@@ -135,7 +135,7 @@ def test_empty_script_raises_unsupported_request() -> None:
 
 
 def test_unexpected_response_shape_raises_planner_error() -> None:
-    def transport(url: str, body: dict) -> dict:
+    def transport(url: str, body: dict, api_key: str = "") -> dict:
         return {"unexpected": "shape"}
 
     with pytest.raises(PlannerError, match='"unexpected": "shape"'):
@@ -171,8 +171,110 @@ def test_http_500_raises_generic_planner_error() -> None:
     [TimeoutError("timed out"), urllib.error.URLError(TimeoutError("timed out"))],
 )
 def test_timeout_raises_provider_timeout_error(error: Exception) -> None:
-    def transport(url: str, body: dict) -> dict:
+    def transport(url: str, body: dict, api_key: str = "") -> dict:
         raise error
 
     with pytest.raises(ProviderTimeoutError, match="300 seconds"):
         OllamaPlanner(transport=transport).generate_plan("dibuja algo")
+
+
+def test_api_key_is_forwarded_to_transport() -> None:
+    """La api_key configurada se pasa al transport como tercer argumento."""
+    transport = _transport_returning(
+        {"reasoning": "ok", "plan": ["Crear A"], "generated_script": "A = Point(0, 0)"}
+    )
+
+    OllamaPlanner(api_key="my-secret-token", transport=transport).generate_plan("crea un punto")
+
+    assert transport.calls[0]["api_key"] == "my-secret-token"
+
+
+def test_empty_api_key_is_forwarded_as_empty_string() -> None:
+    """Sin api_key el transport recibe una cadena vacía (no se enviará el header Authorization)."""
+    transport = _transport_returning(
+        {"reasoning": "ok", "plan": ["Crear A"], "generated_script": "A = Point(0, 0)"}
+    )
+
+    OllamaPlanner(transport=transport).generate_plan("crea un punto")
+
+    assert transport.calls[0]["api_key"] == ""
+
+
+def test_http_post_json_includes_auth_header_when_api_key_set() -> None:
+    """_http_post_json añade Authorization: Bearer cuando la key no está vacía."""
+    from app.agent.ollama_planner import _http_post_json
+
+    sent_headers: dict = {}
+
+    import urllib.request as _urllib_request
+
+    original_urlopen = _urllib_request.urlopen
+
+    def fake_urlopen(request, timeout=None):
+        sent_headers.update(dict(request.headers))
+
+        class FakeResponse:
+            def read(self):
+                return b'{"message": {"role": "assistant", "content": "ok"}}'
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                pass
+
+        return FakeResponse()
+
+    _urllib_request.urlopen = fake_urlopen  # type: ignore[assignment]
+    try:
+        _http_post_json("http://example.com/api/chat", {"model": "test"}, "tok-abc")
+    except Exception:
+        pass
+    finally:
+        _urllib_request.urlopen = original_urlopen  # type: ignore[assignment]
+
+    assert sent_headers.get("Authorization") == "Bearer tok-abc"
+
+
+def test_http_post_json_omits_auth_header_when_api_key_empty() -> None:
+    """_http_post_json NO añade Authorization cuando api_key está vacía (Ollama local)."""
+    from app.agent.ollama_planner import _http_post_json
+
+    sent_headers: dict = {}
+
+    import urllib.request as _urllib_request
+
+    original_urlopen = _urllib_request.urlopen
+
+    def fake_urlopen(request, timeout=None):
+        sent_headers.update(dict(request.headers))
+
+        class FakeResponse:
+            def read(self):
+                return b'{"message": {"role": "assistant", "content": "ok"}}'
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                pass
+
+        return FakeResponse()
+
+    _urllib_request.urlopen = fake_urlopen  # type: ignore[assignment]
+    try:
+        _http_post_json("http://example.com/api/chat", {"model": "test"}, "")
+    except Exception:
+        pass
+    finally:
+        _urllib_request.urlopen = original_urlopen  # type: ignore[assignment]
+
+    assert "Authorization" not in sent_headers
+
+
+def test_http_401_raises_api_key_error() -> None:
+    """Un 401 de Ollama produce un error claro sobre la API key."""
+    with pytest.raises(PlannerError, match="API key"):
+        OllamaPlanner(
+            api_key="bad-key", transport=_raise_http_error(401, "Unauthorized")
+        ).generate_plan("dibuja algo")

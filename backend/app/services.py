@@ -20,6 +20,7 @@ def create_planner(config: ProviderConfig | None = None) -> Planner:
         if config.provider == "ollama":
             return OllamaPlanner(
                 base_url=config.base_url,
+                api_key=config.api_key,
                 model=config.model,
                 temperature=config.temperature,
             )

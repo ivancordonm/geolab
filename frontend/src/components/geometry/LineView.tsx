@@ -1,9 +1,10 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
 
-import type { LineValue } from "../../types/geometry";
+import type { LineValue, StrokeDash } from "../../types/geometry";
 import type { Coordinate } from "../../geometry/viewport";
 import { geometryColors } from "../../geometry/colors";
 import { ObjectLabel } from "./ObjectLabel";
+import { dashAttrs } from "./dashAttrs";
 
 interface LineViewProps {
   objectId: string;
@@ -13,7 +14,7 @@ interface LineViewProps {
   screenEnd: Coordinate;
   color?: string;
   strokeWidth?: number;
-  dashed?: boolean;
+  strokeDash?: StrokeDash;
   selected: boolean;
   labelOffset?: { x: number; y: number };
   onPointerDown: (objectId: string, event: ReactPointerEvent<SVGElement>) => void;
@@ -28,7 +29,7 @@ export function LineView({
   screenEnd,
   color,
   strokeWidth = 2,
-  dashed = false,
+  strokeDash,
   selected,
   labelOffset,
   onPointerDown,
@@ -61,7 +62,7 @@ export function LineView({
         y2={screenEnd.y}
         style={color ? { stroke: color } : undefined}
         strokeWidth={strokeWidth}
-        strokeDasharray={dashed ? "10 8" : undefined}
+        {...dashAttrs(strokeDash)}
         aria-label={`Line ${label}: ${formatLine(value)}`}
       />
       <ObjectLabel

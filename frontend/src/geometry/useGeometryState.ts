@@ -5,6 +5,7 @@ import type {
   GeometryDocument,
   GeometryObject,
   GeometryObjectId,
+  GeometryStyle,
   GeometryViewport,
 } from "../types/geometry";
 import { GeometryGraph } from "./engine";
@@ -20,6 +21,7 @@ export interface GeometryState {
   toggleObjectVisibility: (objectId: GeometryObjectId) => void;
   setObjectLabel: (objectId: GeometryObjectId, label: string) => void;
   setObjectColor: (objectId: GeometryObjectId, color: string | null) => void;
+  setObjectStyle: (objectId: GeometryObjectId, patch: Partial<GeometryStyle>) => void;
   setObjectLabelOffset: (objectId: GeometryObjectId, x: number, y: number) => void;
   setViewport: (viewport: GeometryViewport) => void;
   resetViewport: () => void;
@@ -128,6 +130,21 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
     setValues(graph.values);
   }, []);
 
+  const setObjectStyle = useCallback((objectId: GeometryObjectId, patch: Partial<GeometryStyle>) => {
+    const currentDocument = graphRef.current!.document;
+    const nextDocument: GeometryDocument = {
+      ...currentDocument,
+      objects: currentDocument.objects.map((o) => {
+        if (o.id !== objectId) return o;
+        return { ...o, style: { ...o.style, ...patch } };
+      }),
+    };
+    const graph = new GeometryGraph(nextDocument);
+    graphRef.current = graph;
+    setDocument(graph.document);
+    setValues(graph.values);
+  }, []);
+
   const setObjectLabelOffset = useCallback((objectId: GeometryObjectId, x: number, y: number) => {
     const currentDocument = graphRef.current!.document;
     const nextDocument: GeometryDocument = {
@@ -162,6 +179,7 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
     toggleObjectVisibility,
     setObjectLabel,
     setObjectColor,
+    setObjectStyle,
     setObjectLabelOffset,
     setViewport,
     resetViewport,

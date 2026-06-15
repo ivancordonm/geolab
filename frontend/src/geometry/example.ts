@@ -56,7 +56,7 @@ export const exampleGeometryDocument: GeometryDocument = {
       label: "p",
       kind: "line",
       visible: true,
-      style: { color: "#d97706", strokeWidth: 2, dashed: true },
+      style: { color: "#d97706", strokeWidth: 2, strokeDash: "dashed" },
       definition: { type: "parallel_through", point: "C", line: "AB" },
     },
     {

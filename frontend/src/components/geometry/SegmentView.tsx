@@ -1,8 +1,10 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
 
+import type { StrokeDash } from "../../types/geometry";
 import type { Coordinate } from "../../geometry/viewport";
 import { geometryColors } from "../../geometry/colors";
 import { ObjectLabel } from "./ObjectLabel";
+import { dashAttrs } from "./dashAttrs";
 
 interface SegmentViewProps {
   objectId: string;
@@ -11,6 +13,7 @@ interface SegmentViewProps {
   end: Coordinate;
   color?: string;
   strokeWidth?: number;
+  strokeDash?: StrokeDash;
   selected: boolean;
   labelOffset?: { x: number; y: number };
   onPointerDown: (objectId: string, event: ReactPointerEvent<SVGElement>) => void;
@@ -24,6 +27,7 @@ export function SegmentView({
   end,
   color,
   strokeWidth = 3,
+  strokeDash,
   selected,
   labelOffset,
   onPointerDown,
@@ -55,6 +59,7 @@ export function SegmentView({
         y2={end.y}
         style={color ? { stroke: color } : undefined}
         strokeWidth={strokeWidth}
+        {...dashAttrs(strokeDash)}
         aria-label={`Segment ${label}`}
       />
       <ObjectLabel

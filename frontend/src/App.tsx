@@ -322,6 +322,7 @@ export function App() {
                     onToggleVisibility={geometry.toggleObjectVisibility}
                     onSetObjectLabel={geometry.setObjectLabel}
                     onSetObjectColor={geometry.setObjectColor}
+                    onSetObjectStyle={geometry.setObjectStyle}
                   />
                 ),
               },

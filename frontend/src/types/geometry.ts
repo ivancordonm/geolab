@@ -3,10 +3,12 @@ export const GEOMETRY_SCHEMA_VERSION = 1 as const;
 export type GeometryObjectId = string;
 export type GeometryKind = "point" | "line" | "segment" | "circle";
 
+export type StrokeDash = "solid" | "dashed" | "dotted";
+
 export interface GeometryStyle {
   color?: string;
   strokeWidth?: number;
-  dashed?: boolean;
+  strokeDash?: StrokeDash;
   labelOffset?: { x: number; y: number };
 }
 

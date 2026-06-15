@@ -1,9 +1,10 @@
 import type { PointerEvent as ReactPointerEvent } from "react";
 
-import type { CircleValue } from "../../types/geometry";
+import type { CircleValue, StrokeDash } from "../../types/geometry";
 import type { Coordinate } from "../../geometry/viewport";
 import { geometryColors } from "../../geometry/colors";
 import { ObjectLabel } from "./ObjectLabel";
+import { dashAttrs } from "./dashAttrs";
 
 interface CircleViewProps {
   objectId: string;
@@ -13,7 +14,7 @@ interface CircleViewProps {
   radius: number;
   color?: string;
   strokeWidth?: number;
-  dashed?: boolean;
+  strokeDash?: StrokeDash;
   selected: boolean;
   labelOffset?: { x: number; y: number };
   onPointerDown: (objectId: string, event: ReactPointerEvent<SVGElement>) => void;
@@ -28,7 +29,7 @@ export function CircleView({
   radius,
   color,
   strokeWidth = 2,
-  dashed = false,
+  strokeDash,
   selected,
   labelOffset,
   onPointerDown,
@@ -58,7 +59,7 @@ export function CircleView({
         fill="none"
         style={color ? { stroke: color } : undefined}
         strokeWidth={strokeWidth}
-        strokeDasharray={dashed ? "10 8" : undefined}
+        {...dashAttrs(strokeDash)}
         aria-label={`Circle ${label}, radius ${value.radius.toFixed(2)}`}
       />
       <ObjectLabel

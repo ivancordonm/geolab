@@ -2,7 +2,7 @@ import { MoreVertical, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { getParentIds } from "../../geometry/engine";
-import type { EvaluationMap, GeometryDocument, GeometryObject } from "../../types/geometry";
+import type { EvaluationMap, GeometryDocument, GeometryObject, GeometryStyle, StrokeDash } from "../../types/geometry";
 
 interface ObjectListProps {
   document: GeometryDocument;
@@ -12,6 +12,7 @@ interface ObjectListProps {
   onToggleVisibility: (objectId: string) => void;
   onSetObjectLabel?: (objectId: string, label: string) => void;
   onSetObjectColor?: (objectId: string, color: string | null) => void;
+  onSetObjectStyle?: (objectId: string, patch: Partial<GeometryStyle>) => void;
 }
 
 const PALETTE: Array<{ label: string; value: string | null }> = [
@@ -58,6 +59,7 @@ export function ObjectList({
   onToggleVisibility,
   onSetObjectLabel,
   onSetObjectColor,
+  onSetObjectStyle,
 }: ObjectListProps) {
   const labelsById = new Map(document.objects.map((object) => [object.id, object.label]));
   const [menu, setMenu] = useState<MenuState | null>(null);
@@ -179,7 +181,7 @@ export function ObjectList({
                 </button>
 
                 {/* Botón tres puntos */}
-                {(onSetObjectLabel !== undefined || onSetObjectColor !== undefined) && (
+                {(onSetObjectLabel !== undefined || onSetObjectColor !== undefined || onSetObjectStyle !== undefined) && (
                   <button
                     type="button"
                     aria-label={`Edit ${object.label}`}
@@ -224,11 +226,31 @@ export function ObjectList({
                 }
               : undefined
           }
+          onSetStyle={
+            onSetObjectStyle
+              ? (patch) => {
+                  onSetObjectStyle(menu.objectId, patch);
+                }
+              : undefined
+          }
         />
       )}
     </section>
   );
 }
+
+const STROKE_WIDTHS: Array<{ label: string; value: number; svgWidth: number }> = [
+  { label: "Fino", value: 1, svgWidth: 1 },
+  { label: "Normal", value: 2, svgWidth: 2 },
+  { label: "Grueso", value: 3.5, svgWidth: 3.5 },
+  { label: "Negrita", value: 5, svgWidth: 5 },
+];
+
+const STROKE_DASHES: Array<{ label: string; value: StrokeDash; dasharray?: string; linecap?: string }> = [
+  { label: "Sólida", value: "solid" },
+  { label: "Guiones", value: "dashed", dasharray: "8 4" },
+  { label: "Puntos", value: "dotted", dasharray: "1 4", linecap: "round" },
+];
 
 interface ObjectMenuProps {
   object: GeometryObject;
@@ -237,10 +259,11 @@ interface ObjectMenuProps {
   onClose: () => void;
   onSetLabel?: (label: string) => void;
   onSetColor?: (color: string | null) => void;
+  onSetStyle?: (patch: Partial<GeometryStyle>) => void;
   ref: React.RefObject<HTMLDivElement | null>;
 }
 
-function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, ref }: ObjectMenuProps) {
+function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle, ref }: ObjectMenuProps) {
   const [label, setLabel] = useState(object.label);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -259,6 +282,9 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, ref }: Obje
   };
 
   const currentColor = object.style?.color ?? null;
+  const currentStrokeWidth = object.style?.strokeWidth ?? null;
+  const currentStrokeDash = object.style?.strokeDash ?? "solid";
+  const hasStroke = object.kind !== "point";
 
   return (
     <div
@@ -266,7 +292,7 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, ref }: Obje
       role="dialog"
       aria-label={`Edit ${object.label}`}
       style={{ position: "fixed", left: x, top: y, zIndex: 200 }}
-      className="w-52 rounded-xl border border-edge bg-surface p-3 shadow-card"
+      className="w-56 rounded-xl border border-edge bg-surface p-3 shadow-card"
     >
       <div className="mb-2 flex items-center justify-between">
         <p className="m-0 text-xs font-semibold uppercase tracking-[0.12em] text-muted">
@@ -303,7 +329,7 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, ref }: Obje
       )}
 
       {onSetColor !== undefined && (
-        <div>
+        <div className="mb-3">
           <p className="mb-1.5 text-xs text-muted">Color</p>
           <div className="flex flex-wrap gap-1.5">
             {PALETTE.map(({ label: colorLabel, value }) => {
@@ -332,6 +358,73 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, ref }: Obje
             })}
           </div>
         </div>
+      )}
+
+      {onSetStyle !== undefined && hasStroke && (
+        <>
+          <div className="mb-3">
+            <p className="mb-1.5 text-xs text-muted">Grosor</p>
+            <div className="flex gap-1">
+              {STROKE_WIDTHS.map(({ label: wLabel, value: wValue, svgWidth }) => {
+                const active = currentStrokeWidth === wValue || (currentStrokeWidth === null && wValue === 2);
+                return (
+                  <button
+                    key={wLabel}
+                    type="button"
+                    title={wLabel}
+                    aria-label={wLabel}
+                    aria-pressed={active}
+                    onClick={() => onSetStyle({ strokeWidth: wValue })}
+                    className={`flex h-7 flex-1 items-center justify-center rounded-md border transition-colors focus-visible:outline-2 focus-visible:outline-brand-500 ${
+                      active ? "border-brand-500 bg-brand-50" : "border-edge hover:border-brand-400"
+                    }`}
+                  >
+                    <svg width="22" height="14" aria-hidden>
+                      <line
+                        x1="2" y1="7" x2="20" y2="7"
+                        stroke="currentColor"
+                        strokeWidth={svgWidth}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <p className="mb-1.5 text-xs text-muted">Tipo de línea</p>
+            <div className="flex gap-1">
+              {STROKE_DASHES.map(({ label: dLabel, value: dValue, dasharray, linecap }) => {
+                const active = currentStrokeDash === dValue;
+                return (
+                  <button
+                    key={dLabel}
+                    type="button"
+                    title={dLabel}
+                    aria-label={dLabel}
+                    aria-pressed={active}
+                    onClick={() => onSetStyle({ strokeDash: dValue })}
+                    className={`flex h-7 flex-1 items-center justify-center rounded-md border transition-colors focus-visible:outline-2 focus-visible:outline-brand-500 ${
+                      active ? "border-brand-500 bg-brand-50" : "border-edge hover:border-brand-400"
+                    }`}
+                  >
+                    <svg width="28" height="14" aria-hidden>
+                      <line
+                        x1="2" y1="7" x2="26" y2="7"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap={linecap as "round" | "butt" | undefined}
+                        strokeDasharray={dasharray}
+                      />
+                    </svg>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

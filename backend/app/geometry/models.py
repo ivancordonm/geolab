@@ -22,10 +22,13 @@ class GeometryModel(BaseModel):
     )
 
 
+StrokeDash: TypeAlias = Literal["solid", "dashed", "dotted"]
+
+
 class GeometryStyle(GeometryModel):
     color: str | None = None
     stroke_width: float | None = None
-    dashed: bool | None = None
+    stroke_dash: StrokeDash | None = None
 
 
 class GeometryObjectBase(GeometryModel):

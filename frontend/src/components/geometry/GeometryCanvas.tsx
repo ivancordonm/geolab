@@ -22,6 +22,7 @@ import type {
   LineValue,
   PointValue,
   SegmentValue,
+  StrokeDash,
 } from "../../types/geometry";
 import { CircleView } from "./CircleView";
 import { Grid } from "./Grid";
@@ -344,7 +345,7 @@ function renderGeometryObject(
 
   const color = object.style?.color;
   const strokeWidth = object.style?.strokeWidth;
-  const dashed = object.style?.dashed;
+  const strokeDash = object.style?.strokeDash;
   const labelOffset = object.style?.labelOffset;
   const onLabelOffsetChange = onSetLabelOffset
     ? (ox: number, oy: number) => onSetLabelOffset(object.id, ox, oy)
@@ -373,7 +374,7 @@ function renderGeometryObject(
       size,
       color,
       strokeWidth,
-      dashed,
+      strokeDash,
       selectedObjectIds.includes(object.id),
       labelOffset,
       onPointerDown,
@@ -388,6 +389,7 @@ function renderGeometryObject(
       size,
       color,
       strokeWidth,
+      strokeDash,
       selectedObjectIds.includes(object.id),
       labelOffset,
       onPointerDown,
@@ -401,7 +403,7 @@ function renderGeometryObject(
     size,
     color,
     strokeWidth,
-    dashed,
+    strokeDash,
     selectedObjectIds.includes(object.id),
     labelOffset,
     onPointerDown,
@@ -448,7 +450,7 @@ function renderLine(
   size: CanvasSize,
   color: string | undefined,
   strokeWidth: number | undefined,
-  dashed: boolean | undefined,
+  strokeDash: StrokeDash | undefined,
   selected: boolean,
   labelOffset: { x: number; y: number } | undefined,
   onPointerDown: (objectId: string, event: ReactPointerEvent<SVGElement>) => void,
@@ -468,7 +470,7 @@ function renderLine(
       screenEnd={worldToScreen(clipped.end, viewport, size)}
       color={color}
       strokeWidth={strokeWidth}
-      dashed={dashed}
+      strokeDash={strokeDash}
       selected={selected}
       labelOffset={labelOffset}
       onPointerDown={onPointerDown}
@@ -484,6 +486,7 @@ function renderSegment(
   size: CanvasSize,
   color: string | undefined,
   strokeWidth: number | undefined,
+  strokeDash: StrokeDash | undefined,
   selected: boolean,
   labelOffset: { x: number; y: number } | undefined,
   onPointerDown: (objectId: string, event: ReactPointerEvent<SVGElement>) => void,
@@ -498,6 +501,7 @@ function renderSegment(
       end={worldToScreen(value.end, viewport, size)}
       color={color}
       strokeWidth={strokeWidth}
+      strokeDash={strokeDash}
       selected={selected}
       labelOffset={labelOffset}
       onPointerDown={onPointerDown}
@@ -513,7 +517,7 @@ function renderCircle(
   size: CanvasSize,
   color: string | undefined,
   strokeWidth: number | undefined,
-  dashed: boolean | undefined,
+  strokeDash: StrokeDash | undefined,
   selected: boolean,
   labelOffset: { x: number; y: number } | undefined,
   onPointerDown: (objectId: string, event: ReactPointerEvent<SVGElement>) => void,
@@ -529,7 +533,7 @@ function renderCircle(
       radius={value.radius * viewport.scale}
       color={color}
       strokeWidth={strokeWidth}
-      dashed={dashed}
+      strokeDash={strokeDash}
       selected={selected}
       labelOffset={labelOffset}
       onPointerDown={onPointerDown}

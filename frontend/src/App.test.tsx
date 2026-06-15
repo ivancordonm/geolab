@@ -177,6 +177,20 @@ describe("script editor flow", () => {
     expect(screen.getByLabelText("9 objects")).toBeInTheDocument();
   });
 
+  it("deletes the selected object when pressing Delete", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const objectsRegion = screen.getByRole("region", { name: "Objects" });
+    const selectA = within(objectsRegion).getByText("A").closest("button");
+    expect(selectA).not.toBeNull();
+    await user.click(selectA!);
+    await user.keyboard("{Delete}");
+
+    expect(screen.getByLabelText("2 objects")).toBeInTheDocument();
+    expect(document.querySelector('[data-object-id="A"]')).toBeNull();
+  });
+
   it("undoes a visibility change from the toolbar button", async () => {
     const user = userEvent.setup();
     render(<App />);

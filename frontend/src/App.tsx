@@ -77,20 +77,6 @@ export function App() {
   }, []);
   useAutoSaveDocument(geometry.document, geometry.viewport, reportPersistenceError);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent): void => {
-      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "z") return;
-      event.preventDefault();
-      if (event.shiftKey) {
-        geometry.redo();
-      } else {
-        geometry.undo();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [geometry]);
-
   const replaceConstruction = useCallback(
     (document: GeometryDocument) => {
       geometry.replaceDocument(document);
@@ -110,6 +96,29 @@ export function App() {
     constructionTools.cancel();
     setSelectedObjectId(null);
   }, [constructionTools, geometry]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (
+        (event.key === "Delete" || event.key === "Backspace") &&
+        selectedObjectId !== null &&
+        !isEditableTarget(event.target)
+      ) {
+        event.preventDefault();
+        handleDeleteObject(selectedObjectId);
+        return;
+      }
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "z") return;
+      event.preventDefault();
+      if (event.shiftKey) {
+        geometry.redo();
+      } else {
+        geometry.undo();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [geometry, handleDeleteObject, selectedObjectId]);
 
   const handleSave = useCallback(() => {
     try {
@@ -435,6 +444,16 @@ function createEmptyDocument(viewport: GeometryDocument["viewport"]): GeometryDo
     objects: [],
     viewport,
   };
+}
+
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target.isContentEditable ||
+    target.tagName === "INPUT" ||
+    target.tagName === "TEXTAREA" ||
+    target.tagName === "SELECT"
+  );
 }
 
 function safeFilename(title: string): string {

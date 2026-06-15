@@ -196,6 +196,36 @@ describe("GeometryGraph", () => {
       radius: 1,
     });
   });
+
+  it("reflects complete objects, not only points", () => {
+    const doc: GeometryDocument = {
+      schemaVersion: 1,
+      id: "reflection-objects",
+      title: "Reflection objects",
+      objects: [
+        { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 1, y: 1 } },
+        { id: "B", label: "B", kind: "point", visible: true, definition: { type: "free", x: 3, y: 1 } },
+        { id: "C", label: "C", kind: "point", visible: true, definition: { type: "free", x: 1, y: 3 } },
+        { id: "axisP", label: "axisP", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+        { id: "axisQ", label: "axisQ", kind: "point", visible: true, definition: { type: "free", x: 0, y: 2 } },
+        { id: "axis", label: "axis", kind: "line", visible: true, definition: { type: "through_points", pointA: "axisP", pointB: "axisQ" } },
+        { id: "seg", label: "seg", kind: "segment", visible: true, definition: { type: "between_points", pointA: "A", pointB: "B" } },
+        { id: "circle", label: "circle", kind: "circle", visible: true, definition: { type: "center_through_point", center: "A", point: "B" } },
+        { id: "poly", label: "poly", kind: "polygon", visible: true, definition: { type: "polygon", points: ["A", "B", "C"] } },
+        { id: "segR", label: "segR", kind: "segment", visible: true, definition: { type: "reflection_over_line", object: "seg", line: "axis" } },
+        { id: "circleR", label: "circleR", kind: "circle", visible: true, definition: { type: "reflection_over_line", object: "circle", line: "axis" } },
+        { id: "polyR", label: "polyR", kind: "polygon", visible: true, definition: { type: "reflection_over_point", object: "poly", center: "axisP" } },
+      ],
+    };
+
+    const values = new GeometryGraph(doc).values;
+    expect(values.get("segR")).toMatchObject({ type: "segment", start: { x: -1, y: 1 }, end: { x: -3, y: 1 } });
+    expect(values.get("circleR")).toMatchObject({ type: "circle", center: { x: -1, y: 1 }, radius: 2 });
+    expect(values.get("polyR")).toMatchObject({
+      type: "polygon",
+      vertices: [{ x: -1, y: -1 }, { x: -3, y: -1 }, { x: -1, y: -3 }],
+    });
+  });
 });
 
 // ─── Conformance: polygon construction variants ──────────────────────────────

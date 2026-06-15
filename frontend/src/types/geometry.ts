@@ -111,13 +111,13 @@ export interface CircumscribedCircle extends GeometryObjectBase {
 // ─── Transformations ───────────────────────────────────────────────────────
 
 export interface ReflectionOverLine extends GeometryObjectBase {
-  kind: "point";
-  definition: { type: "reflection_over_line"; point: GeometryObjectId; line: GeometryObjectId };
+  kind: "point" | "line" | "segment" | "circle" | "polygon";
+  definition: { type: "reflection_over_line"; object: GeometryObjectId; line: GeometryObjectId; point?: GeometryObjectId };
 }
 
 export interface ReflectionOverPoint extends GeometryObjectBase {
-  kind: "point";
-  definition: { type: "reflection_over_point"; point: GeometryObjectId; center: GeometryObjectId };
+  kind: "point" | "line" | "segment" | "circle" | "polygon";
+  definition: { type: "reflection_over_point"; object: GeometryObjectId; center: GeometryObjectId; point?: GeometryObjectId };
 }
 
 export interface HomothetyScalar extends GeometryObjectBase {

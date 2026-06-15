@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal, TypeAlias
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic.alias_generators import to_camel
 
 GEOMETRY_SCHEMA_VERSION = 1
@@ -151,13 +151,19 @@ class CircumscribedDefinition(GeometryModel):
 
 class ReflectionOverLineDefinition(GeometryModel):
     type: Literal["reflection_over_line"] = "reflection_over_line"
-    point: str
+    object_id: str = Field(
+        validation_alias=AliasChoices("object", "point"),
+        serialization_alias="object",
+    )
     line: str
 
 
 class ReflectionOverPointDefinition(GeometryModel):
     type: Literal["reflection_over_point"] = "reflection_over_point"
-    point: str
+    object_id: str = Field(
+        validation_alias=AliasChoices("object", "point"),
+        serialization_alias="object",
+    )
     center: str
 
 
@@ -277,12 +283,12 @@ class CircumscribedCircle(GeometryObjectBase):
 # Transformations
 
 class ReflectionOverLine(GeometryObjectBase):
-    kind: Literal["point"] = "point"
+    kind: Literal["point", "line", "segment", "circle", "polygon"]
     definition: ReflectionOverLineDefinition
 
 
 class ReflectionOverPoint(GeometryObjectBase):
-    kind: Literal["point"] = "point"
+    kind: Literal["point", "line", "segment", "circle", "polygon"]
     definition: ReflectionOverPointDefinition
 
 

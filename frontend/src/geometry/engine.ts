@@ -55,9 +55,9 @@ export function getParentIds(object: GeometryObject): GeometryObjectId[] {
     case "circumscribed":
       return [object.definition.pointA, object.definition.pointB, object.definition.pointC];
     case "reflection_over_line":
-      return [object.definition.point, object.definition.line];
+      return [object.definition.object ?? object.definition.point!, object.definition.line];
     case "reflection_over_point":
-      return [object.definition.point, object.definition.center];
+      return [object.definition.object ?? object.definition.point!, object.definition.center];
     case "homothety_scalar":
       return [object.definition.center, object.definition.point];
     case "homothety_point":
@@ -250,12 +250,40 @@ export class GeometryGraph {
         requireKind(def.pointC, "point");
         return;
       case "reflection_over_line":
-        requireKind(def.point, "point");
-        requireKind(def.line, "line");
+        {
+          const sourceId = def.object ?? def.point!;
+          const parent = this.objectsById.get(sourceId);
+          const actual = parent?.kind;
+          if (actual === undefined || !["point", "line", "segment", "circle", "polygon"].includes(actual)) {
+            throw new GeometryValidationError(
+              `Object '${object.id}' requires parent '${sourceId}' to be reflectable`,
+            );
+          }
+          requireKind(def.line, "line");
+          if (object.kind !== actual) {
+            throw new GeometryValidationError(
+              `Object '${object.id}' must keep the reflected kind '${actual}'`,
+            );
+          }
+        }
         return;
       case "reflection_over_point":
-        requireKind(def.point, "point");
-        requireKind(def.center, "point");
+        {
+          const sourceId = def.object ?? def.point!;
+          const parent = this.objectsById.get(sourceId);
+          const actual = parent?.kind;
+          if (actual === undefined || !["point", "line", "segment", "circle", "polygon"].includes(actual)) {
+            throw new GeometryValidationError(
+              `Object '${object.id}' requires parent '${sourceId}' to be reflectable`,
+            );
+          }
+          requireKind(def.center, "point");
+          if (object.kind !== actual) {
+            throw new GeometryValidationError(
+              `Object '${object.id}' must keep the reflected kind '${actual}'`,
+            );
+          }
+        }
         return;
       case "homothety_scalar":
         requireKind(def.center, "point");
@@ -487,20 +515,21 @@ export class GeometryGraph {
       // ─── New: transformations ──────────────────────────────────────────
 
       case "reflection_over_line": {
-        const pt = this.requireValue<PointValue>(object.id, def.point, "point");
-        if (isUndefined(pt)) return pt;
         const ln = this.requireValue<LineValue>(object.id, def.line, "line");
         if (isUndefined(ln)) return ln;
-        const d = ln.a * pt.x + ln.b * pt.y + ln.c;
-        return { type: "point", x: cleanZero(pt.x - 2 * ln.a * d), y: cleanZero(pt.y - 2 * ln.b * d) };
+        const sourceId = def.object ?? def.point!;
+        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind);
+        if (isUndefined(source)) return source;
+        return reflectValueOverLine(source, ln);
       }
 
       case "reflection_over_point": {
-        const pt = this.requireValue<PointValue>(object.id, def.point, "point");
-        if (isUndefined(pt)) return pt;
         const ctr = this.requireValue<PointValue>(object.id, def.center, "point");
         if (isUndefined(ctr)) return ctr;
-        return { type: "point", x: cleanZero(2 * ctr.x - pt.x), y: cleanZero(2 * ctr.y - pt.y) };
+        const sourceId = def.object ?? def.point!;
+        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind);
+        if (isUndefined(source)) return source;
+        return reflectValueOverPoint(source, ctr);
       }
 
       case "homothety_scalar": {
@@ -721,6 +750,93 @@ function intersectLines(lA: LineValue, lB: LineValue): EvaluatedValue {
     x: cleanZero((lA.b * lB.c - lB.b * lA.c) / det),
     y: cleanZero((lB.a * lA.c - lA.a * lB.c) / det),
   };
+}
+
+function reflectPointOverLine(point: PointValue, line: LineValue): PointValue {
+  const distance = line.a * point.x + line.b * point.y + line.c;
+  return {
+    type: "point",
+    x: cleanZero(point.x - 2 * line.a * distance),
+    y: cleanZero(point.y - 2 * line.b * distance),
+  };
+}
+
+function reflectPointOverPoint(point: PointValue, center: PointValue): PointValue {
+  return {
+    type: "point",
+    x: cleanZero(2 * center.x - point.x),
+    y: cleanZero(2 * center.y - point.y),
+  };
+}
+
+function samplePointsFromLine(line: LineValue): [PointValue, PointValue] {
+  const base: PointValue = { type: "point", x: cleanZero(-line.a * line.c), y: cleanZero(-line.b * line.c) };
+  const direction: PointValue = {
+    type: "point",
+    x: cleanZero(base.x - line.b),
+    y: cleanZero(base.y + line.a),
+  };
+  return [base, direction];
+}
+
+function reflectValueOverLine(value: EvaluatedValue, mirror: LineValue): EvaluatedValue {
+  switch (value.type) {
+    case "point":
+      return reflectPointOverLine(value, mirror);
+    case "line": {
+      const [first, second] = samplePointsFromLine(value);
+      return lineThroughPoints(reflectPointOverLine(first, mirror), reflectPointOverLine(second, mirror));
+    }
+    case "segment": {
+      const start = reflectPointOverLine({ type: "point", ...value.start }, mirror);
+      const end = reflectPointOverLine({ type: "point", ...value.end }, mirror);
+      return { type: "segment", start: { x: start.x, y: start.y }, end: { x: end.x, y: end.y } };
+    }
+    case "circle": {
+      const center = reflectPointOverLine({ type: "point", ...value.center }, mirror);
+      return { type: "circle", center: { x: center.x, y: center.y }, radius: value.radius };
+    }
+    case "polygon":
+      return {
+        type: "polygon",
+        vertices: value.vertices.map((vertex) => {
+          const reflected = reflectPointOverLine({ type: "point", ...vertex }, mirror);
+          return { x: reflected.x, y: reflected.y };
+        }),
+      };
+    default:
+      throw new GeometryValidationError(`Reflection over line is unsupported for evaluated type '${value.type}'`);
+  }
+}
+
+function reflectValueOverPoint(value: EvaluatedValue, center: PointValue): EvaluatedValue {
+  switch (value.type) {
+    case "point":
+      return reflectPointOverPoint(value, center);
+    case "line": {
+      const [first, second] = samplePointsFromLine(value);
+      return lineThroughPoints(reflectPointOverPoint(first, center), reflectPointOverPoint(second, center));
+    }
+    case "segment": {
+      const start = reflectPointOverPoint({ type: "point", ...value.start }, center);
+      const end = reflectPointOverPoint({ type: "point", ...value.end }, center);
+      return { type: "segment", start: { x: start.x, y: start.y }, end: { x: end.x, y: end.y } };
+    }
+    case "circle": {
+      const reflectedCenter = reflectPointOverPoint({ type: "point", ...value.center }, center);
+      return { type: "circle", center: { x: reflectedCenter.x, y: reflectedCenter.y }, radius: value.radius };
+    }
+    case "polygon":
+      return {
+        type: "polygon",
+        vertices: value.vertices.map((vertex) => {
+          const reflected = reflectPointOverPoint({ type: "point", ...vertex }, center);
+          return { x: reflected.x, y: reflected.y };
+        }),
+      };
+    default:
+      throw new GeometryValidationError(`Reflection over point is unsupported for evaluated type '${value.type}'`);
+  }
 }
 
 function intersectLineCircle(

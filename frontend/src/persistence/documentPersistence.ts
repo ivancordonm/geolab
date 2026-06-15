@@ -200,9 +200,9 @@ function objectToScript(
     case "circumscribed":
       return `${variable} = Circumcircle(${reference(object.definition.pointA)}, ${reference(object.definition.pointB)}, ${reference(object.definition.pointC)})`;
     case "reflection_over_line":
-      return `${variable} = Reflection(${reference(object.definition.point)}, ${reference(object.definition.line)})`;
+      return `${variable} = Reflection(${reference(object.definition.object ?? object.definition.point!)}, ${reference(object.definition.line)})`;
     case "reflection_over_point":
-      return `${variable} = Reflection(${reference(object.definition.point)}, ${reference(object.definition.center)})`;
+      return `${variable} = Reflection(${reference(object.definition.object ?? object.definition.point!)}, ${reference(object.definition.center)})`;
     case "homothety_scalar":
       return `${variable} = Homothety(${reference(object.definition.center)}, ${reference(object.definition.point)}, ${formatNumber(object.definition.ratio)})`;
     case "homothety_point":

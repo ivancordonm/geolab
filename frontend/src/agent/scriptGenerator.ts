@@ -48,9 +48,9 @@ function objectToStatement(object: GeometryObject): string {
     case "circumscribed":
       return `${object.id} = Circumcircle(${definition.pointA}, ${definition.pointB}, ${definition.pointC})`;
     case "reflection_over_line":
-      return `${object.id} = Reflection(${definition.point}, ${definition.line})`;
+      return `${object.id} = Reflection(${definition.object ?? definition.point}, ${definition.line})`;
     case "reflection_over_point":
-      return `${object.id} = Reflection(${definition.point}, ${definition.center})`;
+      return `${object.id} = Reflection(${definition.object ?? definition.point}, ${definition.center})`;
     case "homothety_scalar":
       return `${object.id} = Homothety(${definition.center}, ${definition.point}, ${formatNumber(definition.ratio)})`;
     case "homothety_point":

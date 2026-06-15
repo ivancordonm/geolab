@@ -86,9 +86,9 @@ def get_parent_ids(obj: GeometryObject) -> list[str]:
     if isinstance(definition, CircumscribedDefinition):
         return [definition.point_a, definition.point_b, definition.point_c]
     if isinstance(definition, ReflectionOverLineDefinition):
-        return [definition.point, definition.line]
+        return [definition.object_id, definition.line]
     if isinstance(definition, ReflectionOverPointDefinition):
-        return [definition.point, definition.center]
+        return [definition.object_id, definition.center]
     if isinstance(definition, HomothetyScalarDefinition):
         return [definition.center, definition.point]
     if isinstance(definition, HomothetyPointDefinition):
@@ -212,11 +212,27 @@ class GeometryGraph:
             require_kind(definition.point_b, "point")
             require_kind(definition.point_c, "point")
         elif isinstance(definition, ReflectionOverLineDefinition):
-            require_kind(definition.point, "point")
+            actual = self._objects_by_id[definition.object_id].kind
+            if actual not in {"point", "line", "segment", "circle", "polygon"}:
+                raise GeometryValidationError(
+                    f"Object '{obj.id}' requires parent '{definition.object_id}' to be reflectable"
+                )
             require_kind(definition.line, "line")
+            if obj.kind != actual:
+                raise GeometryValidationError(
+                    f"Object '{obj.id}' must keep the reflected kind '{actual}'"
+                )
         elif isinstance(definition, ReflectionOverPointDefinition):
-            require_kind(definition.point, "point")
+            actual = self._objects_by_id[definition.object_id].kind
+            if actual not in {"point", "line", "segment", "circle", "polygon"}:
+                raise GeometryValidationError(
+                    f"Object '{obj.id}' requires parent '{definition.object_id}' to be reflectable"
+                )
             require_kind(definition.center, "point")
+            if obj.kind != actual:
+                raise GeometryValidationError(
+                    f"Object '{obj.id}' must keep the reflected kind '{actual}'"
+                )
         elif isinstance(definition, HomothetyScalarDefinition):
             require_kind(definition.center, "point")
             require_kind(definition.point, "point")
@@ -412,27 +428,24 @@ class GeometryGraph:
         # ─── New: transformations ──────────────────────────────────────────
 
         if isinstance(definition, ReflectionOverLineDefinition):
-            pt = self._require_value(obj.id, definition.point, "point")
-            if isinstance(pt, UndefinedValue):
-                return pt
             ln = self._require_value(obj.id, definition.line, "line")
             if isinstance(ln, UndefinedValue):
                 return ln
-            assert isinstance(pt, PointValue)
             assert isinstance(ln, LineValue)
-            d = ln.a * pt.x + ln.b * pt.y + ln.c
-            return PointValue(x=_clean_zero(pt.x - 2 * ln.a * d), y=_clean_zero(pt.y - 2 * ln.b * d))
+            source = self._require_value(obj.id, definition.object_id, obj.kind)
+            if isinstance(source, UndefinedValue):
+                return source
+            return _reflect_value_over_line(source, ln)
 
         if isinstance(definition, ReflectionOverPointDefinition):
-            pt = self._require_value(obj.id, definition.point, "point")
-            if isinstance(pt, UndefinedValue):
-                return pt
             ctr = self._require_value(obj.id, definition.center, "point")
             if isinstance(ctr, UndefinedValue):
                 return ctr
-            assert isinstance(pt, PointValue)
             assert isinstance(ctr, PointValue)
-            return PointValue(x=_clean_zero(2 * ctr.x - pt.x), y=_clean_zero(2 * ctr.y - pt.y))
+            source = self._require_value(obj.id, definition.object_id, obj.kind)
+            if isinstance(source, UndefinedValue):
+                return source
+            return _reflect_value_over_point(source, ctr)
 
         if isinstance(definition, HomothetyScalarDefinition):
             ctr = self._require_value(obj.id, definition.center, "point")
@@ -609,6 +622,79 @@ def _intersect_lines(lA: LineValue, lB: LineValue) -> EvaluatedValue:
     if abs(det) <= GEOMETRY_EPSILON:
         return UndefinedValue(code="parallel_lines", message="Lines are parallel or coincident")
     return PointValue(x=_clean_zero((lA.b * lB.c - lB.b * lA.c) / det), y=_clean_zero((lB.a * lA.c - lA.a * lB.c) / det))
+
+
+def _reflect_point_over_line(point: PointValue, line: LineValue) -> PointValue:
+    d = line.a * point.x + line.b * point.y + line.c
+    return PointValue(
+        x=_clean_zero(point.x - 2 * line.a * d),
+        y=_clean_zero(point.y - 2 * line.b * d),
+    )
+
+
+def _reflect_point_over_center(point: PointValue, center: PointValue) -> PointValue:
+    return PointValue(x=_clean_zero(2 * center.x - point.x), y=_clean_zero(2 * center.y - point.y))
+
+
+def _line_sample_points(line: LineValue) -> tuple[PointValue, PointValue]:
+    base = PointValue(x=_clean_zero(-line.a * line.c), y=_clean_zero(-line.b * line.c))
+    direction = PointValue(
+        x=_clean_zero(base.x - line.b),
+        y=_clean_zero(base.y + line.a),
+    )
+    return base, direction
+
+
+def _reflect_value_over_line(value: EvaluatedValue, mirror: LineValue) -> EvaluatedValue:
+    if isinstance(value, PointValue):
+        return _reflect_point_over_line(value, mirror)
+    if isinstance(value, LineValue):
+        p1, p2 = _line_sample_points(value)
+        return _line_through_points(_reflect_point_over_line(p1, mirror), _reflect_point_over_line(p2, mirror))
+    if isinstance(value, SegmentValue):
+        start = _reflect_point_over_line(PointValue(x=value.start.x, y=value.start.y), mirror)
+        end = _reflect_point_over_line(PointValue(x=value.end.x, y=value.end.y), mirror)
+        return SegmentValue(start=Coordinate(x=start.x, y=start.y), end=Coordinate(x=end.x, y=end.y))
+    if isinstance(value, CircleValue):
+        center = _reflect_point_over_line(PointValue(x=value.center.x, y=value.center.y), mirror)
+        return CircleValue(center=Coordinate(x=center.x, y=center.y), radius=value.radius)
+    if isinstance(value, PolygonValue):
+        return PolygonValue(
+            vertices=[
+                Coordinate(x=reflected.x, y=reflected.y)
+                for reflected in (
+                    _reflect_point_over_line(PointValue(x=vertex.x, y=vertex.y), mirror)
+                    for vertex in value.vertices
+                )
+            ]
+        )
+    raise GeometryValidationError(f"Reflection over line is unsupported for evaluated type '{value.type}'")
+
+
+def _reflect_value_over_point(value: EvaluatedValue, center: PointValue) -> EvaluatedValue:
+    if isinstance(value, PointValue):
+        return _reflect_point_over_center(value, center)
+    if isinstance(value, LineValue):
+        p1, p2 = _line_sample_points(value)
+        return _line_through_points(_reflect_point_over_center(p1, center), _reflect_point_over_center(p2, center))
+    if isinstance(value, SegmentValue):
+        start = _reflect_point_over_center(PointValue(x=value.start.x, y=value.start.y), center)
+        end = _reflect_point_over_center(PointValue(x=value.end.x, y=value.end.y), center)
+        return SegmentValue(start=Coordinate(x=start.x, y=start.y), end=Coordinate(x=end.x, y=end.y))
+    if isinstance(value, CircleValue):
+        reflected_center = _reflect_point_over_center(PointValue(x=value.center.x, y=value.center.y), center)
+        return CircleValue(center=Coordinate(x=reflected_center.x, y=reflected_center.y), radius=value.radius)
+    if isinstance(value, PolygonValue):
+        return PolygonValue(
+            vertices=[
+                Coordinate(x=reflected.x, y=reflected.y)
+                for reflected in (
+                    _reflect_point_over_center(PointValue(x=vertex.x, y=vertex.y), center)
+                    for vertex in value.vertices
+                )
+            ]
+        )
+    raise GeometryValidationError(f"Reflection over point is unsupported for evaluated type '{value.type}'")
 
 
 def _intersect_line_circle(

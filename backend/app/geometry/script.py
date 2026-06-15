@@ -433,12 +433,24 @@ def _build_object(
 
     if command == "Reflection":
         _require_arity(statement, 2)
-        pt = _resolve_point_argument(arguments[0], statement, symbols, objects, argument_position=1)
+        source = _resolve_reference(arguments[0], statement, symbols, argument_position=1)
         mirror = _resolve_reference(arguments[1], statement, symbols, argument_position=2)
         if mirror.kind == "line":
-            return [ReflectionOverLine(id=statement.target, label=statement.target, definition=ReflectionOverLineDefinition(point=pt.id, line=mirror.id))]
+            if source.kind not in {"point", "line", "segment", "circle", "polygon"}:
+                _raise(
+                    "invalid_reference_type",
+                    f"Argument 1 of Reflection must reference a reflectable object, but '{source.id}' is a {source.kind}",
+                    statement.line, statement.source_line, source.id,
+                )
+            return [ReflectionOverLine(id=statement.target, label=statement.target, kind=source.kind, definition=ReflectionOverLineDefinition(object_id=source.id, line=mirror.id))]
         if mirror.kind == "point":
-            return [ReflectionOverPoint(id=statement.target, label=statement.target, definition=ReflectionOverPointDefinition(point=pt.id, center=mirror.id))]
+            if source.kind not in {"point", "line", "segment", "circle", "polygon"}:
+                _raise(
+                    "invalid_reference_type",
+                    f"Argument 1 of Reflection must reference a reflectable object, but '{source.id}' is a {source.kind}",
+                    statement.line, statement.source_line, source.id,
+                )
+            return [ReflectionOverPoint(id=statement.target, label=statement.target, kind=source.kind, definition=ReflectionOverPointDefinition(object_id=source.id, center=mirror.id))]
         _raise(
             "invalid_reference_type",
             f"Argument 2 of Reflection must reference a line or point, but '{mirror.id}' is a {mirror.kind}",

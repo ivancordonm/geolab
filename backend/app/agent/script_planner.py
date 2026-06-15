@@ -49,7 +49,7 @@ COMMANDS (use these names EXACTLY, with the stated arity):
 - PerpendicularBisector(P, Q)     perpendicular bisector line of segment PQ
 - AngleBisector(armA, vertex, armB)   angle bisector line
 - Circumcircle(P, Q, R)           circle through three points
-- Reflection(P, mirror)           reflect P over a line or over a point
+- Reflection(obj, mirror)         reflect a point/line/segment/circle/polygon over a line or point
 - Homothety(center, P, ratio)     ratio is a number OR a point name
 - Inversion(P, circle)            invert P in a circle
 - Translation(P, from, to)        translate P by vector from->to

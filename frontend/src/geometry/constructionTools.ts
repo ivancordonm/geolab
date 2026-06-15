@@ -87,8 +87,8 @@ export const TOOL_INSTRUCTIONS: Record<ConstructionTool, string> = {
   perp_bisector: "Click two points to draw their perpendicular bisector.",
   angle_bisector: "Click the first arm point, then the vertex, then the second arm point.",
   circumcircle: "Click three points to draw the circumscribed circle.",
-  reflect_line: "Select the point to reflect, then select the mirror line.",
-  reflect_point: "Select the point to reflect, then select the center of symmetry.",
+  reflect_line: "Select the object to reflect, then select the mirror line.",
+  reflect_point: "Select the object to reflect, then select the center of symmetry.",
   homothety: "Click center, then source point, then a point defining the ratio.",
   inversion: "Select the object to invert, then select the inversion circle.",
   translation: "Click the point to translate, then the start of the translation vector, then the end.",
@@ -111,8 +111,8 @@ const MULTI_STEP_REQUIREMENTS: Partial<Record<ConstructionTool, readonly Require
   perp_bisector: ["point", "point"],
   angle_bisector: ["point", "point", "point"],
   circumcircle: ["point", "point", "point"],
-  reflect_line: ["point", "line"],
-  reflect_point: ["point", "point"],
+  reflect_line: ["invertible", "line"],
+  reflect_point: ["invertible", "point"],
   homothety: ["point", "point", "point"],
   inversion: ["invertible", "circle"],
   translation: ["point", "point", "point"],
@@ -477,12 +477,14 @@ function createConstruction(
 
     case "reflect_line": {
       const id = nextObjectId(document, "rf");
-      const obj: ReflectionOverLine = { id, label: id, kind: "point", visible: true, definition: { type: "reflection_over_line", point: first, line: second } };
+      const source = requireObject(document, first);
+      const obj: ReflectionOverLine = { id, label: id, kind: source.kind, visible: true, definition: { type: "reflection_over_line", object: first, line: second } };
       return [obj];
     }
     case "reflect_point": {
       const id = nextObjectId(document, "rp");
-      const obj: ReflectionOverPoint = { id, label: id, kind: "point", visible: true, definition: { type: "reflection_over_point", point: first, center: second } };
+      const source = requireObject(document, first);
+      const obj: ReflectionOverPoint = { id, label: id, kind: source.kind, visible: true, definition: { type: "reflection_over_point", object: first, center: second } };
       return [obj];
     }
 

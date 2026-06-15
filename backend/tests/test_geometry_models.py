@@ -168,3 +168,24 @@ def test_directional_selectors_recompute_from_current_parent_geometry() -> None:
     moved = graph.move_free_point("B", 0, 4)
     assert moved.values["C"].type == "undefined"
     assert moved.values["C"].code == "ambiguous_selector"  # type: ignore[union-attr]
+
+
+def test_reflection_models_accept_legacy_point_and_serialize_as_object() -> None:
+    document = GeometryDocument.model_validate(
+        {
+            "schemaVersion": 1,
+            "id": "reflection-compat",
+            "title": "Reflection compatibility",
+            "objects": [
+                {"id": "A", "label": "A", "kind": "point", "definition": {"type": "free", "x": 1, "y": 1}},
+                {"id": "B", "label": "B", "kind": "point", "definition": {"type": "free", "x": 0, "y": 0}},
+                {"id": "C", "label": "C", "kind": "point", "definition": {"type": "free", "x": 0, "y": 2}},
+                {"id": "axis", "label": "axis", "kind": "line", "definition": {"type": "through_points", "pointA": "B", "pointB": "C"}},
+                {"id": "R", "label": "R", "kind": "point", "definition": {"type": "reflection_over_line", "point": "A", "line": "axis"}},
+            ],
+        }
+    )
+
+    payload = json.loads(geometry_document_to_json(document))
+    assert payload["objects"][-1]["definition"]["object"] == "A"
+    assert "point" not in payload["objects"][-1]["definition"]

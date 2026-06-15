@@ -41,6 +41,7 @@ const KIND_DOT_BG: Record<string, string> = {
   segment: "var(--geo-segment)",
   line: "var(--geo-line)",
   circle: "var(--geo-circle)",
+  arc: "var(--geo-circle)",
 };
 
 function dotStyle(object: GeometryObject): React.CSSProperties {
@@ -566,8 +567,10 @@ function describeObject(object: GeometryObject): string {
     homothety_scalar: "Homothety (scalar)",
     homothety_point: "Homothety (point ratio)",
     inversion_in_circle: "Inversion in circle",
+    polygon_vertex: "Polygon vertex",
     translation: "Translation",
     rotation: "Rotation",
+    arc_through_points: "Arc through points",
     polygon: "Polygon",
     regular_polygon: "Regular polygon",
     vector_polygon: "Vector polygon",

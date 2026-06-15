@@ -1,7 +1,7 @@
 export const GEOMETRY_SCHEMA_VERSION = 1 as const;
 
 export type GeometryObjectId = string;
-export type GeometryKind = "point" | "line" | "segment" | "circle" | "polygon";
+export type GeometryKind = "point" | "line" | "segment" | "circle" | "polygon" | "arc";
 
 export type StrokeDash = "solid" | "dashed" | "dotted";
 
@@ -45,6 +45,11 @@ export interface Circle extends GeometryObjectBase {
 export interface Midpoint extends GeometryObjectBase {
   kind: "point";
   definition: { type: "midpoint"; pointA: GeometryObjectId; pointB: GeometryObjectId };
+}
+
+export interface PolygonVertexPoint extends GeometryObjectBase {
+  kind: "point";
+  definition: { type: "polygon_vertex"; polygon: GeometryObjectId; index: number };
 }
 
 export interface ParallelLine extends GeometryObjectBase {
@@ -140,6 +145,11 @@ export interface RotatedPoint extends GeometryObjectBase {
   definition: { type: "rotation"; point: GeometryObjectId; center: GeometryObjectId; degrees: number };
 }
 
+export interface Arc extends GeometryObjectBase {
+  kind: "arc";
+  definition: { type: "arc_through_points"; pointA: GeometryObjectId; pointMid: GeometryObjectId; pointB: GeometryObjectId };
+}
+
 // ─── Polygons ──────────────────────────────────────────────────────────────
 
 export interface Polygon extends GeometryObjectBase {
@@ -158,6 +168,7 @@ export type GeometryObject =
   | Segment
   | Circle
   | Midpoint
+  | PolygonVertexPoint
   | ParallelLine
   | PerpendicularLine
   | IntersectionLL
@@ -173,6 +184,7 @@ export type GeometryObject =
   | InversionInCircle
   | TranslatedPoint
   | RotatedPoint
+  | Arc
   | Polygon;
 
 // ─── Viewport and document ─────────────────────────────────────────────────
@@ -219,6 +231,15 @@ export interface CircleValue {
   radius: number;
 }
 
+export interface ArcValue {
+  type: "arc";
+  center: Omit<PointValue, "type">;
+  radius: number;
+  start: Omit<PointValue, "type">;
+  mid: Omit<PointValue, "type">;
+  end: Omit<PointValue, "type">;
+}
+
 export interface UndefinedValue {
   type: "undefined";
   code: string;
@@ -235,6 +256,7 @@ export type EvaluatedValue =
   | LineValue
   | SegmentValue
   | CircleValue
+  | ArcValue
   | PolygonValue
   | UndefinedValue;
 

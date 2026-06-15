@@ -17,6 +17,8 @@ function objectToStatement(object: GeometryObject): string {
   switch (definition.type) {
     case "free":
       return `${object.id} = Point(${formatNumber(definition.x)}, ${formatNumber(definition.y)})`;
+    case "polygon_vertex":
+      return `${object.id} = Vertex(${definition.polygon}, ${definition.index})`;
     case "through_points":
       return `${object.id} = Line(${definition.pointA}, ${definition.pointB})`;
     case "between_points":
@@ -59,6 +61,8 @@ function objectToStatement(object: GeometryObject): string {
       return `${object.id} = Translation(${definition.point}, ${definition.from}, ${definition.to})`;
     case "rotation":
       return `${object.id} = Rotation(${definition.point}, ${definition.center}, ${formatNumber(definition.degrees)})`;
+    case "arc_through_points":
+      return `${object.id} = Arc(${definition.pointA}, ${definition.pointMid}, ${definition.pointB})`;
     case "polygon":
       return `${object.id} = Polygon(${definition.points.join(", ")})`;
     case "regular_polygon":

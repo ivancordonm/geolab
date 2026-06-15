@@ -70,6 +70,94 @@ describe("ConstructionToolController", () => {
     expectValidAdditions(baseDocument, result.createdObjects!);
   });
 
+  it("inverts a line into a circle when the inversion center is off the line", () => {
+    const controller = new ConstructionToolController();
+    controller.activate("inversion");
+    const document: GeometryDocument = {
+      ...baseDocument,
+      objects: [
+        ...baseDocument.objects,
+        {
+          id: "invCircle",
+          label: "invCircle",
+          kind: "circle",
+          visible: true,
+          definition: { type: "center_through_point", center: "C", point: "A" },
+        },
+      ],
+    };
+
+    controller.handleObjectClick("AB", document);
+    const result = controller.handleObjectClick("invCircle", document);
+
+    expect(result.createdObjects?.at(-1)?.kind).toBe("circle");
+    expectValidAdditions(document, result.createdObjects!);
+  });
+
+  it("inverts a circle through the inversion center into a line", () => {
+    const controller = new ConstructionToolController();
+    controller.activate("inversion");
+    const document: GeometryDocument = {
+      ...baseDocument,
+      objects: [
+        ...baseDocument.objects,
+        {
+          id: "srcCircle",
+          label: "srcCircle",
+          kind: "circle",
+          visible: true,
+          definition: { type: "center_through_point", center: "C", point: "A" },
+        },
+        {
+          id: "invCircle",
+          label: "invCircle",
+          kind: "circle",
+          visible: true,
+          definition: { type: "center_through_point", center: "A", point: "B" },
+        },
+      ],
+    };
+
+    controller.handleObjectClick("srcCircle", document);
+    const result = controller.handleObjectClick("invCircle", document);
+
+    expect(result.createdObjects?.at(-1)?.kind).toBe("line");
+    expectValidAdditions(document, result.createdObjects!);
+  });
+
+  it("inverts a polygon into exact arc edges", () => {
+    const controller = new ConstructionToolController();
+    controller.activate("inversion");
+    const document: GeometryDocument = {
+      ...baseDocument,
+      objects: [
+        ...baseDocument.objects,
+        {
+          id: "poly1",
+          label: "poly1",
+          kind: "polygon",
+          visible: true,
+          definition: { type: "polygon", points: ["A", "B", "C"] },
+        },
+        freePoint("D", -3, 1),
+        {
+          id: "invCircle",
+          label: "invCircle",
+          kind: "circle",
+          visible: true,
+          definition: { type: "center_through_point", center: "D", point: "A" },
+        },
+      ],
+    };
+
+    controller.handleObjectClick("poly1", document);
+    const result = controller.handleObjectClick("invCircle", document);
+
+    const visibleKinds = result.createdObjects?.filter((object) => object.visible).map((object) => object.kind);
+    expect(visibleKinds).toEqual(["arc", "arc", "arc"]);
+    expectValidAdditions(document, result.createdObjects!);
+  });
+
   it("cancels an in-progress multi-step construction", () => {
     const controller = new ConstructionToolController();
     controller.activate("segment");

@@ -13,6 +13,7 @@ import {
 import type { CanvasSize, Coordinate } from "../../geometry/viewport";
 import type { ConstructionTool } from "../../geometry/constructionTools";
 import type {
+  ArcValue,
   CircleValue,
   EvaluatedValue,
   EvaluationMap,
@@ -25,6 +26,7 @@ import type {
   SegmentValue,
   StrokeDash,
 } from "../../types/geometry";
+import { ArcView } from "./ArcView";
 import { CircleView } from "./CircleView";
 import { Grid } from "./Grid";
 import { LineView } from "./LineView";
@@ -37,6 +39,8 @@ interface GeometryCanvasProps {
   values: EvaluationMap;
   viewport: GeometryViewport;
   onMoveFreePoint: (pointId: string, x: number, y: number) => void;
+  onBeginFreePointMove?: () => void;
+  onEndFreePointMove?: () => void;
   onViewportChange: (viewport: GeometryViewport) => void;
   activeTool: ConstructionTool;
   selectedObjectIds: readonly string[];
@@ -53,6 +57,8 @@ export function GeometryCanvas({
   values,
   viewport,
   onMoveFreePoint,
+  onBeginFreePointMove,
+  onEndFreePointMove,
   onViewportChange,
   activeTool,
   selectedObjectIds,
@@ -113,9 +119,10 @@ export function GeometryCanvas({
       }
       event.preventDefault();
       svg.setPointerCapture(event.pointerId);
+      onBeginFreePointMove?.();
       draggedPointRef.current = { objectId, pointerId: event.pointerId };
     },
-    [activeTool, document.objects, onObjectClick],
+    [activeTool, document.objects, onBeginFreePointMove, onObjectClick],
   );
 
   const eventToWorld = useCallback(
@@ -209,6 +216,7 @@ export function GeometryCanvas({
           event.currentTarget.releasePointerCapture(event.pointerId);
         }
         draggedPointRef.current = null;
+        onEndFreePointMove?.();
       }
 
       // Canvas drag cleanup: treat as click if the pointer didn't move.
@@ -224,7 +232,7 @@ export function GeometryCanvas({
         canvasDragRef.current = null;
       }
     },
-    [onCanvasClick],
+    [onCanvasClick, onEndFreePointMove],
   );
 
   const handleWheel = useCallback(
@@ -368,6 +376,22 @@ function renderGeometryObject(
 
   if (value.type === "polygon") {
     return renderPolygon(object, value, viewport, size, color, strokeWidth, strokeDash, selectedObjectIds.includes(object.id), labelOffset, onPointerDown, onLabelOffsetChange);
+  }
+
+  if (value.type === "arc") {
+    return renderArc(
+      object,
+      value,
+      viewport,
+      size,
+      color,
+      strokeWidth,
+      strokeDash,
+      selectedObjectIds.includes(object.id),
+      labelOffset,
+      onPointerDown,
+      onLabelOffsetChange,
+    );
   }
 
   if (value.type === "point") {
@@ -550,6 +574,40 @@ function renderCircle(
       value={value}
       center={worldToScreen(value.center, viewport, size)}
       radius={value.radius * viewport.scale}
+      color={color}
+      strokeWidth={strokeWidth}
+      strokeDash={strokeDash}
+      selected={selected}
+      labelOffset={labelOffset}
+      onPointerDown={onPointerDown}
+      onLabelOffsetChange={onLabelOffsetChange}
+    />
+  );
+}
+
+function renderArc(
+  object: GeometryObject,
+  value: ArcValue,
+  viewport: GeometryViewport,
+  size: CanvasSize,
+  color: string | undefined,
+  strokeWidth: number | undefined,
+  strokeDash: StrokeDash | undefined,
+  selected: boolean,
+  labelOffset: { x: number; y: number } | undefined,
+  onPointerDown: (objectId: string, event: ReactPointerEvent<SVGElement>) => void,
+  onLabelOffsetChange: ((ox: number, oy: number) => void) | undefined,
+) {
+  return (
+    <ArcView
+      key={object.id}
+      objectId={object.id}
+      label={object.label}
+      value={value}
+      center={worldToScreen(value.center, viewport, size)}
+      start={worldToScreen(value.start, viewport, size)}
+      mid={worldToScreen(value.mid, viewport, size)}
+      end={worldToScreen(value.end, viewport, size)}
       color={color}
       strokeWidth={strokeWidth}
       strokeDash={strokeDash}

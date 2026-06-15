@@ -98,7 +98,7 @@ function validateDocument(value: unknown): GeometryDocument {
       !isRecord(object) ||
       typeof object.id !== "string" ||
       typeof object.label !== "string" ||
-      !["point", "line", "segment", "circle", "polygon"].includes(String(object.kind)) ||
+      !["point", "line", "segment", "circle", "polygon", "arc"].includes(String(object.kind)) ||
       typeof object.visible !== "boolean" ||
       !isRecord(object.definition)
     ) {
@@ -169,6 +169,8 @@ function objectToScript(
   switch (object.definition.type) {
     case "free":
       return `${variable} = Point(${formatNumber(object.definition.x)}, ${formatNumber(object.definition.y)})`;
+    case "polygon_vertex":
+      return `${variable} = Vertex(${reference(object.definition.polygon)}, ${object.definition.index})`;
     case "through_points":
       return `${variable} = Line(${reference(object.definition.pointA)}, ${reference(object.definition.pointB)})`;
     case "between_points":
@@ -211,6 +213,8 @@ function objectToScript(
       return `${variable} = Translation(${reference(object.definition.point)}, ${reference(object.definition.from)}, ${reference(object.definition.to)})`;
     case "rotation":
       return `${variable} = Rotation(${reference(object.definition.point)}, ${reference(object.definition.center)}, ${formatNumber(object.definition.degrees)})`;
+    case "arc_through_points":
+      return `${variable} = Arc(${reference(object.definition.pointA)}, ${reference(object.definition.pointMid)}, ${reference(object.definition.pointB)})`;
     case "polygon":
       return `${variable} = Polygon(${object.definition.points.map((id) => reference(id)).join(", ")})`;
     case "regular_polygon":

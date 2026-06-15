@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { Code2, PanelRight, PanelRightClose, RotateCcw, Shapes, Sparkles } from "lucide-react";
+import {
+  Code2,
+  PanelRight,
+  PanelRightClose,
+  Redo2,
+  RotateCcw,
+  Shapes,
+  Sparkles,
+  Undo2,
+} from "lucide-react";
 
 import { evaluateConstructionScript, ScriptEvaluationError } from "./api/geometryApi";
 import { AssistantPanel } from "./components/assistant/AssistantPanel";
@@ -67,6 +76,20 @@ export function App() {
     setPersistenceNotice({ message: null, error: error.message });
   }, []);
   useAutoSaveDocument(geometry.document, geometry.viewport, reportPersistenceError);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "z") return;
+      event.preventDefault();
+      if (event.shiftKey) {
+        geometry.redo();
+      } else {
+        geometry.undo();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [geometry]);
 
   const replaceConstruction = useCallback(
     (document: GeometryDocument) => {
@@ -191,6 +214,28 @@ export function App() {
       <ThemeToggle theme={theme} onToggle={toggleTheme} />
       <button
         type="button"
+        title="Undo"
+        aria-label="Undo last change"
+        aria-keyshortcuts="Meta+Z Control+Z"
+        onClick={geometry.undo}
+        disabled={!geometry.canUndo}
+        className="flex items-center justify-center rounded-lg p-2 text-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted"
+      >
+        <Undo2 size={18} aria-hidden />
+      </button>
+      <button
+        type="button"
+        title="Redo"
+        aria-label="Redo last change"
+        aria-keyshortcuts="Meta+Shift+Z Control+Shift+Z"
+        onClick={geometry.redo}
+        disabled={!geometry.canRedo}
+        className="flex items-center justify-center rounded-lg p-2 text-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted"
+      >
+        <Redo2 size={18} aria-hidden />
+      </button>
+      <button
+        type="button"
         title="Reset view"
         aria-label="Reset viewport"
         onClick={geometry.resetViewport}
@@ -231,6 +276,8 @@ export function App() {
           selectedObjectIds={constructionTools.selectedObjectIds}
           pointerWorld={constructionTools.pointerWorld}
           onMoveFreePoint={geometry.moveFreePoint}
+          onBeginFreePointMove={geometry.beginDocumentInteraction}
+          onEndFreePointMove={geometry.endDocumentInteraction}
           onViewportChange={geometry.setViewport}
           onCanvasClick={constructionTools.handleCanvasClick}
           onObjectClick={constructionTools.handleObjectClick}

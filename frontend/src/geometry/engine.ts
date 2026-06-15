@@ -1,4 +1,5 @@
 import type {
+  ArcValue,
   CircleValue,
   EvaluatedValue,
   EvaluationMap,
@@ -31,6 +32,8 @@ export function getParentIds(object: GeometryObject): GeometryObjectId[] {
   switch (object.definition.type) {
     case "free":
       return [];
+    case "polygon_vertex":
+      return [object.definition.polygon];
     case "through_points":
     case "between_points":
     case "midpoint":
@@ -65,6 +68,8 @@ export function getParentIds(object: GeometryObject): GeometryObjectId[] {
       return [object.definition.point, object.definition.from, object.definition.to];
     case "rotation":
       return [object.definition.point, object.definition.center];
+    case "arc_through_points":
+      return [object.definition.pointA, object.definition.pointMid, object.definition.pointB];
     // ─── Polygons ─────────────────────────────────────────────────────────
     case "polygon":
       return [...object.definition.points];
@@ -190,6 +195,12 @@ export class GeometryGraph {
         assertFiniteNumber(def.x, `${object.id}.x`);
         assertFiniteNumber(def.y, `${object.id}.y`);
         return;
+      case "polygon_vertex":
+        requireKind(def.polygon, "polygon");
+        if (!Number.isInteger(def.index) || def.index < 0) {
+          throw new GeometryValidationError(`Object '${object.id}' requires a non-negative vertex index`);
+        }
+        return;
       case "through_points":
       case "between_points":
       case "midpoint":
@@ -269,6 +280,11 @@ export class GeometryGraph {
         requireKind(def.point, "point");
         requireKind(def.center, "point");
         assertFiniteNumber(def.degrees, `${object.id}.degrees`);
+        return;
+      case "arc_through_points":
+        requireKind(def.pointA, "point");
+        requireKind(def.pointMid, "point");
+        requireKind(def.pointB, "point");
         return;
       // ─── Polygons ───────────────────────────────────────────────────────
       case "polygon":
@@ -360,6 +376,16 @@ export class GeometryGraph {
     switch (def.type) {
       case "free":
         return { type: "point", x: def.x, y: def.y };
+
+      case "polygon_vertex": {
+        const polygon = this.requireValue<PolygonValue>(object.id, def.polygon, "polygon");
+        if (isUndefined(polygon)) return polygon;
+        const vertex = polygon.vertices[def.index];
+        if (vertex === undefined) {
+          return { type: "undefined", code: "vertex_out_of_range", message: `Polygon vertex ${def.index} is out of range` };
+        }
+        return { type: "point", x: cleanZero(vertex.x), y: cleanZero(vertex.y) };
+      }
 
       case "through_points": {
         const pts = this.requirePointValues(object.id, [def.pointA, def.pointB]);
@@ -557,6 +583,25 @@ export class GeometryGraph {
           type: "point",
           x: cleanZero(ctr.x + dx * cos - dy * sin),
           y: cleanZero(ctr.y + dx * sin + dy * cos),
+        };
+      }
+
+      case "arc_through_points": {
+        const pA = this.requireValue<PointValue>(object.id, def.pointA, "point");
+        if (isUndefined(pA)) return pA;
+        const pM = this.requireValue<PointValue>(object.id, def.pointMid, "point");
+        if (isUndefined(pM)) return pM;
+        const pB = this.requireValue<PointValue>(object.id, def.pointB, "point");
+        if (isUndefined(pB)) return pB;
+        const circle = circleFromThreePoints(pA, pM, pB);
+        if (isUndefined(circle)) return circle;
+        return {
+          type: "arc",
+          center: circle.center,
+          radius: circle.radius,
+          start: { x: cleanZero(pA.x), y: cleanZero(pA.y) },
+          mid: { x: cleanZero(pM.x), y: cleanZero(pM.y) },
+          end: { x: cleanZero(pB.x), y: cleanZero(pB.y) },
         };
       }
 
@@ -766,6 +811,14 @@ function angleBisector(armA: PointValue, vertex: PointValue, armB: PointValue): 
 }
 
 function circumscribedCircle(a: PointValue, b: PointValue, c: PointValue): EvaluatedValue {
+  return circleFromThreePoints(a, b, c);
+}
+
+function circleFromThreePoints(
+  a: PointValue,
+  b: PointValue,
+  c: PointValue,
+): CircleValue | UndefinedValue {
   // Intersect perpendicular bisectors of AB and BC
   const a1 = b.x - a.x;
   const b1 = b.y - a.y;

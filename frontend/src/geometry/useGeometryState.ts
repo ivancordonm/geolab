@@ -14,7 +14,11 @@ export interface GeometryState {
   document: GeometryDocument;
   values: EvaluationMap;
   viewport: GeometryViewport;
+  canUndo: boolean;
+  canRedo: boolean;
   moveFreePoint: (pointId: GeometryObjectId, x: number, y: number) => void;
+  beginDocumentInteraction: () => void;
+  endDocumentInteraction: () => void;
   addObject: (object: GeometryObject) => void;
   addObjects: (objects: readonly GeometryObject[]) => void;
   applyObjectChanges: (
@@ -30,9 +34,16 @@ export interface GeometryState {
   setObjectLabelOffset: (objectId: GeometryObjectId, x: number, y: number) => void;
   setViewport: (viewport: GeometryViewport) => void;
   resetViewport: () => void;
+  undo: () => void;
+  redo: () => void;
 }
 
 const DEFAULT_VIEWPORT: GeometryViewport = { centerX: 0, centerY: 0, scale: 60 };
+
+interface GeometrySnapshot {
+  document: GeometryDocument;
+  viewport: GeometryViewport;
+}
 
 export function useGeometryState(initialDocument: GeometryDocument): GeometryState {
   const graphRef = useRef<GeometryGraph | null>(null);
@@ -45,43 +56,111 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
   const [document, setDocument] = useState(() => graphRef.current!.document);
   const [values, setValues] = useState<EvaluationMap>(() => graphRef.current!.values);
   const [viewport, setViewportState] = useState<GeometryViewport>(initialViewport);
+  const viewportRef = useRef(initialViewport);
+  const historyRef = useRef<{ past: GeometrySnapshot[]; future: GeometrySnapshot[] }>({
+    past: [],
+    future: [],
+  });
+  const interactionRef = useRef<{ active: boolean; changed: boolean }>({
+    active: false,
+    changed: false,
+  });
+  const [historyState, setHistoryState] = useState({ canUndo: false, canRedo: false });
 
-  const moveFreePoint = useCallback((pointId: GeometryObjectId, x: number, y: number) => {
-    const result = graphRef.current!.moveFreePoint(pointId, x, y);
-    setDocument(result.document);
-    setValues(result.values);
+  const syncHistoryState = useCallback(() => {
+    setHistoryState({
+      canUndo: historyRef.current.past.length > 0,
+      canRedo: historyRef.current.future.length > 0,
+    });
   }, []);
 
+  const currentSnapshot = useCallback(
+    (): GeometrySnapshot => ({
+      document: graphRef.current!.document,
+      viewport: viewportRef.current,
+    }),
+    [],
+  );
+
+  const restoreSnapshot = useCallback((snapshot: GeometrySnapshot) => {
+    const graph = new GeometryGraph(snapshot.document);
+    graphRef.current = graph;
+    setDocument(graph.document);
+    setValues(graph.values);
+    viewportRef.current = snapshot.viewport;
+    viewportHomeRef.current = snapshot.document.viewport ?? snapshot.viewport;
+    setViewportState(snapshot.viewport);
+  }, []);
+
+  const pushHistory = useCallback((snapshot: GeometrySnapshot) => {
+    historyRef.current.past.push(snapshot);
+    historyRef.current.future = [];
+    syncHistoryState();
+  }, [syncHistoryState]);
+
+  const applyDocument = useCallback((nextDocument: GeometryDocument) => {
+    const graph = new GeometryGraph(nextDocument);
+    graphRef.current = graph;
+    setDocument(graph.document);
+    setValues(graph.values);
+  }, []);
+
+  const recordDocumentChange = useCallback(() => {
+    if (interactionRef.current.active) {
+      if (!interactionRef.current.changed) {
+        pushHistory(currentSnapshot());
+        interactionRef.current.changed = true;
+      }
+      return;
+    }
+    pushHistory(currentSnapshot());
+  }, [currentSnapshot, pushHistory]);
+
+  const beginDocumentInteraction = useCallback(() => {
+    interactionRef.current.active = true;
+    interactionRef.current.changed = false;
+  }, []);
+
+  const endDocumentInteraction = useCallback(() => {
+    interactionRef.current.active = false;
+    interactionRef.current.changed = false;
+  }, []);
+
+  const moveFreePoint = useCallback((pointId: GeometryObjectId, x: number, y: number) => {
+    recordDocumentChange();
+    const result = graphRef.current!.moveFreePoint(pointId, x, y);
+    graphRef.current = new GeometryGraph(result.document);
+    setDocument(graphRef.current.document);
+    setValues(graphRef.current.values);
+  }, [recordDocumentChange]);
+
   const addObject = useCallback((object: GeometryObject) => {
+    recordDocumentChange();
     const currentDocument = graphRef.current!.document;
     const candidate: GeometryDocument = {
       ...currentDocument,
       objects: [...currentDocument.objects, object],
     };
-    const graph = new GeometryGraph(candidate);
-    graphRef.current = graph;
-    setDocument(graph.document);
-    setValues(graph.values);
-  }, []);
+    applyDocument(candidate);
+  }, [applyDocument, recordDocumentChange]);
 
   const addObjects = useCallback((objects: readonly GeometryObject[]) => {
     if (objects.length === 0) return;
+    recordDocumentChange();
     const currentDocument = graphRef.current!.document;
     const candidate: GeometryDocument = {
       ...currentDocument,
       objects: [...currentDocument.objects, ...objects],
     };
-    const graph = new GeometryGraph(candidate);
-    graphRef.current = graph;
-    setDocument(graph.document);
-    setValues(graph.values);
-  }, []);
+    applyDocument(candidate);
+  }, [applyDocument, recordDocumentChange]);
 
   const applyObjectChanges = useCallback((
     createdObjects: readonly GeometryObject[],
     removedObjectIds: readonly GeometryObjectId[],
   ) => {
     if (createdObjects.length === 0 && removedObjectIds.length === 0) return;
+    recordDocumentChange();
     const removedIds = new Set(removedObjectIds);
     const currentDocument = graphRef.current!.document;
     const candidate: GeometryDocument = {
@@ -91,23 +170,20 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
         ...createdObjects,
       ],
     };
-    const graph = new GeometryGraph(candidate);
-    graphRef.current = graph;
-    setDocument(graph.document);
-    setValues(graph.values);
-  }, []);
+    applyDocument(candidate);
+  }, [applyDocument, recordDocumentChange]);
 
   const replaceDocument = useCallback((nextDocument: GeometryDocument) => {
-    const graph = new GeometryGraph(nextDocument);
-    graphRef.current = graph;
-    setDocument(graph.document);
-    setValues(graph.values);
+    recordDocumentChange();
+    applyDocument(nextDocument);
     const nextViewport = nextDocument.viewport ?? DEFAULT_VIEWPORT;
     viewportHomeRef.current = nextViewport;
+    viewportRef.current = nextViewport;
     setViewportState(nextViewport);
-  }, []);
+  }, [applyDocument, recordDocumentChange]);
 
   const toggleObjectVisibility = useCallback((objectId: GeometryObjectId) => {
+    recordDocumentChange();
     const currentDocument = graphRef.current!.document;
     const nextDocument: GeometryDocument = {
       ...currentDocument,
@@ -115,11 +191,8 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
         object.id === objectId ? { ...object, visible: !object.visible } : object,
       ),
     };
-    const graph = new GeometryGraph(nextDocument);
-    graphRef.current = graph;
-    setDocument(graph.document);
-    setValues(graph.values);
-  }, []);
+    applyDocument(nextDocument);
+  }, [applyDocument, recordDocumentChange]);
 
   const setObjectLabel = useCallback((objectId: GeometryObjectId, label: string) => {
     const trimmed = label.trim();
@@ -127,17 +200,16 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
     const currentDocument = graphRef.current!.document;
     const duplicate = currentDocument.objects.some((o) => o.id !== objectId && o.label === trimmed);
     if (duplicate) return;
+    recordDocumentChange();
     const nextDocument: GeometryDocument = {
       ...currentDocument,
       objects: currentDocument.objects.map((o) => (o.id === objectId ? { ...o, label: trimmed } : o)),
     };
-    const graph = new GeometryGraph(nextDocument);
-    graphRef.current = graph;
-    setDocument(graph.document);
-    setValues(graph.values);
-  }, []);
+    applyDocument(nextDocument);
+  }, [applyDocument, recordDocumentChange]);
 
   const setObjectColor = useCallback((objectId: GeometryObjectId, color: string | null) => {
+    recordDocumentChange();
     const currentDocument = graphRef.current!.document;
     const nextDocument: GeometryDocument = {
       ...currentDocument,
@@ -149,13 +221,11 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
         return { ...o, style };
       }),
     };
-    const graph = new GeometryGraph(nextDocument);
-    graphRef.current = graph;
-    setDocument(graph.document);
-    setValues(graph.values);
-  }, []);
+    applyDocument(nextDocument);
+  }, [applyDocument, recordDocumentChange]);
 
   const setObjectStyle = useCallback((objectId: GeometryObjectId, patch: Partial<GeometryStyle>) => {
+    recordDocumentChange();
     const currentDocument = graphRef.current!.document;
     const nextDocument: GeometryDocument = {
       ...currentDocument,
@@ -164,11 +234,8 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
         return { ...o, style: { ...o.style, ...patch } };
       }),
     };
-    const graph = new GeometryGraph(nextDocument);
-    graphRef.current = graph;
-    setDocument(graph.document);
-    setValues(graph.values);
-  }, []);
+    applyDocument(nextDocument);
+  }, [applyDocument, recordDocumentChange]);
 
   const removeObject = useCallback((objectId: GeometryObjectId) => {
     const currentDocument = graphRef.current!.document;
@@ -188,18 +255,17 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
     }
 
     if (!currentDocument.objects.some((object) => removedIds.has(object.id))) return;
+    recordDocumentChange();
 
     const nextDocument: GeometryDocument = {
       ...currentDocument,
       objects: currentDocument.objects.filter((object) => !removedIds.has(object.id)),
     };
-    const graph = new GeometryGraph(nextDocument);
-    graphRef.current = graph;
-    setDocument(graph.document);
-    setValues(graph.values);
-  }, []);
+    applyDocument(nextDocument);
+  }, [applyDocument, recordDocumentChange]);
 
   const setObjectLabelOffset = useCallback((objectId: GeometryObjectId, x: number, y: number) => {
+    recordDocumentChange();
     const currentDocument = graphRef.current!.document;
     const nextDocument: GeometryDocument = {
       ...currentDocument,
@@ -208,25 +274,46 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
         return { ...o, style: { ...o.style, labelOffset: { x, y } } };
       }),
     };
-    const graph = new GeometryGraph(nextDocument);
-    graphRef.current = graph;
-    setDocument(graph.document);
-    setValues(graph.values);
-  }, []);
+    applyDocument(nextDocument);
+  }, [applyDocument, recordDocumentChange]);
 
   const setViewport = useCallback((nextViewport: GeometryViewport) => {
+    viewportRef.current = nextViewport;
     setViewportState(nextViewport);
   }, []);
 
   const resetViewport = useCallback(() => {
+    viewportRef.current = viewportHomeRef.current;
     setViewportState(viewportHomeRef.current);
   }, []);
+
+  const undo = useCallback(() => {
+    const snapshot = historyRef.current.past.pop();
+    if (snapshot === undefined) return;
+    historyRef.current.future.unshift(currentSnapshot());
+    syncHistoryState();
+    restoreSnapshot(snapshot);
+    endDocumentInteraction();
+  }, [currentSnapshot, endDocumentInteraction, restoreSnapshot, syncHistoryState]);
+
+  const redo = useCallback(() => {
+    const snapshot = historyRef.current.future.shift();
+    if (snapshot === undefined) return;
+    historyRef.current.past.push(currentSnapshot());
+    syncHistoryState();
+    restoreSnapshot(snapshot);
+    endDocumentInteraction();
+  }, [currentSnapshot, endDocumentInteraction, restoreSnapshot, syncHistoryState]);
 
   return {
     document,
     values,
     viewport,
+    canUndo: historyState.canUndo,
+    canRedo: historyState.canRedo,
     moveFreePoint,
+    beginDocumentInteraction,
+    endDocumentInteraction,
     addObject,
     addObjects,
     applyObjectChanges,
@@ -239,5 +326,7 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
     setObjectLabelOffset,
     setViewport,
     resetViewport,
+    undo,
+    redo,
   };
 }

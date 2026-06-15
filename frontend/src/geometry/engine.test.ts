@@ -172,6 +172,30 @@ describe("GeometryGraph", () => {
       code: "ambiguous_selector",
     });
   });
+
+  it("evaluates polygon vertices and arcs through three points", () => {
+    const arcDoc: GeometryDocument = {
+      schemaVersion: 1,
+      id: "arc",
+      title: "Arc",
+      objects: [
+        { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 1, y: 0 } },
+        { id: "B", label: "B", kind: "point", visible: true, definition: { type: "free", x: 0, y: 1 } },
+        { id: "C", label: "C", kind: "point", visible: true, definition: { type: "free", x: -1, y: 0 } },
+        { id: "poly", label: "poly", kind: "polygon", visible: true, definition: { type: "polygon", points: ["A", "B", "C"] } },
+        { id: "V1", label: "V1", kind: "point", visible: true, definition: { type: "polygon_vertex", polygon: "poly", index: 1 } },
+        { id: "arc1", label: "arc1", kind: "arc", visible: true, definition: { type: "arc_through_points", pointA: "A", pointMid: "B", pointB: "C" } },
+      ],
+    };
+
+    const values = new GeometryGraph(arcDoc).values;
+    expect(values.get("V1")).toMatchObject({ type: "point", x: 0, y: 1 });
+    expect(values.get("arc1")).toMatchObject({
+      type: "arc",
+      center: { x: 0, y: 0 },
+      radius: 1,
+    });
+  });
 });
 
 // ─── Conformance: polygon construction variants ──────────────────────────────

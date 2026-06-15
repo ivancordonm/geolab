@@ -176,6 +176,21 @@ describe("script editor flow", () => {
     expect(screen.getByRole("button", { name: "Show A" })).toBeInTheDocument();
     expect(screen.getByLabelText("9 objects")).toBeInTheDocument();
   });
+
+  it("undoes a visibility change from the toolbar button", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Hide A" }));
+    expect(document.querySelector('[data-object-id="A"]')).toBeNull();
+
+    const undoButton = screen.getByRole("button", { name: "Undo last change" });
+    expect(undoButton).toBeEnabled();
+    await user.click(undoButton);
+
+    expect(document.querySelector('[data-object-id="A"]')).not.toBeNull();
+    expect(screen.getByRole("button", { name: "Hide A" })).toBeInTheDocument();
+  });
 });
 
 describe("assistant flow", () => {

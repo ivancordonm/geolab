@@ -16,7 +16,7 @@ export function ThemeToggle({ theme, onToggle }: ThemeToggleProps) {
       aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
       aria-pressed={isDark}
       title={isDark ? "Light theme" : "Dark theme"}
-      className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-edge bg-surface text-muted shadow-sm transition-colors hover:border-brand-400 hover:text-brand-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+      className="flex items-center justify-center rounded-lg p-2 text-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
     >
       {isDark ? <Moon size={18} aria-hidden /> : <Sun size={18} aria-hidden />}
     </button>

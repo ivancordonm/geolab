@@ -1,0 +1,160 @@
+{
+  "document": {
+    "schemaVersion": 1,
+    "id": "doc_basic_geometry",
+    "title": "Basic dependency graph",
+    "objects": [
+      {
+        "id": "A",
+        "label": "A",
+        "kind": "point",
+        "visible": true,
+        "definition": { "type": "free", "x": 0, "y": 0 }
+      },
+      {
+        "id": "B",
+        "label": "B",
+        "kind": "point",
+        "visible": true,
+        "definition": { "type": "free", "x": 4, "y": 0 }
+      },
+      {
+        "id": "C",
+        "label": "C",
+        "kind": "point",
+        "visible": true,
+        "definition": { "type": "free", "x": 2, "y": 3 }
+      },
+      {
+        "id": "l1",
+        "label": "l1",
+        "kind": "line",
+        "visible": true,
+        "definition": {
+          "type": "through_points",
+          "pointA": "A",
+          "pointB": "B"
+        }
+      },
+      {
+        "id": "s1",
+        "label": "s1",
+        "kind": "segment",
+        "visible": true,
+        "definition": {
+          "type": "between_points",
+          "pointA": "A",
+          "pointB": "B"
+        }
+      },
+      {
+        "id": "M",
+        "label": "M",
+        "kind": "point",
+        "visible": true,
+        "definition": {
+          "type": "midpoint",
+          "pointA": "A",
+          "pointB": "B"
+        }
+      },
+      {
+        "id": "c1",
+        "label": "c1",
+        "kind": "circle",
+        "visible": true,
+        "definition": {
+          "type": "center_through_point",
+          "center": "A",
+          "point": "C"
+        }
+      },
+      {
+        "id": "p",
+        "label": "p",
+        "kind": "line",
+        "visible": true,
+        "definition": {
+          "type": "parallel_through",
+          "point": "C",
+          "line": "l1"
+        }
+      },
+      {
+        "id": "h",
+        "label": "h",
+        "kind": "line",
+        "visible": true,
+        "definition": {
+          "type": "perpendicular_through",
+          "point": "C",
+          "line": "l1"
+        }
+      },
+      {
+        "id": "N",
+        "label": "N",
+        "kind": "point",
+        "visible": true,
+        "definition": {
+          "type": "midpoint",
+          "pointA": "M",
+          "pointB": "C"
+        }
+      },
+      {
+        "id": "q",
+        "label": "q",
+        "kind": "line",
+        "visible": true,
+        "definition": {
+          "type": "parallel_through",
+          "point": "N",
+          "line": "h"
+        }
+      }
+    ],
+    "viewport": { "centerX": 0, "centerY": 0, "scale": 50 }
+  },
+  "initialValues": {
+    "A": { "type": "point", "x": 0, "y": 0 },
+    "B": { "type": "point", "x": 4, "y": 0 },
+    "C": { "type": "point", "x": 2, "y": 3 },
+    "l1": { "type": "line", "a": 0, "b": 1, "c": 0 },
+    "s1": {
+      "type": "segment",
+      "start": { "x": 0, "y": 0 },
+      "end": { "x": 4, "y": 0 }
+    },
+    "M": { "type": "point", "x": 2, "y": 0 },
+    "c1": {
+      "type": "circle",
+      "center": { "x": 0, "y": 0 },
+      "radius": 3.605551275463989
+    },
+    "p": { "type": "line", "a": 0, "b": 1, "c": -3 },
+    "h": { "type": "line", "a": 1, "b": 0, "c": -2 },
+    "N": { "type": "point", "x": 2, "y": 1.5 },
+    "q": { "type": "line", "a": 1, "b": 0, "c": -2 }
+  },
+  "move": {
+    "pointId": "B",
+    "x": 0,
+    "y": 4,
+    "expectedRecomputed": ["B", "l1", "s1", "M", "p", "h", "N", "q"],
+    "expectedValues": {
+      "B": { "type": "point", "x": 0, "y": 4 },
+      "l1": { "type": "line", "a": 1, "b": 0, "c": 0 },
+      "s1": {
+        "type": "segment",
+        "start": { "x": 0, "y": 0 },
+        "end": { "x": 0, "y": 4 }
+      },
+      "M": { "type": "point", "x": 0, "y": 2 },
+      "p": { "type": "line", "a": 1, "b": 0, "c": -2 },
+      "h": { "type": "line", "a": 0, "b": 1, "c": -3 },
+      "N": { "type": "point", "x": 1, "y": 2.5 },
+      "q": { "type": "line", "a": 0, "b": 1, "c": -2.5 }
+    }
+  }
+}

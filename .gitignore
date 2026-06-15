@@ -1,0 +1,33 @@
+# JavaScript
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/coverage/
+
+# Python
+backend/.venv/
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.ruff_cache/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Local data and environment
+.env
+.env.*
+!.env.example
+data/
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Claude Code / superpowers
+.claude/cache/
+.superpowers/
+.claude/keybindings.json
+

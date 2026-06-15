@@ -1,0 +1,364 @@
+import { MoreVertical, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+
+import { getParentIds } from "../../geometry/engine";
+import type { EvaluationMap, GeometryDocument, GeometryObject } from "../../types/geometry";
+
+interface ObjectListProps {
+  document: GeometryDocument;
+  values: EvaluationMap;
+  selectedObjectId: string | null;
+  onSelectObject: (objectId: string) => void;
+  onToggleVisibility: (objectId: string) => void;
+  onSetObjectLabel?: (objectId: string, label: string) => void;
+  onSetObjectColor?: (objectId: string, color: string | null) => void;
+}
+
+const PALETTE: Array<{ label: string; value: string | null }> = [
+  { label: "Default", value: null },
+  { label: "Red", value: "#ef4444" },
+  { label: "Orange", value: "#f97316" },
+  { label: "Yellow", value: "#eab308" },
+  { label: "Green", value: "#22c55e" },
+  { label: "Teal", value: "#14b8a6" },
+  { label: "Blue", value: "#3b82f6" },
+  { label: "Violet", value: "#8b5cf6" },
+  { label: "Pink", value: "#ec4899" },
+];
+
+interface MenuState {
+  objectId: string;
+  x: number;
+  y: number;
+}
+
+const KIND_DOT_BG: Record<string, string> = {
+  point: "var(--geo-point)",
+  segment: "var(--geo-segment)",
+  line: "var(--geo-line)",
+  circle: "var(--geo-circle)",
+};
+
+function dotStyle(object: GeometryObject): React.CSSProperties {
+  const customColor = object.style?.color;
+  const base = KIND_DOT_BG[object.kind] ?? "var(--geo-line)";
+  const color = customColor ?? base;
+
+  if (object.kind === "circle") {
+    return { border: `2px solid ${color}`, background: "transparent" };
+  }
+  return { background: color };
+}
+
+export function ObjectList({
+  document,
+  values,
+  selectedObjectId,
+  onSelectObject,
+  onToggleVisibility,
+  onSetObjectLabel,
+  onSetObjectColor,
+}: ObjectListProps) {
+  const labelsById = new Map(document.objects.map((object) => [object.id, object.label]));
+  const [menu, setMenu] = useState<MenuState | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (menu === null) return;
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenu(null);
+      }
+    };
+    window.addEventListener("mousedown", handler, { capture: true });
+    return () => window.removeEventListener("mousedown", handler, { capture: true });
+  }, [menu]);
+
+  // Close menu on Escape
+  useEffect(() => {
+    if (menu === null) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenu(null);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [menu]);
+
+  const POPOVER_WIDTH = 208; // w-52
+  const openMenu = (objectId: string, trigger: HTMLElement) => {
+    const rect = trigger.getBoundingClientRect();
+    const x = Math.max(4, rect.right - POPOVER_WIDTH);
+    setMenu({ objectId, x, y: rect.bottom + 4 });
+  };
+
+  const menuObject = menu ? document.objects.find((o) => o.id === menu.objectId) : null;
+
+  return (
+    <section className="p-4" aria-labelledby="objects-heading">
+      <div className="mb-3 flex items-center justify-between">
+        <div>
+          <p className="m-0 text-xs font-semibold uppercase tracking-[0.13em] text-brand-600">
+            Construction graph
+          </p>
+          <h2 id="objects-heading" className="m-0 mt-0.5 text-lg font-bold tracking-tight text-content">
+            Objects
+          </h2>
+        </div>
+        <span
+          className="grid h-9 min-w-9 place-items-center rounded-lg bg-accent-soft px-2 text-sm font-bold text-accent-soft-fg"
+          aria-label={`${document.objects.length} objects`}
+        >
+          {document.objects.length}
+        </span>
+      </div>
+
+      {document.objects.length === 0 ? (
+        <p className="m-0 rounded-lg border border-dashed border-edge px-3 py-6 text-center text-sm text-muted">
+          No objects yet. Run a script or use the tools to build a construction.
+        </p>
+      ) : (
+        <ol className="m-0 flex list-none flex-col gap-1 p-0">
+          {document.objects.map((object) => {
+            const dependencies = getParentIds(object).map((id) => labelsById.get(id) ?? id);
+            const value = values.get(object.id);
+            const selected = object.id === selectedObjectId;
+            const undefinedValue = value?.type === "undefined";
+            return (
+              <li
+                key={object.id}
+                className={`flex items-stretch overflow-hidden rounded-lg border transition-colors ${
+                  selected
+                    ? "border-brand-400 bg-accent-soft"
+                    : "border-transparent hover:bg-surface-muted"
+                }`}
+              >
+                {/* Punto como toggle de visibilidad */}
+                <button
+                  type="button"
+                  aria-label={`${object.visible ? "Hide" : "Show"} ${object.label}`}
+                  aria-pressed={object.visible}
+                  onClick={() => onToggleVisibility(object.id)}
+                  className={`flex items-center pl-2.5 pr-1.5 transition-opacity focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand-500 ${
+                    object.visible ? "opacity-100" : "opacity-30"
+                  }`}
+                >
+                  <span
+                    className="h-3 w-3 shrink-0 rounded-full"
+                    style={dotStyle(object)}
+                  />
+                </button>
+
+                {/* Contenido del objeto */}
+                <button
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => onSelectObject(object.id)}
+                  className={`flex min-w-0 flex-1 items-center gap-2.5 py-2 text-left transition-opacity focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand-500 ${
+                    object.visible ? "" : "opacity-40"
+                  }`}
+                >
+                  <span className="block min-w-0">
+                    <strong className="block truncate text-sm font-semibold text-content">
+                      {object.label}
+                    </strong>
+                    <small className="block text-xs text-muted">{describeObject(object)}</small>
+                    <small className="block text-xs text-subtle">
+                      {dependencies.length > 0
+                        ? `Depends on ${dependencies.join(", ")}`
+                        : "Independent"}
+                    </small>
+                  </span>
+                  <span
+                    className={`ml-auto shrink-0 text-[0.65rem] font-bold uppercase tracking-wide ${
+                      undefinedValue ? "text-danger-fg" : "text-success-fg"
+                    }`}
+                  >
+                    {undefinedValue ? "undefined" : object.kind}
+                  </span>
+                </button>
+
+                {/* Botón tres puntos */}
+                {(onSetObjectLabel !== undefined || onSetObjectColor !== undefined) && (
+                  <button
+                    type="button"
+                    aria-label={`Edit ${object.label}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (menu?.objectId === object.id) {
+                        setMenu(null);
+                      } else {
+                        openMenu(object.id, e.currentTarget);
+                      }
+                    }}
+                    className="flex items-center px-1.5 text-muted opacity-0 transition-opacity hover:text-content focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand-500 [li:hover_&]:opacity-100"
+                  >
+                    <MoreVertical size={14} aria-hidden />
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      )}
+
+      {/* Popover flotante */}
+      {menu !== null && menuObject != null && (
+        <ObjectMenu
+          ref={menuRef}
+          object={menuObject}
+          x={menu.x}
+          y={menu.y}
+          onClose={() => setMenu(null)}
+          onSetLabel={
+            onSetObjectLabel
+              ? (label) => {
+                  onSetObjectLabel(menu.objectId, label);
+                }
+              : undefined
+          }
+          onSetColor={
+            onSetObjectColor
+              ? (color) => {
+                  onSetObjectColor(menu.objectId, color);
+                }
+              : undefined
+          }
+        />
+      )}
+    </section>
+  );
+}
+
+interface ObjectMenuProps {
+  object: GeometryObject;
+  x: number;
+  y: number;
+  onClose: () => void;
+  onSetLabel?: (label: string) => void;
+  onSetColor?: (color: string | null) => void;
+  ref: React.RefObject<HTMLDivElement | null>;
+}
+
+function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, ref }: ObjectMenuProps) {
+  const [label, setLabel] = useState(object.label);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, []);
+
+  const commitLabel = () => {
+    const trimmed = label.trim();
+    if (trimmed && trimmed !== object.label) {
+      onSetLabel?.(trimmed);
+    } else {
+      setLabel(object.label);
+    }
+  };
+
+  const currentColor = object.style?.color ?? null;
+
+  return (
+    <div
+      ref={ref}
+      role="dialog"
+      aria-label={`Edit ${object.label}`}
+      style={{ position: "fixed", left: x, top: y, zIndex: 200 }}
+      className="w-52 rounded-xl border border-edge bg-surface p-3 shadow-card"
+    >
+      <div className="mb-2 flex items-center justify-between">
+        <p className="m-0 text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+          Edit object
+        </p>
+        <button
+          type="button"
+          aria-label="Close"
+          onClick={onClose}
+          className="rounded p-0.5 text-muted hover:bg-surface-muted hover:text-content"
+        >
+          <X size={12} aria-hidden />
+        </button>
+      </div>
+
+      {onSetLabel !== undefined && (
+        <div className="mb-3">
+          <label className="mb-1 block text-xs text-muted">Label</label>
+          <input
+            ref={inputRef}
+            type="text"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            onBlur={commitLabel}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                commitLabel();
+                onClose();
+              }
+            }}
+            className="w-full rounded-lg border border-edge bg-surface-muted px-2.5 py-1.5 text-sm text-content outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-400"
+          />
+        </div>
+      )}
+
+      {onSetColor !== undefined && (
+        <div>
+          <p className="mb-1.5 text-xs text-muted">Color</p>
+          <div className="flex flex-wrap gap-1.5">
+            {PALETTE.map(({ label: colorLabel, value }) => {
+              const active = value === currentColor;
+              return (
+                <button
+                  key={colorLabel}
+                  type="button"
+                  aria-label={colorLabel}
+                  aria-pressed={active}
+                  title={colorLabel}
+                  onClick={() => onSetColor(value)}
+                  className={`h-5 w-5 rounded-full border-2 transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-500 ${
+                    active ? "border-content" : "border-transparent"
+                  }`}
+                  style={
+                    value === null
+                      ? {
+                          background:
+                            "conic-gradient(#ef4444 0deg 60deg, #3b82f6 60deg 120deg, #22c55e 120deg 180deg, #eab308 180deg 240deg, #8b5cf6 240deg 300deg, #ec4899 300deg 360deg)",
+                        }
+                      : { background: value }
+                  }
+                />
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function describeObject(object: GeometryObject): string {
+  const descriptions: Record<GeometryObject["definition"]["type"], string> = {
+    free: "Free point",
+    through_points: "Line through points",
+    between_points: "Segment between points",
+    midpoint: "Midpoint",
+    center_through_point: "Circle",
+    parallel_through: "Parallel line",
+    perpendicular_through: "Perpendicular line",
+    intersection_ll: "Intersection (line∩line)",
+    intersection_lc: "Intersection (line∩circle)",
+    intersection_cc: "Intersection (circle∩circle)",
+    perpendicular_bisector: "Perpendicular bisector",
+    angle_bisector: "Angle bisector",
+    circumscribed: "Circumscribed circle",
+    reflection_over_line: "Reflection over line",
+    reflection_over_point: "Reflection over point",
+    homothety_scalar: "Homothety (scalar)",
+    homothety_point: "Homothety (point ratio)",
+    inversion_in_circle: "Inversion in circle",
+    translation: "Translation",
+    rotation: "Rotation",
+  };
+  return descriptions[object.definition.type];
+}

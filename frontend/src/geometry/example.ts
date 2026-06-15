@@ -1,0 +1,80 @@
+import type { GeometryDocument } from "../types/geometry";
+
+export const exampleGeometryDocument: GeometryDocument = {
+  schemaVersion: 1,
+  id: "interactive_demo",
+  title: "Triangle constructions",
+  viewport: { centerX: 1.5, centerY: 1.4, scale: 72 },
+  objects: [
+    {
+      id: "A",
+      label: "A",
+      kind: "point",
+      visible: true,
+      definition: { type: "free", x: -2, y: -1 },
+    },
+    {
+      id: "B",
+      label: "B",
+      kind: "point",
+      visible: true,
+      definition: { type: "free", x: 4, y: -1 },
+    },
+    {
+      id: "C",
+      label: "C",
+      kind: "point",
+      visible: true,
+      definition: { type: "free", x: 1, y: 3 },
+    },
+    {
+      id: "AB",
+      label: "AB",
+      kind: "line",
+      visible: true,
+      style: { color: "#64748b", strokeWidth: 1.5 },
+      definition: { type: "through_points", pointA: "A", pointB: "B" },
+    },
+    {
+      id: "base",
+      label: "s",
+      kind: "segment",
+      visible: true,
+      style: { color: "#0f766e", strokeWidth: 4 },
+      definition: { type: "between_points", pointA: "A", pointB: "B" },
+    },
+    {
+      id: "M",
+      label: "M",
+      kind: "point",
+      visible: true,
+      style: { color: "#7c3aed" },
+      definition: { type: "midpoint", pointA: "A", pointB: "B" },
+    },
+    {
+      id: "parallel",
+      label: "p",
+      kind: "line",
+      visible: true,
+      style: { color: "#d97706", strokeWidth: 2, dashed: true },
+      definition: { type: "parallel_through", point: "C", line: "AB" },
+    },
+    {
+      id: "altitude",
+      label: "h",
+      kind: "line",
+      visible: true,
+      style: { color: "#e11d48", strokeWidth: 2 },
+      definition: { type: "perpendicular_through", point: "C", line: "AB" },
+    },
+    {
+      id: "circumference",
+      label: "c₁",
+      kind: "circle",
+      visible: true,
+      style: { color: "#2563eb", strokeWidth: 2 },
+      definition: { type: "center_through_point", center: "A", point: "C" },
+    },
+  ],
+};
+

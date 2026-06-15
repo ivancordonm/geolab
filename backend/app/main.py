@@ -1,6 +1,7 @@
 """FastAPI composition root for the architecture milestone."""
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.agent.router import router as agent_router
 from app.geometry.router import router as geometry_router
@@ -9,6 +10,15 @@ app = FastAPI(
     title="GeoLab API",
     version="0.1.0",
     description="Deterministic mathematics services for the GeoLab workspace.",
+)
+
+# CORS configuration for frontend (Vercel + local dev)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(geometry_router)

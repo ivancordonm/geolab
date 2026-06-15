@@ -14,9 +14,11 @@ export class AgentPlanningError extends Error {
   }
 }
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+
 export class HttpPlannerClient implements PlannerClient {
   async generatePlan(request: AgentPlanRequest, signal?: AbortSignal): Promise<AgentResponse> {
-    const response = await fetch("/agent/plan", {
+    const response = await fetch(`${API_BASE}/agent/plan`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(request),

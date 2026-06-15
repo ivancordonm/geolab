@@ -14,11 +14,13 @@ export class ScriptEvaluationError extends Error {
   }
 }
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+
 export async function evaluateConstructionScript(
   request: EvaluateScriptRequest,
   signal?: AbortSignal,
 ): Promise<EvaluateScriptResponse> {
-  const response = await fetch("/geometry/evaluate-script", {
+  const response = await fetch(`${API_BASE}/geometry/evaluate-script`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(request),

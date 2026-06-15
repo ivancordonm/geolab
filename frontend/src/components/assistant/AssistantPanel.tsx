@@ -83,6 +83,12 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
       });
   };
 
+  const handleCancel = (): void => {
+    requestControllerRef.current?.abort();
+    requestControllerRef.current = null;
+    setLoading(false);
+  };
+
   const handleClearConversation = (): void => {
     requestControllerRef.current?.abort();
     requestControllerRef.current = null;
@@ -192,13 +198,23 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
           onChange={(event) => setInput(event.target.value)}
           className="w-full resize-y rounded-lg border border-edge bg-surface p-3 text-sm leading-snug text-content focus:border-brand-400 focus:outline-2 focus:outline-offset-1 focus:outline-brand-500/30 disabled:opacity-60"
         />
-        <button
-          type="submit"
-          disabled={loading || !input.trim()}
-          className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-55"
-        >
-          {loading ? "Planning…" : "Send"}
-        </button>
+        {loading ? (
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="w-full rounded-lg border border-danger-edge bg-surface-muted px-4 py-2.5 text-sm font-semibold text-danger-fg transition-colors hover:bg-danger-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+          >
+            Cancel
+          </button>
+        ) : (
+          <button
+            type="submit"
+            disabled={!input.trim()}
+            className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-55"
+          >
+            Send
+          </button>
+        )}
       </form>
 
       {error ? (

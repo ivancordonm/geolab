@@ -80,8 +80,8 @@ export function PersistenceControls({
   };
 
   const menuPositionClass = menuSide === "right"
-    ? "left-full top-0 ml-2"
-    : "right-0 top-full mt-2";
+    ? "left-full bottom-0 ml-2"
+    : "right-0 bottom-full mb-2";
 
   return (
     <div className="relative flex flex-col items-center gap-2" ref={menuRef}>

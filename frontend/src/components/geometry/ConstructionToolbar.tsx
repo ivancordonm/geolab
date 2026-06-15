@@ -69,7 +69,7 @@ export function ConstructionToolbar({
   controls,
 }: ConstructionToolbarProps) {
   return (
-    <div className="absolute left-3 top-3 z-10 flex flex-col gap-1 rounded-card border border-edge bg-surface/90 p-1.5 shadow-card backdrop-blur" style={{ maxHeight: "calc(100vh - 1.5rem)", overflowY: "auto" }}>
+    <div className="absolute left-3 top-3 z-10 flex flex-col gap-1 rounded-card border border-edge bg-surface/90 p-1.5 shadow-card backdrop-blur">
       <div role="toolbar" aria-label="Geometry construction tools" className="flex flex-col gap-1">
         {TOOLS.map((entry, i) => {
           if ("divider" in entry) {

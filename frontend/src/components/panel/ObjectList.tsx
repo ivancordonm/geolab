@@ -1,5 +1,6 @@
 import { MoreVertical, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { getParentIds } from "../../geometry/engine";
 import type { EvaluationMap, GeometryDocument, GeometryObject, GeometryStyle, StrokeDash } from "../../types/geometry";
@@ -88,10 +89,10 @@ export function ObjectList({
     return () => window.removeEventListener("keydown", handler);
   }, [menu]);
 
-  const POPOVER_WIDTH = 208; // w-52
+  const POPOVER_WIDTH = 224; // w-56
   const openMenu = (objectId: string, trigger: HTMLElement) => {
     const rect = trigger.getBoundingClientRect();
-    const x = Math.max(4, rect.right - POPOVER_WIDTH);
+    const x = Math.max(8, Math.min(rect.right - POPOVER_WIDTH, window.innerWidth - POPOVER_WIDTH - 8));
     setMenu({ objectId, x, y: rect.bottom + 4 });
   };
 
@@ -268,6 +269,13 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
   const [label, setLabel] = useState(object.label);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Posición ajustada al viewport (se mide la altura real tras montar)
+  const [box, setBox] = useState<{ top: number; left: number; maxHeight: number | undefined }>({
+    top: y,
+    left: x,
+    maxHeight: undefined,
+  });
+
   useEffect(() => {
     inputRef.current?.focus();
     inputRef.current?.select();
@@ -290,6 +298,20 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
   const currentStrokeDash = object.style?.strokeDash ?? "solid";
   const hasStroke = object.kind !== "point";
 
+  // Recalcular posición cuando el contenido cambia de tamaño (input hex, secciones de trazo)
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const margin = 8;
+    const height = el.offsetHeight;
+    const maxHeight = window.innerHeight - margin * 2;
+    const top =
+      y + height > window.innerHeight - margin
+        ? Math.max(margin, window.innerHeight - height - margin)
+        : y;
+    setBox({ top, left: x, maxHeight });
+  }, [x, y, showCustomInput, hasStroke, ref]);
+
   const applyCustomHex = (raw: string) => {
     const hex = raw.trim();
     if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
@@ -297,12 +319,19 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
     }
   };
 
-  return (
+  return createPortal(
     <div
       ref={ref}
       role="dialog"
       aria-label={`Edit ${object.label}`}
-      style={{ position: "fixed", left: x, top: y, zIndex: 200 }}
+      style={{
+        position: "fixed",
+        left: box.left,
+        top: box.top,
+        maxHeight: box.maxHeight,
+        overflowY: "auto",
+        zIndex: 9999,
+      }}
       className="w-56 rounded-xl border border-edge bg-surface p-3 shadow-card"
     >
       <div className="mb-2 flex items-center justify-between">
@@ -488,7 +517,8 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
           </div>
         </>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
 

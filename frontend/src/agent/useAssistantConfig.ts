@@ -4,11 +4,18 @@ import { PROVIDER_DEFAULTS } from "./types";
 
 const STORAGE_KEY = "geolab_assistant_config";
 const API_KEY_STORAGE_KEY = "geolab_assistant_api_key";
+const MODEL_STORAGE_KEY = "geolab_assistant_models";
 const REMEMBER_KEY_STORAGE = "geolab_assistant_remember_key";
 
 type ApiKeys = Record<ProviderName, string>;
+export type AssistantModels = Record<ProviderName, string>;
 
 const EMPTY_API_KEYS: ApiKeys = { ollama: "", openai: "", nvidia: "" };
+const DEFAULT_MODELS: AssistantModels = {
+  ollama: PROVIDER_DEFAULTS.ollama.model,
+  openai: PROVIDER_DEFAULTS.openai.model,
+  nvidia: PROVIDER_DEFAULTS.nvidia.model,
+};
 
 /** Parse the raw value from storage into a per-provider api-key map.
  *
@@ -34,9 +41,29 @@ function parseApiKeys(raw: string | null, fallbackProvider: ProviderName): ApiKe
   }
 }
 
-function loadConfig(): { config: AssistantConfig; remember: boolean; apiKeys: ApiKeys } {
+function parseModels(raw: string | null): AssistantModels {
+  if (raw === null || raw === "") return { ...DEFAULT_MODELS };
+  try {
+    const parsed = JSON.parse(raw) as Partial<AssistantModels>;
+    return {
+      ollama: typeof parsed.ollama === "string" && parsed.ollama ? parsed.ollama : DEFAULT_MODELS.ollama,
+      openai: typeof parsed.openai === "string" && parsed.openai ? parsed.openai : DEFAULT_MODELS.openai,
+      nvidia: typeof parsed.nvidia === "string" && parsed.nvidia ? parsed.nvidia : DEFAULT_MODELS.nvidia,
+    };
+  } catch {
+    return { ...DEFAULT_MODELS };
+  }
+}
+
+function loadConfig(): {
+  config: AssistantConfig;
+  remember: boolean;
+  apiKeys: ApiKeys;
+  models: AssistantModels;
+} {
   let base: AssistantConfig = PROVIDER_DEFAULTS.ollama;
   let legacyApiKey = "";
+  let legacyModel = "";
 
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -47,6 +74,9 @@ function loadConfig(): { config: AssistantConfig; remember: boolean; apiKeys: Ap
         // Capturar key legada del blob antes de sanearla
         if (typeof parsed.apiKey === "string" && parsed.apiKey) {
           legacyApiKey = parsed.apiKey;
+        }
+        if (typeof parsed.model === "string" && parsed.model) {
+          legacyModel = parsed.model;
         }
         base = {
           ...defaults,
@@ -83,7 +113,22 @@ function loadConfig(): { config: AssistantConfig; remember: boolean; apiKeys: Ap
     apiKeys = { ...apiKeys, [base.provider]: legacyApiKey };
   }
 
-  return { config: { ...base, apiKey: apiKeys[base.provider] }, remember, apiKeys };
+  let models = { ...DEFAULT_MODELS };
+  try {
+    models = parseModels(localStorage.getItem(MODEL_STORAGE_KEY));
+  } catch {
+    // storage unavailable
+  }
+  if (legacyModel) {
+    models = { ...models, [base.provider]: legacyModel };
+  }
+
+  return {
+    config: { ...base, model: models[base.provider], apiKey: apiKeys[base.provider] },
+    remember,
+    apiKeys,
+    models,
+  };
 }
 
 export function useAssistantConfig(): [
@@ -91,11 +136,13 @@ export function useAssistantConfig(): [
   (c: AssistantConfig, remember: boolean) => void,
   boolean,
   ApiKeys,
+  AssistantModels,
 ] {
   const [state, setState] = useState<{
     config: AssistantConfig;
     remember: boolean;
     apiKeys: ApiKeys;
+    models: AssistantModels;
   }>(loadConfig);
 
   const setConfig = (c: AssistantConfig, newRemember: boolean): void => {
@@ -113,6 +160,13 @@ export function useAssistantConfig(): [
 
     // Actualizar solo la key del provider activo; preservar las demás
     const updatedKeys: ApiKeys = { ...state.apiKeys, [c.provider]: c.apiKey };
+    const updatedModels: AssistantModels = { ...state.models, [c.provider]: c.model };
+
+    try {
+      localStorage.setItem(MODEL_STORAGE_KEY, JSON.stringify(updatedModels));
+    } catch {
+      // storage unavailable
+    }
 
     try {
       const serialized = JSON.stringify(updatedKeys);
@@ -129,8 +183,8 @@ export function useAssistantConfig(): [
       // almacenamiento no disponible
     }
 
-    setState({ config: c, remember: newRemember, apiKeys: updatedKeys });
+    setState({ config: c, remember: newRemember, apiKeys: updatedKeys, models: updatedModels });
   };
 
-  return [state.config, setConfig, state.remember, state.apiKeys];
+  return [state.config, setConfig, state.remember, state.apiKeys, state.models];
 }

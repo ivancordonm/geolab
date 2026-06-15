@@ -24,7 +24,7 @@ const INITIAL_MESSAGE: AssistantMessage = {
 };
 
 export function AssistantPanel({ document, applyingScript, onApplyScript }: AssistantPanelProps) {
-  const [config, setConfig, remember, apiKeys] = useAssistantConfig();
+  const [config, setConfig, remember, apiKeys, models] = useAssistantConfig();
   const [messages, setMessages] = useState<AssistantMessage[]>([INITIAL_MESSAGE]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -145,7 +145,13 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
       </div>
 
       <div className="mb-3">
-        <ConfigPopover config={config} remember={remember} onChange={setConfig} apiKeys={apiKeys} />
+        <ConfigPopover
+          config={config}
+          remember={remember}
+          onChange={setConfig}
+          apiKeys={apiKeys}
+          models={models}
+        />
       </div>
 
       <div

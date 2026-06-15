@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Settings } from "lucide-react";
+import type { AssistantModels } from "../../agent/useAssistantConfig";
 import type { AssistantConfig, ProviderName } from "../../agent/types";
 import { PROVIDER_DEFAULTS } from "../../agent/types";
 
@@ -10,6 +11,7 @@ interface ConfigPopoverProps {
   onChange: (c: AssistantConfig, remember: boolean) => void;
   /** Mapa de API keys guardadas por provider, para restaurarlas al cambiar de tipo. */
   apiKeys: Record<ProviderName, string>;
+  models: AssistantModels;
 }
 
 interface PopoverPos {
@@ -26,11 +28,12 @@ const PROVIDER_LABELS: Record<ProviderName, string> = {
 
 const POPOVER_WIDTH = 288; // w-72
 
-export function ConfigPopover({ config, remember, onChange, apiKeys }: ConfigPopoverProps) {
+export function ConfigPopover({ config, remember, onChange, apiKeys, models }: ConfigPopoverProps) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<PopoverPos | null>(null);
   const [draft, setDraft] = useState<AssistantConfig>(config);
   const [draftKeys, setDraftKeys] = useState<Record<ProviderName, string>>(apiKeys);
+  const [draftModels, setDraftModels] = useState<AssistantModels>(models);
   const [draftRemember, setDraftRemember] = useState(remember);
   const [showKey, setShowKey] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -43,6 +46,10 @@ export function ConfigPopover({ config, remember, onChange, apiKeys }: ConfigPop
   useEffect(() => {
     setDraftKeys(apiKeys);
   }, [apiKeys]);
+
+  useEffect(() => {
+    setDraftModels(models);
+  }, [models]);
 
   useEffect(() => {
     setDraftRemember(remember);
@@ -78,8 +85,12 @@ export function ConfigPopover({ config, remember, onChange, apiKeys }: ConfigPop
   };
 
   const handleProviderChange = (provider: ProviderName): void => {
-    // Resetear a los defaults del nuevo provider, pero restaurar su API key guardada
-    setDraft({ ...PROVIDER_DEFAULTS[provider], apiKey: draftKeys[provider] ?? "" });
+    // Reset to the provider defaults while restoring its saved model and API key.
+    setDraft({
+      ...PROVIDER_DEFAULTS[provider],
+      model: draftModels[provider],
+      apiKey: draftKeys[provider] ?? "",
+    });
     setShowKey(false);
   };
 
@@ -94,7 +105,7 @@ export function ConfigPopover({ config, remember, onChange, apiKeys }: ConfigPop
       <button
         ref={triggerRef}
         type="button"
-        aria-label="Configurar proveedor del asistente"
+        aria-label="Configure assistant provider"
         aria-expanded={open}
         onClick={handleToggle}
         className="flex w-full items-center gap-1.5 rounded-lg border border-edge bg-surface-muted px-2.5 py-1.5 text-left text-xs text-muted transition-colors hover:border-brand-400 hover:text-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
@@ -111,12 +122,12 @@ export function ConfigPopover({ config, remember, onChange, apiKeys }: ConfigPop
             <div
               ref={popoverRef}
               role="dialog"
-              aria-label="Configuración del asistente"
+              aria-label="Assistant settings"
               style={{ position: "fixed", top: pos.top, left: pos.left, width: POPOVER_WIDTH, zIndex: 9999 }}
               className="rounded-xl border border-edge bg-surface p-4 shadow-pop"
             >
               <p className="mb-2 text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-muted">
-                Proveedor
+                Provider
               </p>
               <div className="mb-4 flex gap-1.5">
                 {(["ollama", "openai", "nvidia"] as ProviderName[]).map((p) => (
@@ -137,19 +148,23 @@ export function ConfigPopover({ config, remember, onChange, apiKeys }: ConfigPop
 
               <label className="mb-3 block">
                 <span className="mb-1 block text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-muted">
-                  Modelo
+                  Model
                 </span>
                 <input
                   type="text"
                   value={draft.model}
-                  onChange={(e) => setDraft((d) => ({ ...d, model: e.target.value }))}
+                  onChange={(e) => {
+                    const model = e.target.value;
+                    setDraft((d) => ({ ...d, model }));
+                    setDraftModels((current) => ({ ...current, [draft.provider]: model }));
+                  }}
                   className="w-full rounded-lg border border-edge bg-surface-muted px-2.5 py-1.5 text-xs text-content focus:border-brand-400 focus:outline-2 focus:outline-offset-1 focus:outline-brand-500/30"
                 />
               </label>
 
               <label className="mb-3 block">
                 <span className="mb-1 block text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-muted">
-                  URL base{draft.provider === "openai" ? " (opcional)" : ""}
+                  Base URL{draft.provider === "openai" ? " (optional)" : ""}
                 </span>
                 <input
                   type="text"
@@ -161,7 +176,7 @@ export function ConfigPopover({ config, remember, onChange, apiKeys }: ConfigPop
 
               <label className="mb-3 block">
                 <span className="mb-1 block text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-muted">
-                  Temperatura
+                  Temperature
                 </span>
                 <input
                   type="number"
@@ -181,14 +196,14 @@ export function ConfigPopover({ config, remember, onChange, apiKeys }: ConfigPop
                   className="w-full rounded-lg border border-edge bg-surface-muted px-2.5 py-1.5 text-xs text-content focus:border-brand-400 focus:outline-2 focus:outline-offset-1 focus:outline-brand-500/30"
                 />
                 <span className="mt-1 block text-[0.65rem] text-muted">
-                  0 = más determinista, 1 = valor estándar del proveedor.
+                  0 = more deterministic, 1 = the provider default.
                 </span>
               </label>
 
               <div className="mb-4">
                 <label className="block">
                   <span className="mb-1 block text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-muted">
-                    API key{draft.provider === "ollama" ? " (opcional)" : ""}
+                    API key{draft.provider === "ollama" ? " (optional)" : ""}
                   </span>
                   <div className="flex items-center gap-1">
                     <input
@@ -210,7 +225,7 @@ export function ConfigPopover({ config, remember, onChange, apiKeys }: ConfigPop
                     />
                     <button
                       type="button"
-                      aria-label={showKey ? "Ocultar API key" : "Mostrar API key"}
+                      aria-label={showKey ? "Hide API key" : "Show API key"}
                       onClick={() => setShowKey((v) => !v)}
                       className="shrink-0 rounded-lg border border-edge px-2 py-1.5 text-xs text-muted hover:text-content focus-visible:outline-2 focus-visible:outline-brand-500"
                     >
@@ -220,7 +235,7 @@ export function ConfigPopover({ config, remember, onChange, apiKeys }: ConfigPop
                 </label>
                 {draft.provider === "ollama" && (
                   <p className="mt-1 text-[0.65rem] italic text-muted">
-                    Solo necesaria si usas un Ollama remoto/externo con autenticación.
+                    Only required when using a remote Ollama server with authentication.
                   </p>
                 )}
                 <label className="mt-2 flex cursor-pointer items-center gap-2">
@@ -230,13 +245,13 @@ export function ConfigPopover({ config, remember, onChange, apiKeys }: ConfigPop
                     onChange={(e) => setDraftRemember(e.target.checked)}
                     className="h-3.5 w-3.5 rounded accent-brand-600"
                   />
-                  <span className="text-[0.65rem] text-muted">Recordar entre sesiones</span>
+                  <span className="text-[0.65rem] text-muted">Remember between sessions</span>
                 </label>
                 <p className="mt-2 text-[0.65rem] text-muted">
-                  🔒 La clave se guarda solo en tu navegador.{" "}
+                  🔒 The key is stored only in your browser.{" "}
                   {draftRemember
-                    ? "Persiste entre sesiones en este dispositivo."
-                    : "Se borra al cerrar la pestaña."}
+                    ? "It persists between sessions on this device."
+                    : "It is cleared when you close the tab."}
                 </p>
               </div>
 
@@ -245,7 +260,7 @@ export function ConfigPopover({ config, remember, onChange, apiKeys }: ConfigPop
                 onClick={handleSave}
                 className="w-full rounded-lg bg-brand-600 px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
               >
-                Guardar
+                Save
               </button>
             </div>,
             document.body,

@@ -4,6 +4,20 @@ import { useAssistantConfig } from "./useAssistantConfig";
 import { PROVIDER_DEFAULTS } from "./types";
 
 describe("useAssistantConfig", () => {
+  it("uses the configured default model for each provider", () => {
+    const { result } = renderHook(() => useAssistantConfig());
+
+    expect(result.current[0]).toMatchObject({
+      provider: "huggingface",
+      model: "MiniMaxAI/MiniMax-M3:novita",
+    });
+    expect(result.current[4]).toEqual({
+      huggingface: "MiniMaxAI/MiniMax-M3:novita",
+      openai: "gpt-5.4-mini",
+      nvidia: "openai/gpt-oss-120b",
+    });
+  });
+
   it("persists each provider model across remounts", () => {
     const first = renderHook(() => useAssistantConfig());
 

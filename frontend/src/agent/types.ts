@@ -11,21 +11,21 @@ export interface AssistantConfig {
 export const PROVIDER_DEFAULTS: Record<ProviderName, AssistantConfig> = {
   huggingface: {
     provider: "huggingface",
-    model: "Qwen/Qwen2.5-72B-Instruct",
+    model: "MiniMaxAI/MiniMax-M3:novita",
     baseUrl: "https://router.huggingface.co/v1",
     apiKey: "",
     temperature: 1,
   },
   openai: {
     provider: "openai",
-    model: "gpt-4o",
+    model: "gpt-5.4-mini",
     baseUrl: "https://api.openai.com/v1",
     apiKey: "",
     temperature: 1,
   },
   nvidia: {
     provider: "nvidia",
-    model: "meta/llama-3.1-70b-instruct",
+    model: "openai/gpt-oss-120b",
     baseUrl: "https://integrate.api.nvidia.com/v1",
     apiKey: "",
     temperature: 1,

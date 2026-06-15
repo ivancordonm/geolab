@@ -65,7 +65,7 @@ WIDGET_META = {"ui": {"resourceUri": GEOMETRY_WIDGET_URI}}
     title="GeoLab geometry viewer",
     description="SVG rendering of a validated GeoLab construction.",
     mime_type=GEOMETRY_WIDGET_MIME_TYPE,
-    meta={"ui": {"prefersBorder": True, "csp": {"connectDomains": [], "resourceDomains": []}}},
+    meta={"ui": {"prefersBorder": True, "domain": "https://geolab-seven.vercel.app", "csp": {"connectDomains": [], "resourceDomains": []}}},
 )
 def geometry_widget() -> str:
     return GEOMETRY_WIDGET_HTML
@@ -306,11 +306,7 @@ def evaluate_script(
 def render_current_graph(document: GeometryDocument) -> dict[str, Any]:
     workspace = _workspace(document)
     graph = graph_view_from_access_map(workspace.graph_access_map())
-    return {
-        "document": document.model_dump(by_alias=True),
-        "graph": graph.model_dump(by_alias=True),
-        "svg": render_graph_svg(graph),
-    }
+    return graph.model_dump(by_alias=True)
 
 
 @mcp.tool(annotations=READ_ONLY)

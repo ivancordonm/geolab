@@ -142,8 +142,11 @@ def test_mcp_constructs_validates_and_renders_equilateral_triangle(
     validation = call_tool(mcp_client, "validate_construction", {"document": document}, 30)
     assert validation["structuredContent"]["valid"] is True
     rendered = call_tool(mcp_client, "render_current_graph", {"document": document}, 31)
-    assert rendered["structuredContent"]["svg"].startswith("<svg")
-    assert "GeoLab geometric construction" in rendered["structuredContent"]["svg"]
+    # structuredContent is the compact GraphView (documentId, revision, objects, ...)
+    assert "documentId" in rendered["structuredContent"]
+    assert isinstance(rendered["structuredContent"]["objects"], list)
+    # 8 objects: A, B, cA, cB, C + segments AB, AC, BC
+    assert len(rendered["structuredContent"]["objects"]) == 8
 
 
 def test_mcp_inline_exports(mcp_client: TestClient) -> None:
@@ -175,5 +178,6 @@ def test_mcp_exposes_svg_widget_resource(mcp_client: TestClient) -> None:
     content = read.json()["result"]["contents"][0]
     assert content["mimeType"] == GEOMETRY_WIDGET_MIME_TYPE
     assert content["_meta"]["ui"]["csp"] == {"connectDomains": [], "resourceDomains": []}
+    assert content["_meta"]["ui"]["domain"] == "https://geolab-seven.vercel.app"
     assert "ui/notifications/tool-result" in content["text"]
     assert "<svg" not in content["text"]  # SVG is generated safely from structured data.

@@ -106,18 +106,10 @@ GEOMETRY_WIDGET_HTML = r"""<!doctype html>
 
     function render(data) {
       const graph = graphFrom(data);
-      if (!graph) return;
-      const objects = (graph.objects || []).filter(item => item.object?.visible !== false && item.value?.type !== "undefined");
-      meta.textContent = `${objects.length} object${objects.length === 1 ? "" : "s"} · revision ${graph.revision ?? 0}`;
-      if (typeof data.svg === "string") {
-        const parsed = new DOMParser().parseFromString(data.svg, "image/svg+xml");
-        const svg = parsed.documentElement;
-        if (svg.nodeName.toLowerCase() === "svg") {
-          canvas.className = "";
-          canvas.replaceChildren(document.importNode(svg, true));
-          return;
-        }
-      }
+      const objects = graph
+        ? (graph.objects || []).filter(item => item.object?.visible !== false && item.value?.type !== "undefined")
+        : [];
+      if (graph) meta.textContent = `${objects.length} object${objects.length === 1 ? "" : "s"} · revision ${graph.revision ?? 0}`;
       if (!objects.length) {
         canvas.className = "empty";
         canvas.textContent = "This construction does not contain visible objects yet.";

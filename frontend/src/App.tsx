@@ -9,6 +9,7 @@ import {
   Sparkles,
   Undo2,
 } from "lucide-react";
+import { Analytics } from "@vercel/analytics/react";
 
 import { evaluateConstructionScript, ScriptEvaluationError } from "./api/geometryApi";
 import { AssistantPanel } from "./components/assistant/AssistantPanel";
@@ -423,6 +424,7 @@ export function App() {
           />
         </div>
       </div>
+      <Analytics />
     </div>
   );
 }

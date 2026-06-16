@@ -110,13 +110,13 @@ export function ConstructionToolbar({
 
   return (
     <>
-      <div className={`absolute left-3 top-3 z-10 flex flex-col gap-1 rounded-card border border-edge bg-surface/90 p-1.5 shadow-card backdrop-blur transition-[width] ${hasInput ? "w-[88px]" : "w-[52px]"}`}>
-        {/* Scrollable tool list — inner div so tooltips are not clipped */}
+      <div className={`absolute left-3 top-3 z-10 flex flex-col gap-1 rounded-card border border-edge bg-surface/90 p-1.5 shadow-card backdrop-blur transition-[width] overflow-hidden max-h-[calc(100vh-1.5rem)] ${hasInput ? "w-[88px]" : "w-[52px]"}`}>
+        {/* Scrollable tool list */}
         <div
           role="toolbar"
           aria-label="Geometry construction tools"
           style={{ scrollbarWidth: "none" }}
-          className="flex flex-col gap-1 overflow-y-auto [&::-webkit-scrollbar]:hidden max-h-[calc(100vh-2rem)]"
+          className="flex flex-col gap-1 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden min-h-0 flex-1"
         >
           {TOOLS.map((entry, i) => {
             if ("divider" in entry) {

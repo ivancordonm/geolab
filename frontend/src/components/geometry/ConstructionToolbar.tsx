@@ -83,8 +83,12 @@ export function ConstructionToolbar({
   onRotationAngleChange,
   controls,
 }: ConstructionToolbarProps) {
+  const hasInput =
+    (activeTool === "rotation" && onRotationAngleChange !== undefined) ||
+    (activeTool === "regular_polygon" && onRegularPolygonSidesChange !== undefined);
+
   return (
-    <div className="absolute left-3 top-3 z-10 w-[52px] flex flex-col gap-1 rounded-card border border-edge bg-surface/90 p-1.5 shadow-card backdrop-blur">
+    <div className={`absolute left-3 top-3 z-10 flex flex-col gap-1 rounded-card border border-edge bg-surface/90 p-1.5 shadow-card backdrop-blur transition-[width] ${hasInput ? "w-[88px]" : "w-[52px]"}`}>
       <div role="toolbar" aria-label="Geometry construction tools" className="flex flex-col gap-1">
         {TOOLS.map((entry, i) => {
           if ("divider" in entry) {
@@ -99,7 +103,7 @@ export function ConstructionToolbar({
                 aria-label={label}
                 aria-pressed={active}
                 onClick={() => onActivateTool(tool)}
-                className={`flex items-center justify-center rounded-lg p-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${
+                className={`w-full flex items-center justify-center rounded-lg p-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${
                   active
                     ? "bg-brand-600 text-white"
                     : "text-muted hover:bg-accent-soft hover:text-accent-soft-fg"

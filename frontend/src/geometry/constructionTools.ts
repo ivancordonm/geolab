@@ -59,10 +59,10 @@ type SegmentObject = Extract<GeometryObject, { kind: "segment" }>;
 type PolygonObject = Extract<GeometryObject, { kind: "polygon" }>;
 type ReflectableObject = Extract<GeometryObject, { kind: "point" | "line" | "segment" | "circle" | "polygon" }>;
 type ReflectionObject = ReflectionOverLine | ReflectionOverPoint;
-type SourceLineObject = Exclude<LineObject, ReflectionObject | RotatedObject>;
-type SourceCircleObject = Exclude<CircleObject, ReflectionObject | RotatedObject>;
-type SourceSegmentObject = Exclude<SegmentObject, ReflectionObject | RotatedObject>;
-type SourcePolygonObject = Exclude<PolygonObject, ReflectionObject | RotatedObject>;
+type SourceLineObject = Exclude<LineObject, ReflectionObject | RotatedObject | TranslatedObject>;
+type SourceCircleObject = Exclude<CircleObject, ReflectionObject | RotatedObject | TranslatedObject>;
+type SourceSegmentObject = Exclude<SegmentObject, ReflectionObject | RotatedObject | TranslatedObject>;
+type SourcePolygonObject = Exclude<PolygonObject, ReflectionObject | RotatedObject | TranslatedObject>;
 
 export interface ConstructionToolState {
   activeTool: ConstructionTool;

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ChangeEvent, ReactNode } from "react";
 import {
   ChevronDown,
@@ -38,16 +39,19 @@ export function PersistenceControls({
 }: PersistenceControlsProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ top?: number; left?: number; right?: number; bottom?: number }>({ top: 0, left: 0 });
 
   useEffect(() => {
     if (!open) {
       return;
     }
     const handlePointerDown = (event: MouseEvent): void => {
-      if (menuRef.current !== null && !menuRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
+      const target = event.target as Node;
+      const inMenu = menuRef.current?.contains(target) ?? false;
+      const inButton = buttonRef.current?.contains(target) ?? false;
+      if (!inMenu && !inButton) setOpen(false);
     };
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === "Escape") {
@@ -79,19 +83,28 @@ export function PersistenceControls({
     action();
   };
 
-  const menuPositionClass = menuSide === "right"
-    ? "left-full bottom-0 ml-2"
-    : "right-0 bottom-full mb-2";
+  const handleToggle = () => {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      if (menuSide === "right") {
+        setMenuPos({ top: rect.top, left: rect.right + 8 });
+      } else {
+        setMenuPos({ bottom: window.innerHeight - rect.top + 8, right: window.innerWidth - rect.right });
+      }
+    }
+    setOpen((v) => !v);
+  };
 
   return (
-    <div className="relative flex flex-col items-center gap-2" ref={menuRef}>
+    <div className="relative flex flex-col items-center gap-2">
       <button
+        ref={buttonRef}
         type="button"
         title="Actions"
         aria-label="Construction actions"
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
+        onClick={handleToggle}
         className={`flex items-center justify-center rounded-lg p-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${
           open ? "bg-brand-600 text-white" : "text-muted hover:bg-accent-soft hover:text-accent-soft-fg"
         }`}
@@ -103,11 +116,13 @@ export function PersistenceControls({
         />
       </button>
 
-      {open ? (
+      {open ? createPortal(
         <div
+          ref={menuRef}
           role="menu"
           aria-label="Construction actions"
-          className={`absolute ${menuPositionClass} z-20 w-52 overflow-hidden rounded-xl border border-edge bg-surface p-1.5 shadow-pop`}
+          style={{ position: "fixed", ...menuPos }}
+          className="z-50 w-52 overflow-hidden rounded-xl border border-edge bg-surface p-1.5 shadow-pop"
         >
           <MenuItem icon={<Save size={16} aria-hidden />} onClick={() => run(onSave)}>
             Save
@@ -135,7 +150,8 @@ export function PersistenceControls({
           >
             Clear
           </MenuItem>
-        </div>
+        </div>,
+        document.body,
       ) : null}
 
       <input

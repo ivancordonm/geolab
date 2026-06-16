@@ -83,11 +83,18 @@ export function PersistenceControls({
     action();
   };
 
+  const MENU_HEIGHT_EST = 290;
+
   const handleToggle = () => {
     if (!open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       if (menuSide === "right") {
-        setMenuPos({ top: rect.top, left: rect.right + 8 });
+        const fitsBelow = window.innerHeight - rect.top > MENU_HEIGHT_EST;
+        if (fitsBelow) {
+          setMenuPos({ top: rect.top, left: rect.right + 8 });
+        } else {
+          setMenuPos({ bottom: window.innerHeight - rect.bottom, left: rect.right + 8 });
+        }
       } else {
         setMenuPos({ bottom: window.innerHeight - rect.top + 8, right: window.innerWidth - rect.right });
       }

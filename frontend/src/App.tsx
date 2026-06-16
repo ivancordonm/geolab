@@ -351,6 +351,11 @@ export function App() {
         </button>
       )}
 
+      {/* Leyenda inferior izquierda */}
+      <div className="pointer-events-none absolute bottom-3 left-3 z-10 text-[11px] text-muted/50 select-none">
+        An Anticentro Lab project
+      </div>
+
       {/* Panel derecho flotante colapsable — siempre montado para preservar estado */}
       <div
         className={`absolute bottom-3 right-3 top-3 z-10 flex w-[23rem] max-w-[calc(100vw-5rem)] flex-col overflow-hidden rounded-card border border-edge bg-surface shadow-card ${

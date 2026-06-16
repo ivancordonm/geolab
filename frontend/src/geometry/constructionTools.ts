@@ -25,7 +25,7 @@ import type {
   ReflectionOverPoint,
   RotatedObject,
   Segment,
-  TranslatedPoint,
+  TranslatedObject,
 } from "../types/geometry";
 import type { Coordinate } from "./viewport";
 import { GEOMETRY_EPSILON, GeometryGraph } from "./engine";
@@ -99,7 +99,7 @@ export const TOOL_INSTRUCTIONS: Record<ConstructionTool, string> = {
   reflect_point: "Select the object to reflect, then select the center of symmetry.",
   homothety: "Click center, then source point, then a point defining the ratio.",
   inversion: "Select the object to invert, then select the inversion circle.",
-  translation: "Click the point to translate, then the start of the translation vector, then the end.",
+  translation: "Select the object to translate, then the start of the translation vector, then the end.",
   rotation: "Click the object to rotate, then select the center of rotation.",
   polygon: "Click 3+ points to define a polygon. Click the first point again or press Enter to close.",
   regular_polygon: "Click two adjacent vertices, then set the number of sides in the toolbar.",
@@ -123,7 +123,7 @@ const MULTI_STEP_REQUIREMENTS: Partial<Record<ConstructionTool, readonly Require
   reflect_point: ["invertible", "point"],
   homothety: ["point", "point", "point"],
   inversion: ["invertible", "circle"],
-  translation: ["point", "point", "point"],
+  translation: ["invertible", "point", "point"],
   rotation: ["invertible", "point"],
 };
 
@@ -532,8 +532,18 @@ function createConstruction(
     }
     case "translation": {
       const id = nextObjectId(document, "tr");
-      const obj: TranslatedPoint = { id, label: id, kind: "point", visible: true, definition: { type: "translation", point: first, from: second, to: third } };
-      return [obj];
+      const source = requireObject(document, first);
+      if (!isReflectableObject(source)) {
+        throw new Error("Translation requires a point, line, segment, circle, or polygon");
+      }
+      const obj: TranslatedObject = {
+        id,
+        label: id,
+        kind: source.kind,
+        visible: true,
+        definition: { type: "translation", object: first, from: second, to: third },
+      };
+      return [obj as GeometryObject];
     }
     case "rotation": {
       const id = nextObjectId(document, "rot");

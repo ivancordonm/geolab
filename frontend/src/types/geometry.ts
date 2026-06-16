@@ -137,9 +137,9 @@ export interface InversionInCircle extends GeometryObjectBase {
   definition: { type: "inversion_in_circle"; point: GeometryObjectId; circle: GeometryObjectId };
 }
 
-export interface TranslatedPoint extends GeometryObjectBase {
-  kind: "point";
-  definition: { type: "translation"; point: GeometryObjectId; from: GeometryObjectId; to: GeometryObjectId };
+export interface TranslatedObject<K extends ReflectableKind = ReflectableKind> extends GeometryObjectBase {
+  kind: K;
+  definition: { type: "translation"; object?: GeometryObjectId; point?: GeometryObjectId; from: GeometryObjectId; to: GeometryObjectId };
 }
 
 export interface RotatedObject<K extends ReflectableKind = ReflectableKind> extends GeometryObjectBase {
@@ -192,7 +192,11 @@ export type GeometryObject =
   | HomothetyScalar
   | HomothetyPoint
   | InversionInCircle
-  | TranslatedPoint
+  | TranslatedObject<"point">
+  | TranslatedObject<"line">
+  | TranslatedObject<"segment">
+  | TranslatedObject<"circle">
+  | TranslatedObject<"polygon">
   | RotatedObject<"point">
   | RotatedObject<"line">
   | RotatedObject<"segment">

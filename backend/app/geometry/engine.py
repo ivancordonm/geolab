@@ -96,7 +96,7 @@ def get_parent_ids(obj: GeometryObject) -> list[str]:
     if isinstance(definition, InversionInCircleDefinition):
         return [definition.point, definition.circle]
     if isinstance(definition, TranslationDefinition):
-        return [definition.point, definition.from_, definition.to]
+        return [definition.object_id, definition.from_, definition.to]
     if isinstance(definition, RotationDefinition):
         return [definition.object_id, definition.center]
     # ─── Polygons ────────────────────────────────────────────────────────────
@@ -246,9 +246,17 @@ class GeometryGraph:
             require_kind(definition.point, "point")
             require_kind(definition.circle, "circle")
         elif isinstance(definition, TranslationDefinition):
-            require_kind(definition.point, "point")
+            actual = self._objects_by_id[definition.object_id].kind
+            if actual not in {"point", "line", "segment", "circle", "polygon"}:
+                raise GeometryValidationError(
+                    f"Object '{obj.id}' requires parent '{definition.object_id}' to be translatable"
+                )
             require_kind(definition.from_, "point")
             require_kind(definition.to, "point")
+            if obj.kind != actual:
+                raise GeometryValidationError(
+                    f"Object '{obj.id}' must keep the translated kind '{actual}'"
+                )
         elif isinstance(definition, RotationDefinition):
             actual = self._objects_by_id[definition.object_id].kind
             if actual not in {"point", "line", "segment", "circle", "polygon"}:
@@ -504,19 +512,18 @@ class GeometryGraph:
             return PointValue(x=_clean_zero(cr.center.x + r2 * dx / d2), y=_clean_zero(cr.center.y + r2 * dy / d2))
 
         if isinstance(definition, TranslationDefinition):
-            pt = self._require_value(obj.id, definition.point, "point")
-            if isinstance(pt, UndefinedValue):
-                return pt
+            source = self._require_value(obj.id, definition.object_id, obj.kind)
+            if isinstance(source, UndefinedValue):
+                return source
             from_pt = self._require_value(obj.id, definition.from_, "point")
             if isinstance(from_pt, UndefinedValue):
                 return from_pt
             to_pt = self._require_value(obj.id, definition.to, "point")
             if isinstance(to_pt, UndefinedValue):
                 return to_pt
-            assert isinstance(pt, PointValue)
             assert isinstance(from_pt, PointValue)
             assert isinstance(to_pt, PointValue)
-            return PointValue(x=_clean_zero(pt.x + to_pt.x - from_pt.x), y=_clean_zero(pt.y + to_pt.y - from_pt.y))
+            return _translate_value(source, to_pt.x - from_pt.x, to_pt.y - from_pt.y)
 
         if isinstance(definition, RotationDefinition):
             ctr = self._require_value(obj.id, definition.center, "point")
@@ -709,6 +716,35 @@ def _rotate_point(pt: PointValue, ctr: PointValue, degrees: float) -> PointValue
         x=_clean_zero(ctr.x + dx * c - dy * s),
         y=_clean_zero(ctr.y + dx * s + dy * c),
     )
+
+
+def _translate_value(value: EvaluatedValue, dx: float, dy: float) -> EvaluatedValue:
+    if isinstance(value, PointValue):
+        return PointValue(x=_clean_zero(value.x + dx), y=_clean_zero(value.y + dy))
+    if isinstance(value, LineValue):
+        p1, p2 = _line_sample_points(value)
+        return _line_through_points(
+            PointValue(x=_clean_zero(p1.x + dx), y=_clean_zero(p1.y + dy)),
+            PointValue(x=_clean_zero(p2.x + dx), y=_clean_zero(p2.y + dy)),
+        )
+    if isinstance(value, SegmentValue):
+        return SegmentValue(
+            start=Coordinate(x=_clean_zero(value.start.x + dx), y=_clean_zero(value.start.y + dy)),
+            end=Coordinate(x=_clean_zero(value.end.x + dx), y=_clean_zero(value.end.y + dy)),
+        )
+    if isinstance(value, CircleValue):
+        return CircleValue(
+            center=Coordinate(x=_clean_zero(value.center.x + dx), y=_clean_zero(value.center.y + dy)),
+            radius=value.radius,
+        )
+    if isinstance(value, PolygonValue):
+        return PolygonValue(
+            vertices=[
+                Coordinate(x=_clean_zero(vertex.x + dx), y=_clean_zero(vertex.y + dy))
+                for vertex in value.vertices
+            ]
+        )
+    raise GeometryValidationError(f"Translation is unsupported for evaluated type '{value.type}'")
 
 
 def _rotate_value(value: EvaluatedValue, center: PointValue, degrees: float) -> EvaluatedValue:

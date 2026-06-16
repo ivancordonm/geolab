@@ -210,7 +210,7 @@ function objectToScript(
     case "inversion_in_circle":
       return `${variable} = Inversion(${reference(object.definition.point)}, ${reference(object.definition.circle)})`;
     case "translation":
-      return `${variable} = Translation(${reference(object.definition.point)}, ${reference(object.definition.from)}, ${reference(object.definition.to)})`;
+      return `${variable} = Translation(${reference(object.definition.object ?? object.definition.point!)}, ${reference(object.definition.from)}, ${reference(object.definition.to)})`;
     case "rotation":
       return `${variable} = Rotation(${reference(object.definition.object ?? object.definition.point!)}, ${reference(object.definition.center)}, ${formatNumber(object.definition.degrees)})`;
     case "arc_through_points":

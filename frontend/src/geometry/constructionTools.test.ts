@@ -122,6 +122,35 @@ describe("ConstructionToolController", () => {
     expectValidAdditions(document, result.createdObjects!);
   });
 
+  it("translates a segment as a segment instead of forcing a point result", () => {
+    const controller = new ConstructionToolController();
+    controller.activate("translation");
+    const document: GeometryDocument = {
+      ...baseDocument,
+      objects: [
+        ...baseDocument.objects,
+        {
+          id: "seg1",
+          label: "seg1",
+          kind: "segment",
+          visible: true,
+          definition: { type: "between_points", pointA: "A", pointB: "C" },
+        },
+      ],
+    };
+
+    controller.handleObjectClick("seg1", document);
+    controller.handleObjectClick("A", document);
+    const result = controller.handleObjectClick("B", document);
+
+    expect(result.createdObjects).toHaveLength(1);
+    expect(result.createdObjects![0]).toMatchObject({
+      kind: "segment",
+      definition: { type: "translation", object: "seg1", from: "A", to: "B" },
+    });
+    expectValidAdditions(document, result.createdObjects!);
+  });
+
   it("inverts a circle through the inversion center into a line", () => {
     const controller = new ConstructionToolController();
     controller.activate("inversion");

@@ -276,6 +276,60 @@ describe("GeometryGraph", () => {
       expect(polyRotVal.vertices[2].y).toBeCloseTo(1, 9);
     }
   });
+
+  it("translates complete objects, not only points", () => {
+    const doc: GeometryDocument = {
+      schemaVersion: 1,
+      id: "translation-objects",
+      title: "Translation objects",
+      objects: [
+        { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 1, y: 1 } },
+        { id: "B", label: "B", kind: "point", visible: true, definition: { type: "free", x: 3, y: 1 } },
+        { id: "C", label: "C", kind: "point", visible: true, definition: { type: "free", x: 1, y: 3 } },
+        { id: "from", label: "from", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+        { id: "to", label: "to", kind: "point", visible: true, definition: { type: "free", x: 2, y: -1 } },
+        { id: "seg", label: "seg", kind: "segment", visible: true, definition: { type: "between_points", pointA: "A", pointB: "B" } },
+        { id: "circle", label: "circle", kind: "circle", visible: true, definition: { type: "center_through_point", center: "A", point: "B" } },
+        { id: "poly", label: "poly", kind: "polygon", visible: true, definition: { type: "polygon", points: ["A", "B", "C"] } },
+        { id: "segTr", label: "segTr", kind: "segment", visible: true, definition: { type: "translation", object: "seg", from: "from", to: "to" } },
+        { id: "circleTr", label: "circleTr", kind: "circle", visible: true, definition: { type: "translation", object: "circle", from: "from", to: "to" } },
+        { id: "polyTr", label: "polyTr", kind: "polygon", visible: true, definition: { type: "translation", object: "poly", from: "from", to: "to" } },
+      ],
+    };
+
+    const values = new GeometryGraph(doc).values;
+
+    expect(values.get("segTr")).toMatchObject({
+      type: "segment",
+      start: { x: 3, y: 0 },
+      end: { x: 5, y: 0 },
+    });
+    expect(values.get("circleTr")).toMatchObject({
+      type: "circle",
+      center: { x: 3, y: 0 },
+      radius: 2,
+    });
+    expect(values.get("polyTr")).toMatchObject({
+      type: "polygon",
+      vertices: [{ x: 3, y: 0 }, { x: 5, y: 0 }, { x: 3, y: 2 }],
+    });
+  });
+
+  it("accepts legacy point-based translation definitions", () => {
+    const doc: GeometryDocument = {
+      schemaVersion: 1,
+      id: "translation-legacy",
+      title: "Translation legacy",
+      objects: [
+        { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 1, y: 1 } },
+        { id: "from", label: "from", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+        { id: "to", label: "to", kind: "point", visible: true, definition: { type: "free", x: 2, y: -1 } },
+        { id: "ATr", label: "ATr", kind: "point", visible: true, definition: { type: "translation", point: "A", from: "from", to: "to" } },
+      ],
+    };
+
+    expect(new GeometryGraph(doc).values.get("ATr")).toMatchObject({ type: "point", x: 3, y: 0 });
+  });
 });
 
 // ─── Conformance: polygon construction variants ──────────────────────────────

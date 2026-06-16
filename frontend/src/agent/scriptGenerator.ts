@@ -58,7 +58,7 @@ function objectToStatement(object: GeometryObject): string {
     case "inversion_in_circle":
       return `${object.id} = Inversion(${definition.point}, ${definition.circle})`;
     case "translation":
-      return `${object.id} = Translation(${definition.point}, ${definition.from}, ${definition.to})`;
+      return `${object.id} = Translation(${definition.object ?? definition.point}, ${definition.from}, ${definition.to})`;
     case "rotation":
       return `${object.id} = Rotation(${definition.object ?? definition.point}, ${definition.center}, ${formatNumber(definition.degrees)})`;
     case "arc_through_points":

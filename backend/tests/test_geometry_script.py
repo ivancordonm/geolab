@@ -272,6 +272,45 @@ def test_rotation_can_transform_a_segment_and_circle() -> None:
     assert values["cr2"].radius == pytest.approx(2.0, abs=1e-9)
 
 
+def test_translation_can_transform_a_segment_circle_and_polygon() -> None:
+    script = "\n".join(
+        [
+            "A = Point(1, 1)",
+            "B = Point(3, 1)",
+            "C = Point(1, 3)",
+            "fromP = Point(0, 0)",
+            "toP = Point(2, -1)",
+            "s = Segment(A, B)",
+            "sr = Translation(s, fromP, toP)",
+            "cr = Circle(A, B)",
+            "cr2 = Translation(cr, fromP, toP)",
+            "poly = Polygon(A, B, C)",
+            "poly2 = Translation(poly, fromP, toP)",
+        ]
+    )
+    document, values = evaluate_script(script)
+
+    translated_segment = next(obj for obj in document.objects if obj.id == "sr")
+    assert translated_segment.kind == "segment"
+    assert values["sr"].type == "segment"
+    assert values["sr"].start.model_dump() == pytest.approx({"x": 3.0, "y": 0.0}, abs=1e-9)
+    assert values["sr"].end.model_dump() == pytest.approx({"x": 5.0, "y": 0.0}, abs=1e-9)
+
+    translated_circle = next(obj for obj in document.objects if obj.id == "cr2")
+    assert translated_circle.kind == "circle"
+    assert values["cr2"].type == "circle"
+    assert values["cr2"].center.model_dump() == pytest.approx({"x": 3.0, "y": 0.0}, abs=1e-9)
+    assert values["cr2"].radius == pytest.approx(2.0, abs=1e-9)
+
+    translated_polygon = next(obj for obj in document.objects if obj.id == "poly2")
+    assert translated_polygon.kind == "polygon"
+    assert values["poly2"].type == "polygon"
+    assert [vertex.model_dump() for vertex in values["poly2"].vertices] == pytest.approx(
+        [{"x": 3.0, "y": 0.0}, {"x": 5.0, "y": 0.0}, {"x": 3.0, "y": 2.0}],
+        abs=1e-9,
+    )
+
+
 def test_midpoint_from_inline_coordinates() -> None:
     document, values = evaluate_script("M = Midpoint((0, 0), (4, 2))")
 

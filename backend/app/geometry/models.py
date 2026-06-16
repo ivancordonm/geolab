@@ -189,7 +189,10 @@ class InversionInCircleDefinition(GeometryModel):
 
 class TranslationDefinition(GeometryModel):
     type: Literal["translation"] = "translation"
-    point: str
+    object_id: str = Field(
+        validation_alias=AliasChoices("object", "point"),
+        serialization_alias="object",
+    )
     from_: str = Field(alias="from")
     to: str
 
@@ -310,8 +313,8 @@ class InversionInCircle(GeometryObjectBase):
     definition: InversionInCircleDefinition
 
 
-class TranslatedPoint(GeometryObjectBase):
-    kind: Literal["point"] = "point"
+class TranslatedObject(GeometryObjectBase):
+    kind: Literal["point", "line", "segment", "circle", "polygon"]
     definition: TranslationDefinition
 
 
@@ -376,7 +379,7 @@ GeometryObject: TypeAlias = (
     | HomothetyScalar
     | HomothetyPoint
     | InversionInCircle
-    | TranslatedPoint
+    | TranslatedObject
     | RotatedObject
     | Polygon
 )

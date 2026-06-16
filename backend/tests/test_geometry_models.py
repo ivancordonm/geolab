@@ -189,3 +189,23 @@ def test_reflection_models_accept_legacy_point_and_serialize_as_object() -> None
     payload = json.loads(geometry_document_to_json(document))
     assert payload["objects"][-1]["definition"]["object"] == "A"
     assert "point" not in payload["objects"][-1]["definition"]
+
+
+def test_translation_models_accept_legacy_point_and_serialize_as_object() -> None:
+    document = GeometryDocument.model_validate(
+        {
+            "schemaVersion": 1,
+            "id": "translation-compat",
+            "title": "Translation compatibility",
+            "objects": [
+                {"id": "A", "label": "A", "kind": "point", "definition": {"type": "free", "x": 1, "y": 1}},
+                {"id": "B", "label": "B", "kind": "point", "definition": {"type": "free", "x": 0, "y": 0}},
+                {"id": "C", "label": "C", "kind": "point", "definition": {"type": "free", "x": 2, "y": -1}},
+                {"id": "T", "label": "T", "kind": "point", "definition": {"type": "translation", "point": "A", "from": "B", "to": "C"}},
+            ],
+        }
+    )
+
+    payload = json.loads(geometry_document_to_json(document))
+    assert payload["objects"][-1]["definition"]["object"] == "A"
+    assert "point" not in payload["objects"][-1]["definition"]

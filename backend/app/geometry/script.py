@@ -53,7 +53,7 @@ from app.geometry.models import (
     RotationDefinition,
     Segment,
     SegmentBetweenPointsDefinition,
-    TranslatedPoint,
+    TranslatedObject,
     TranslationDefinition,
     VectorPolygonDefinition,
 )
@@ -478,10 +478,16 @@ def _build_object(
 
     if command == "Translation":
         _require_arity(statement, 3)
-        pt = _resolve_point_argument(arguments[0], statement, symbols, objects, argument_position=1)
+        source = _resolve_reference(arguments[0], statement, symbols, argument_position=1)
+        if source.kind not in {"point", "line", "segment", "circle", "polygon"}:
+            _raise(
+                "invalid_reference_type",
+                f"Argument 1 of Translation must reference a translatable object, but '{source.id}' is a {source.kind}",
+                statement.line, statement.source_line, source.id,
+            )
         from_pt = _resolve_point_argument(arguments[1], statement, symbols, objects, argument_position=2)
         to_pt = _resolve_point_argument(arguments[2], statement, symbols, objects, argument_position=3)
-        return [TranslatedPoint(id=statement.target, label=statement.target, definition=TranslationDefinition(point=pt.id, from_=from_pt.id, to=to_pt.id))]
+        return [TranslatedObject(id=statement.target, label=statement.target, kind=source.kind, definition=TranslationDefinition(object_id=source.id, from_=from_pt.id, to=to_pt.id))]
 
     if command == "Rotation":
         _require_arity(statement, 3)

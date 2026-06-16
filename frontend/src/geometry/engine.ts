@@ -65,7 +65,7 @@ export function getParentIds(object: GeometryObject): GeometryObjectId[] {
     case "inversion_in_circle":
       return [object.definition.point, object.definition.circle];
     case "translation":
-      return [object.definition.point, object.definition.from, object.definition.to];
+      return [object.definition.object ?? object.definition.point!, object.definition.from, object.definition.to];
     case "rotation":
       return [object.definition.object ?? object.definition.point!, object.definition.center];
     case "arc_through_points":
@@ -300,9 +300,23 @@ export class GeometryGraph {
         requireKind(def.circle, "circle");
         return;
       case "translation":
-        requireKind(def.point, "point");
-        requireKind(def.from, "point");
-        requireKind(def.to, "point");
+        {
+          const sourceId = def.object ?? def.point!;
+          const parent = this.objectsById.get(sourceId);
+          const actual = parent?.kind;
+          if (actual === undefined || !["point", "line", "segment", "circle", "polygon"].includes(actual)) {
+            throw new GeometryValidationError(
+              `Object '${object.id}' requires parent '${sourceId}' to be translatable`,
+            );
+          }
+          requireKind(def.from, "point");
+          requireKind(def.to, "point");
+          if (object.kind !== actual) {
+            throw new GeometryValidationError(
+              `Object '${object.id}' must keep the translated kind '${actual}'`,
+            );
+          }
+        }
         return;
       case "rotation":
         {
@@ -599,17 +613,14 @@ export class GeometryGraph {
       }
 
       case "translation": {
-        const pt = this.requireValue<PointValue>(object.id, def.point, "point");
-        if (isUndefined(pt)) return pt;
+        const sourceId = def.object ?? def.point!;
+        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind);
+        if (isUndefined(source)) return source;
         const from = this.requireValue<PointValue>(object.id, def.from, "point");
         if (isUndefined(from)) return from;
         const to = this.requireValue<PointValue>(object.id, def.to, "point");
         if (isUndefined(to)) return to;
-        return {
-          type: "point",
-          x: cleanZero(pt.x + to.x - from.x),
-          y: cleanZero(pt.y + to.y - from.y),
-        };
+        return translateValue(source, to.x - from.x, to.y - from.y);
       }
 
       case "rotation": {
@@ -856,6 +867,42 @@ function rotatePoint(pt: PointValue, ctr: PointValue, degrees: number): PointVal
     x: cleanZero(ctr.x + dx * cos - dy * sin),
     y: cleanZero(ctr.y + dx * sin + dy * cos),
   };
+}
+
+function translateValue(value: EvaluatedValue, dx: number, dy: number): EvaluatedValue {
+  switch (value.type) {
+    case "point":
+      return { type: "point", x: cleanZero(value.x + dx), y: cleanZero(value.y + dy) };
+    case "line": {
+      const [first, second] = samplePointsFromLine(value);
+      return lineThroughPoints(
+        { type: "point", x: cleanZero(first.x + dx), y: cleanZero(first.y + dy) },
+        { type: "point", x: cleanZero(second.x + dx), y: cleanZero(second.y + dy) },
+      );
+    }
+    case "segment":
+      return {
+        type: "segment",
+        start: { x: cleanZero(value.start.x + dx), y: cleanZero(value.start.y + dy) },
+        end: { x: cleanZero(value.end.x + dx), y: cleanZero(value.end.y + dy) },
+      };
+    case "circle":
+      return {
+        type: "circle",
+        center: { x: cleanZero(value.center.x + dx), y: cleanZero(value.center.y + dy) },
+        radius: value.radius,
+      };
+    case "polygon":
+      return {
+        type: "polygon",
+        vertices: value.vertices.map((vertex) => ({
+          x: cleanZero(vertex.x + dx),
+          y: cleanZero(vertex.y + dy),
+        })),
+      };
+    default:
+      throw new GeometryValidationError(`Translation is unsupported for evaluated type '${value.type}'`);
+  }
 }
 
 function rotateValue(value: EvaluatedValue, center: PointValue, degrees: number): EvaluatedValue {

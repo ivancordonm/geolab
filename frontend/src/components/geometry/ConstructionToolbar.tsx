@@ -88,7 +88,7 @@ export function ConstructionToolbar({
     (activeTool === "regular_polygon" && onRegularPolygonSidesChange !== undefined);
 
   return (
-    <div className={`absolute left-3 top-3 z-10 flex flex-col gap-1 rounded-card border border-edge bg-surface/90 p-1.5 shadow-card backdrop-blur transition-[width] ${hasInput ? "w-[88px]" : "w-[52px]"}`}>
+    <div className={`absolute left-3 top-3 z-10 flex flex-col gap-1 rounded-card border border-edge bg-surface/90 p-1.5 shadow-card backdrop-blur transition-[width] overflow-y-auto max-h-[calc(100vh-1.5rem)] ${hasInput ? "w-[88px]" : "w-[52px]"}`}>
       <div role="toolbar" aria-label="Geometry construction tools" className="flex flex-col gap-1">
         {TOOLS.map((entry, i) => {
           if ("divider" in entry) {

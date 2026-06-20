@@ -7,6 +7,10 @@ from dataclasses import dataclass
 from typing import Literal
 
 from app.geometry.engine import GeometryGraph
+from app.geometry.function_expression import (
+    FunctionExpressionError,
+    normalize_function_expression,
+)
 from app.geometry.models import (
     AngleBisectorLine,
     AngleBisectorDefinition,
@@ -16,6 +20,8 @@ from app.geometry.models import (
     CircumscribedDefinition,
     Coordinate,
     EvaluatedValue,
+    FunctionExpressionDefinition,
+    FunctionGraph,
     GeometryDocument,
     GeometryObject,
     GeometryViewport,
@@ -78,6 +84,7 @@ CommandName = Literal[
     "Inversion",
     "Translation",
     "Rotation",
+    "Function",
     "Polygon",
     "VectorPolygon",
 ]
@@ -103,6 +110,7 @@ SUPPORTED_COMMANDS: frozenset[str] = frozenset(
         "Inversion",
         "Translation",
         "Rotation",
+        "Function",
         "Polygon",
         "VectorPolygon",
     }
@@ -258,7 +266,15 @@ def evaluate_script(
                 statement.source_line,
             )
 
-        built = _build_object(statement, symbols, objects)
+        try:
+            built = _build_object(statement, symbols, objects)
+        except FunctionExpressionError as error:
+            _raise(
+                "unsupported_function_expression",
+                str(error),
+                statement.line,
+                statement.source_line,
+            )
         # _build_object returns a list to support multi-output commands (intersections).
         for obj in built:
             objects.append(obj)
@@ -501,6 +517,15 @@ def _build_object(
         center = _resolve_point_argument(arguments[1], statement, symbols, objects, argument_position=2)
         degrees = _parse_number(arguments[2], statement, argument_position=3)
         return [RotatedObject(id=statement.target, label=statement.target, kind=source.kind, definition=RotationDefinition(object_id=source.id, center=center.id, degrees=degrees))]
+
+    if command == "Function":
+        _require_arity(statement, 1)
+        expression = normalize_function_expression(arguments[0])
+        return [FunctionGraph(
+            id=statement.target,
+            label=statement.target,
+            definition=FunctionExpressionDefinition(expression=expression),
+        )]
 
     # ─── New: polygons ─────────────────────────────────────────────────────────
 

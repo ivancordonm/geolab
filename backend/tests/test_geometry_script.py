@@ -60,6 +60,25 @@ def test_valid_script_converts_to_shared_model_and_evaluates() -> None:
     assert values["c1"].type == "circle"
 
 
+def test_function_command_creates_a_graph_object() -> None:
+    document, values = evaluate_script("f = Function(y = x^2 - 3)")
+
+    assert document.objects[0].kind == "function"
+    assert document.objects[0].definition.type == "function_expression"
+    assert document.objects[0].definition.expression == "x^2 - 3"
+    assert values["f"].model_dump() == {"type": "function", "expression": "x^2 - 3"}
+
+
+def test_function_command_supports_real_elementary_functions_and_implicit_products() -> None:
+    document, values = evaluate_script("f = Function(y = 2x*sin(pi*x) + sqrt(abs(x)) + exp(-x^2))")
+
+    assert document.objects[0].definition.expression == "2*x*sin(pi*x) + sqrt(Abs(x)) + exp(-x^2)"
+    assert values["f"].model_dump() == {
+        "type": "function",
+        "expression": "2*x*sin(pi*x) + sqrt(Abs(x)) + exp(-x^2)",
+    }
+
+
 @pytest.mark.parametrize(
     ("script", "code", "line"),
     [
@@ -68,6 +87,7 @@ def test_valid_script_converts_to_shared_model_and_evaluates() -> None:
         ("A = Point(0)", "invalid_arity", 1),
         ("A = Point(x, 0)", "expected_number", 1),
         ("AB = Line(A, B)", "undefined_reference", 1),
+        ("f = Function(y = gamma(x))", "unsupported_function_expression", 1),
         ("A = Point(0, 0)\nA = Point(1, 1)", "duplicate_assignment", 2),
         (
             "A = Point(0, 0)\nB = Point(1, 0)\ns = Segment(A, B)\np = ParallelLine(A, s)",

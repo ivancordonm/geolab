@@ -3,6 +3,7 @@ import type {
   CircleValue,
   EvaluatedValue,
   EvaluationMap,
+  FunctionValue,
   GeometryDocument,
   GeometryObject,
   GeometryObjectId,
@@ -12,6 +13,7 @@ import type {
   PointValue,
   UndefinedValue,
 } from "../types/geometry";
+import { normalizeFunctionExpression } from "./functionExpression";
 
 export const GEOMETRY_EPSILON = 1e-9;
 
@@ -70,6 +72,8 @@ export function getParentIds(object: GeometryObject): GeometryObjectId[] {
       return [object.definition.object ?? object.definition.point!, object.definition.center];
     case "arc_through_points":
       return [object.definition.pointA, object.definition.pointMid, object.definition.pointB];
+    case "function_expression":
+      return [];
     // ─── Polygons ─────────────────────────────────────────────────────────
     case "polygon":
       return [...object.definition.points];
@@ -341,6 +345,9 @@ export class GeometryGraph {
         requireKind(def.pointA, "point");
         requireKind(def.pointMid, "point");
         requireKind(def.pointB, "point");
+        return;
+      case "function_expression":
+        normalizeFunctionExpression(def.expression);
         return;
       // ─── Polygons ───────────────────────────────────────────────────────
       case "polygon":
@@ -650,6 +657,12 @@ export class GeometryGraph {
           end: { x: cleanZero(pB.x), y: cleanZero(pB.y) },
         };
       }
+
+      case "function_expression":
+        return {
+          type: "function",
+          expression: normalizeFunctionExpression(def.expression),
+        } satisfies FunctionValue;
 
       // ─── Polygons ─────────────────────────────────────────────────────────
 

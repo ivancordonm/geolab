@@ -98,7 +98,7 @@ function validateDocument(value: unknown): GeometryDocument {
       !isRecord(object) ||
       typeof object.id !== "string" ||
       typeof object.label !== "string" ||
-      !["point", "line", "segment", "circle", "polygon", "arc"].includes(String(object.kind)) ||
+      !["point", "line", "segment", "circle", "polygon", "arc", "function"].includes(String(object.kind)) ||
       typeof object.visible !== "boolean" ||
       !isRecord(object.definition)
     ) {
@@ -215,6 +215,8 @@ function objectToScript(
       return `${variable} = Rotation(${reference(object.definition.object ?? object.definition.point!)}, ${reference(object.definition.center)}, ${formatNumber(object.definition.degrees)})`;
     case "arc_through_points":
       return `${variable} = Arc(${reference(object.definition.pointA)}, ${reference(object.definition.pointMid)}, ${reference(object.definition.pointB)})`;
+    case "function_expression":
+      return `${variable} = Function(y = ${object.definition.expression})`;
     case "polygon":
       return `${variable} = Polygon(${object.definition.points.map((id) => reference(id)).join(", ")})`;
     case "regular_polygon":

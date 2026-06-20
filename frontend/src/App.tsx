@@ -21,6 +21,7 @@ import { SidebarTabs } from "./components/SidebarTabs";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { useTheme } from "./theme/useTheme";
 import { exampleGeometryDocument } from "./geometry/example";
+import { parseFunctionObjectCommand } from "./geometry/functionExpression";
 import { useConstructionTools } from "./geometry/useConstructionTools";
 import { useGeometryState } from "./geometry/useGeometryState";
 import {
@@ -34,6 +35,7 @@ import {
 import { downloadTextFile } from "./persistence/download";
 import { useAutoSaveDocument } from "./persistence/useAutoSaveDocument";
 import type { GeometryDocument } from "./types/geometry";
+import type { FunctionGraph } from "./types/geometry";
 import type { ScriptErrorDetail } from "./types/script";
 
 export const DEFAULT_CONSTRUCTION_SCRIPT = `A = Point(0, 0)
@@ -96,6 +98,39 @@ export function App() {
     constructionTools.cancel();
     setSelectedObjectId(null);
   }, [constructionTools, geometry]);
+
+  const handleSubmitObjectCommand = useCallback(async (command: string) => {
+    const functionCommand = parseFunctionObjectCommand(command);
+    if (functionCommand !== null) {
+      const duplicate = geometry.document.objects.some((object) => object.id === functionCommand.id || object.label === functionCommand.id);
+      if (duplicate) {
+        throw new Error(`An object named '${functionCommand.id}' already exists.`);
+      }
+      const object: FunctionGraph = {
+        id: functionCommand.id,
+        label: functionCommand.id,
+        kind: "function",
+        visible: true,
+        definition: {
+          type: "function_expression",
+          expression: functionCommand.expression,
+        },
+      };
+      geometry.addObject(object);
+      setSelectedObjectId(object.id);
+      return;
+    }
+
+    const response = await evaluateConstructionScript({
+      script: `${documentToScript(currentDocument())}${command}\n`,
+      documentId: geometry.document.id,
+      title: geometry.document.title,
+    });
+    geometry.replaceDocument({ ...response.document, viewport: geometry.viewport });
+    constructionTools.cancel();
+    const lastObject = response.document.objects.at(-1);
+    setSelectedObjectId(lastObject?.id ?? null);
+  }, [constructionTools, currentDocument, geometry]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
@@ -397,6 +432,7 @@ export function App() {
                     onSetObjectColor={geometry.setObjectColor}
                     onSetObjectStyle={geometry.setObjectStyle}
                     onDeleteObject={handleDeleteObject}
+                    onSubmitCommand={handleSubmitObjectCommand}
                   />
                 ),
               },

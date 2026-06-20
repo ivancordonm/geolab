@@ -15,6 +15,7 @@ interface ObjectListProps {
   onSetObjectColor?: (objectId: string, color: string | null) => void;
   onSetObjectStyle?: (objectId: string, patch: Partial<GeometryStyle>) => void;
   onDeleteObject?: (objectId: string) => void;
+  onSubmitCommand?: (command: string) => Promise<void> | void;
 }
 
 const PALETTE: Array<{ label: string; value: string }> = [
@@ -42,6 +43,7 @@ const KIND_DOT_BG: Record<string, string> = {
   line: "var(--geo-line)",
   circle: "var(--geo-circle)",
   arc: "var(--geo-circle)",
+  function: "var(--geo-function)",
 };
 
 function dotStyle(object: GeometryObject): React.CSSProperties {
@@ -65,10 +67,14 @@ export function ObjectList({
   onSetObjectColor,
   onSetObjectStyle,
   onDeleteObject,
+  onSubmitCommand,
 }: ObjectListProps) {
   const labelsById = new Map(document.objects.map((object) => [object.id, object.label]));
   const [menu, setMenu] = useState<MenuState | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [command, setCommand] = useState("");
+  const [commandError, setCommandError] = useState<string | null>(null);
+  const [submittingCommand, setSubmittingCommand] = useState(false);
 
   // Close menu on outside click
   useEffect(() => {
@@ -119,6 +125,48 @@ export function ObjectList({
           {document.objects.length}
         </span>
       </div>
+
+      {onSubmitCommand !== undefined ? (
+        <form
+          className="mb-4 rounded-xl border border-edge bg-surface-muted p-3"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            const trimmed = command.trim();
+            if (!trimmed || submittingCommand) return;
+            setSubmittingCommand(true);
+            setCommandError(null);
+            try {
+              await onSubmitCommand(trimmed);
+              setCommand("");
+            } catch (error) {
+              setCommandError(error instanceof Error ? error.message : "Unable to add the object.");
+            } finally {
+              setSubmittingCommand(false);
+            }
+          }}
+        >
+          <label htmlFor="object-command" className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+            Add object command
+          </label>
+          <input
+            id="object-command"
+            type="text"
+            value={command}
+            onChange={(event) => setCommand(event.target.value)}
+            placeholder="f = Function(y = x^2)"
+            aria-describedby="object-command-help"
+            className="w-full rounded-lg border border-edge bg-surface px-3 py-2 text-sm text-content outline-none transition focus:border-brand-400 focus:ring-1 focus:ring-brand-400"
+          />
+          <p id="object-command-help" className="mb-0 mt-1 text-xs text-muted">
+            Press Enter. Example: <code>f = Function(y = x^2)</code>
+          </p>
+          {commandError !== null ? (
+            <p role="alert" className="mb-0 mt-2 text-xs font-semibold text-danger-fg">
+              {commandError}
+            </p>
+          ) : null}
+        </form>
+      ) : null}
 
       {document.objects.length === 0 ? (
         <p className="m-0 rounded-lg border border-dashed border-edge px-3 py-6 text-center text-sm text-muted">
@@ -571,6 +619,7 @@ function describeObject(object: GeometryObject): string {
     translation: "Translation",
     rotation: "Rotation",
     arc_through_points: "Arc through points",
+    function_expression: "Function graph",
     polygon: "Polygon",
     regular_polygon: "Regular polygon",
     vector_polygon: "Vector polygon",

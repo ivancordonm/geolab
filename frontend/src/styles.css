@@ -49,6 +49,7 @@
   --geo-circle: #2563eb;
   --geo-line: #64748b;
   --geo-polygon: #d97706;
+  --geo-function: #db2777;
   --geo-label: #172033;
   --geo-accent: #7c3aed;
   --label-halo: rgb(255 255 255 / 92%);
@@ -91,6 +92,7 @@
   --geo-circle: #60a5fa;
   --geo-line: #94a3b8;
   --geo-polygon: #fbbf24;
+  --geo-function: #f472b6;
   --geo-label: #e7ecf4;
   --geo-accent: #c4b5fd;
   --label-halo: rgb(13 21 38 / 92%);
@@ -189,7 +191,8 @@
 
   .geometry-line,
   .geometry-segment,
-  .geometry-circle {
+  .geometry-circle,
+  .geometry-function {
     vector-effect: non-scaling-stroke;
   }
 
@@ -207,6 +210,10 @@
     stroke: var(--geo-circle);
   }
 
+  .geometry-function {
+    stroke: var(--geo-function);
+  }
+
   .geometry-hit-target {
     cursor: crosshair;
     pointer-events: stroke;
@@ -215,10 +222,29 @@
   .geometry-object--selected.geometry-point,
   .geometry-object--selected .geometry-line,
   .geometry-object--selected .geometry-segment,
-  .geometry-object--selected .geometry-circle {
+  .geometry-object--selected .geometry-circle,
+  .geometry-object--selected .geometry-function {
     filter: drop-shadow(0 0 5px rgb(124 58 237 / 65%));
     stroke: var(--geo-accent);
     stroke-width: 4;
+  }
+
+  .axis-tick {
+    stroke: var(--axis-line);
+    stroke-width: 1.2;
+  }
+
+  .axis-text,
+  .axis-name {
+    fill: var(--text-muted);
+    font-size: 11px;
+    font-weight: 600;
+    user-select: none;
+  }
+
+  .axis-name {
+    fill: var(--text);
+    font-size: 12px;
   }
 
   .construction-preview {

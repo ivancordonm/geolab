@@ -71,6 +71,8 @@ function objectToStatement(object: GeometryObject): string {
       const offsetArgs = definition.offsets.map((o) => `(${formatNumber(o.x)}, ${formatNumber(o.y)})`).join(", ");
       return `${object.id} = VectorPolygon(${definition.anchor}, ${offsetArgs})`;
     }
+    case "function_expression":
+      return `${object.id} = Function(y = ${definition.expression})`;
   }
 }
 

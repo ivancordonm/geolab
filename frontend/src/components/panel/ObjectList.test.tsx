@@ -84,4 +84,26 @@ describe("ObjectList", () => {
     expect(onDeleteObject).toHaveBeenCalledWith("A");
   });
 
+  it("submits one-line object commands from the Objects panel", async () => {
+    const user = userEvent.setup();
+    const graph = new GeometryGraph(exampleGeometryDocument);
+    const onSubmitCommand = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <ObjectList
+        document={graph.document}
+        values={graph.values}
+        selectedObjectId={null}
+        onSelectObject={() => undefined}
+        onToggleVisibility={() => undefined}
+        onSubmitCommand={onSubmitCommand}
+      />,
+    );
+
+    await user.type(screen.getByLabelText("Add object command"), "f = Function(y = x^2){Enter}");
+
+    expect(onSubmitCommand).toHaveBeenCalledWith("f = Function(y = x^2)");
+    expect(screen.queryByRole("button", { name: /add object command/i })).toBeNull();
+  });
+
 });

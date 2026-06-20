@@ -205,6 +205,20 @@ describe("script editor flow", () => {
     expect(document.querySelector('[data-object-id="A"]')).not.toBeNull();
     expect(screen.getByRole("button", { name: "Hide A" })).toBeInTheDocument();
   });
+
+  it("adds a function from the Objects panel without showing a separate button", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const commandInput = screen.getByLabelText("Add object command");
+    expect(screen.queryByRole("button", { name: /add object command/i })).toBeNull();
+    await user.type(commandInput, "f = Function(y = sin(x) + sqrt(abs(x))){Enter}");
+
+    expect(await screen.findByText("f")).toBeInTheDocument();
+    expect(screen.getByText("Function graph")).toBeInTheDocument();
+    expect(screen.getByLabelText("10 objects")).toBeInTheDocument();
+    expect(document.querySelector('[data-object-id="f"]')).not.toBeNull();
+  });
 });
 
 describe("assistant flow", () => {

@@ -1,7 +1,7 @@
 export const GEOMETRY_SCHEMA_VERSION = 1 as const;
 
 export type GeometryObjectId = string;
-export type GeometryKind = "point" | "line" | "segment" | "circle" | "polygon" | "arc";
+export type GeometryKind = "point" | "line" | "segment" | "circle" | "polygon" | "arc" | "function";
 
 export type StrokeDash = "solid" | "dashed" | "dotted";
 
@@ -152,6 +152,11 @@ export interface Arc extends GeometryObjectBase {
   definition: { type: "arc_through_points"; pointA: GeometryObjectId; pointMid: GeometryObjectId; pointB: GeometryObjectId };
 }
 
+export interface FunctionGraph extends GeometryObjectBase {
+  kind: "function";
+  definition: { type: "function_expression"; expression: string };
+}
+
 // ─── Polygons ──────────────────────────────────────────────────────────────
 
 export interface Polygon extends GeometryObjectBase {
@@ -203,6 +208,7 @@ export type GeometryObject =
   | RotatedObject<"circle">
   | RotatedObject<"polygon">
   | Arc
+  | FunctionGraph
   | Polygon;
 
 // ─── Viewport and document ─────────────────────────────────────────────────
@@ -269,6 +275,11 @@ export interface PolygonValue {
   vertices: { x: number; y: number }[];
 }
 
+export interface FunctionValue {
+  type: "function";
+  expression: string;
+}
+
 export type EvaluatedValue =
   | PointValue
   | LineValue
@@ -276,6 +287,7 @@ export type EvaluatedValue =
   | CircleValue
   | ArcValue
   | PolygonValue
+  | FunctionValue
   | UndefinedValue;
 
 export type EvaluationMap = ReadonlyMap<GeometryObjectId, EvaluatedValue>;

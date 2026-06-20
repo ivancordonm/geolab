@@ -215,6 +215,11 @@ class RotationDefinition(GeometryModel):
     degrees: float
 
 
+class FunctionExpressionDefinition(GeometryModel):
+    type: Literal["function_expression"] = "function_expression"
+    expression: str
+
+
 # ─── Object classes ─────────────────────────────────────────────────────────
 
 class Point(GeometryObjectBase):
@@ -323,6 +328,11 @@ class RotatedObject(GeometryObjectBase):
     definition: RotationDefinition
 
 
+class FunctionGraph(GeometryObjectBase):
+    kind: Literal["function"] = "function"
+    definition: FunctionExpressionDefinition
+
+
 # ─── New: polygons ──────────────────────────────────────────────────────────
 
 class PolygonDefinition(GeometryModel):
@@ -381,6 +391,7 @@ GeometryObject: TypeAlias = (
     | InversionInCircle
     | TranslatedObject
     | RotatedObject
+    | FunctionGraph
     | Polygon
 )
 
@@ -458,7 +469,12 @@ class PolygonValue(GeometryModel):
     vertices: list[Coordinate]
 
 
-EvaluatedValue: TypeAlias = PointValue | LineValue | SegmentValue | CircleValue | PolygonValue | UndefinedValue
+class FunctionValue(GeometryModel):
+    type: Literal["function"] = "function"
+    expression: str
+
+
+EvaluatedValue: TypeAlias = PointValue | LineValue | SegmentValue | CircleValue | PolygonValue | FunctionValue | UndefinedValue
 
 
 def geometry_document_to_json(document: GeometryDocument, *, indent: int | None = 2) -> str:

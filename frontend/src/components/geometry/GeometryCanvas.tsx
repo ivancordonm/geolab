@@ -28,6 +28,7 @@ import type {
 } from "../../types/geometry";
 import { ArcView } from "./ArcView";
 import { CircleView } from "./CircleView";
+import { FunctionView } from "./FunctionView";
 import { Grid } from "./Grid";
 import { LineView } from "./LineView";
 import { PointView } from "./PointView";
@@ -440,6 +441,19 @@ function renderGeometryObject(
     return renderPolygon(object, value, viewport, size, color, strokeWidth, strokeDash, selected, labelOffset, onPointerDown, onLabelOffsetChange);
   }
 
+  if (value.type === "function" && object.kind === "function") {
+    return (
+      <FunctionView
+        key={object.id}
+        object={object}
+        viewport={viewport}
+        size={size}
+        selected={selected}
+        onPointerDown={(event) => onPointerDown(object.id, event)}
+      />
+    );
+  }
+
   if (value.type === "arc") {
     return renderArc(
       object,
@@ -501,19 +515,22 @@ function renderGeometryObject(
       onLabelOffsetChange,
     );
   }
-  return renderCircle(
-    object,
-    value,
-    viewport,
-    size,
-    color,
-    strokeWidth,
-    strokeDash,
-    selected,
-    labelOffset,
-    onPointerDown,
-    onLabelOffsetChange,
-  );
+  if (value.type === "circle") {
+    return renderCircle(
+      object,
+      value,
+      viewport,
+      size,
+      color,
+      strokeWidth,
+      strokeDash,
+      selected,
+      labelOffset,
+      onPointerDown,
+      onLabelOffsetChange,
+    );
+  }
+  return null;
 }
 
 function renderPoint(

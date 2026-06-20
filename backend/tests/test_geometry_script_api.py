@@ -47,3 +47,18 @@ def test_evaluate_script_endpoint_returns_line_numbered_error() -> None:
         "sourceLine": "AB = Line(A, B)",
     }
 
+
+def test_evaluate_script_endpoint_supports_function_graphs() -> None:
+    response = client.post(
+        "/geometry/evaluate-script",
+        json={"script": "f = Function(y = sin(x) + sqrt(abs(x)))"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["document"]["objects"][0]["kind"] == "function"
+    assert payload["document"]["objects"][0]["definition"] == {
+        "type": "function_expression",
+        "expression": "sin(x) + sqrt(Abs(x))",
+    }
+    assert payload["values"]["f"] == {"type": "function", "expression": "sin(x) + sqrt(Abs(x))"}

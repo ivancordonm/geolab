@@ -12,6 +12,8 @@ from app.geometry.models import (
     CircumscribedDefinition,
     Coordinate,
     EvaluatedValue,
+    FunctionExpressionDefinition,
+    FunctionValue,
     FreePointDefinition,
     GeometryDocument,
     GeometryObject,
@@ -41,6 +43,7 @@ from app.geometry.models import (
     UndefinedValue,
     VectorPolygonDefinition,
 )
+from app.geometry.function_expression import normalize_function_expression
 
 GEOMETRY_EPSILON = 1e-9
 
@@ -99,6 +102,8 @@ def get_parent_ids(obj: GeometryObject) -> list[str]:
         return [definition.object_id, definition.from_, definition.to]
     if isinstance(definition, RotationDefinition):
         return [definition.object_id, definition.center]
+    if isinstance(definition, FunctionExpressionDefinition):
+        return []
     # ─── Polygons ────────────────────────────────────────────────────────────
     if isinstance(definition, PolygonDefinition):
         return list(definition.point_ids)
@@ -270,6 +275,8 @@ class GeometryGraph:
                 )
             if not isfinite(definition.degrees):
                 raise GeometryValidationError(f"Object '{obj.id}' degrees must be finite")
+        elif isinstance(definition, FunctionExpressionDefinition):
+            normalize_function_expression(definition.expression)
         # ─── Polygons ─────────────────────────────────────────────────────────
         elif isinstance(definition, PolygonDefinition):
             if len(definition.point_ids) < 3:
@@ -534,6 +541,9 @@ class GeometryGraph:
             if isinstance(source, UndefinedValue):
                 return source
             return _rotate_value(source, ctr, definition.degrees)
+
+        if isinstance(definition, FunctionExpressionDefinition):
+            return FunctionValue(expression=normalize_function_expression(definition.expression))
 
         # ─── Polygons ─────────────────────────────────────────────────────────
 

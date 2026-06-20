@@ -29,10 +29,89 @@ describe("buildFunctionPathData", () => {
     expect(moveCount(pathData)).toBe(1);
   });
 
-  it("breaks the path across a vertical asymptote", () => {
+  it("breaks the path across a vertical asymptote (pole on sample grid)", () => {
     const pathData = buildFunctionPathData(makeFunction("1/x"), viewport, size);
 
     expect(pathData).not.toBeNull();
     expect(moveCount(pathData)).toBeGreaterThan(1);
+  });
+
+  it("breaks 1/x with pole off the sample grid (off-center viewport)", () => {
+    // centerX: 0.37 means no sample lands exactly on x=0; bisection must catch it
+    const offCenter: GeometryViewport = { centerX: 0.37, centerY: 0, scale: 100 };
+    const pathData = buildFunctionPathData(makeFunction("1/x"), offCenter, size);
+
+    expect(pathData).not.toBeNull();
+    expect(moveCount(pathData)).toBeGreaterThan(1);
+  });
+
+  it("breaks 1/x when zoomed in with pole off the sample grid", () => {
+    const zoomed: GeometryViewport = { centerX: 0.05, centerY: 0, scale: 180 };
+    const pathData = buildFunctionPathData(makeFunction("1/x"), zoomed, size);
+
+    expect(pathData).not.toBeNull();
+    expect(moveCount(pathData)).toBeGreaterThan(1);
+  });
+
+  it("breaks 1/(x-5) with pole displaced from origin", () => {
+    const shifted: GeometryViewport = { centerX: 5, centerY: 0, scale: 100 };
+    const pathData = buildFunctionPathData(makeFunction("1/(x-5)"), shifted, size);
+
+    expect(pathData).not.toBeNull();
+    expect(moveCount(pathData)).toBeGreaterThan(1);
+  });
+
+  it("breaks 1/x^2 — same-sign pole (no sign change across asymptote)", () => {
+    const pathData = buildFunctionPathData(makeFunction("1/x^2"), viewport, size);
+
+    expect(pathData).not.toBeNull();
+    expect(moveCount(pathData)).toBeGreaterThan(1);
+  });
+
+  it("breaks 1/x^2 with pole off the sample grid", () => {
+    const offCenter: GeometryViewport = { centerX: 0.37, centerY: 0, scale: 100 };
+    const pathData = buildFunctionPathData(makeFunction("1/x^2"), offCenter, size);
+
+    expect(pathData).not.toBeNull();
+    expect(moveCount(pathData)).toBeGreaterThan(1);
+  });
+
+  it("breaks tan(x) at multiple poles within view", () => {
+    // scale: 60 makes the view wide enough to include -π/2 and π/2
+    const wide: GeometryViewport = { centerX: 0, centerY: 0, scale: 60 };
+    const pathData = buildFunctionPathData(makeFunction("tan(x)"), wide, size);
+
+    expect(pathData).not.toBeNull();
+    expect(moveCount(pathData)).toBeGreaterThanOrEqual(3);
+  });
+
+  it("does NOT break y = x (continuous zero crossing)", () => {
+    const pathData = buildFunctionPathData(makeFunction("x"), viewport, size);
+
+    expect(pathData).not.toBeNull();
+    expect(moveCount(pathData)).toBe(1);
+  });
+
+  it("does NOT break steep continuous curve 100*x when zoomed", () => {
+    const zoomed: GeometryViewport = { centerX: 0, centerY: 0, scale: 180 };
+    const pathData = buildFunctionPathData(makeFunction("100*x"), zoomed, size);
+
+    expect(pathData).not.toBeNull();
+    expect(moveCount(pathData)).toBe(1);
+  });
+
+  it("does NOT break x^3 (steep continuous, crosses zero)", () => {
+    const zoomed: GeometryViewport = { centerX: 0, centerY: 0, scale: 180 };
+    const pathData = buildFunctionPathData(makeFunction("x^3"), zoomed, size);
+
+    expect(pathData).not.toBeNull();
+    expect(moveCount(pathData)).toBe(1);
+  });
+
+  it("handles sqrt(x) domain — returns non-null path for x > 0 half", () => {
+    // viewport shows both sides; only x > 0 has valid samples
+    const pathData = buildFunctionPathData(makeFunction("sqrt(x)"), viewport, size);
+
+    expect(pathData).not.toBeNull();
   });
 });

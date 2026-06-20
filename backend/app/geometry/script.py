@@ -120,7 +120,7 @@ _IDENTIFIER = r"[A-Za-z_][A-Za-z0-9_]*"
 _IDENTIFIER_PATTERN = re.compile(rf"^{_IDENTIFIER}$")
 _NUMBER_PATTERN = re.compile(r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$")
 _STATEMENT_PATTERN = re.compile(
-    rf"^\s*(?P<target>{_IDENTIFIER})\s*=\s*"
+    rf"^\s*(?:(?P<target>{_IDENTIFIER})\s*=\s*)?"
     rf"(?P<command>{_IDENTIFIER})\s*\((?P<arguments>.*)\)\s*$"
 )
 _NUM = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?"
@@ -131,9 +131,14 @@ _COORDINATE_PATTERN = re.compile(
 
 @dataclass(frozen=True, slots=True)
 class ParsedStatement:
-    """One syntactically valid assignment before semantic resolution."""
+    """One syntactically valid statement before semantic resolution.
 
-    target: str
+    `target` is None when the command was written without an explicit assignment
+    (e.g. ``Point(4, 0)``). The evaluator assigns an auto-generated label before
+    building objects.
+    """
+
+    target: str | None
     command: str
     arguments: tuple[str, ...]
     line: int
@@ -207,7 +212,7 @@ def parse_script(script: str) -> list[ParsedStatement]:
         if match is None:
             _raise(
                 "invalid_syntax",
-                "Expected assignment syntax: name = Command(arg1, arg2)",
+                "Expected Command(arg1, arg2) or name = Command(arg1, arg2)",
                 line_number,
                 original_line,
             )
@@ -247,6 +252,27 @@ def evaluate_script(
     """Parse, resolve, and evaluate a construction script deterministically."""
 
     statements = parse_script(script)
+
+    # Pre-resolve anonymous statement targets.  When no assignment is written
+    # (e.g. ``Point(4, 0)``), assign the next available single-letter label so
+    # the rest of the pipeline always sees a concrete string target.
+    named_targets: set[str] = {s.target for s in statements if s.target is not None}
+    auto_generated: set[str] = set()
+    resolved: list[ParsedStatement] = []
+    for stmt in statements:
+        if stmt.target is None:
+            label = _next_inline_point_label(named_targets | auto_generated)
+            auto_generated.add(label)
+            stmt = ParsedStatement(
+                target=label,
+                command=stmt.command,
+                arguments=stmt.arguments,
+                line=stmt.line,
+                source_line=stmt.source_line,
+            )
+        resolved.append(stmt)
+    statements = resolved
+
     objects: list[GeometryObject] = []
     symbols: dict[str, GeometryObject] = {}
 
@@ -258,6 +284,7 @@ def evaluate_script(
                 statement.line,
                 statement.source_line,
             )
+        assert statement.target is not None  # guaranteed by pre-resolution above
         if statement.target in symbols:
             _raise(
                 "duplicate_assignment",

@@ -448,3 +448,61 @@ C = IntersectionCC(cA,cB,1)"""
     assert document.objects[-1].definition.index == 1
     assert document.objects[-1].definition.selector is None
     assert values["C"].type == "point"
+
+
+# ─── Anonymous command syntax (no explicit assignment) ─────────────────────────
+
+def test_bare_point_command_creates_auto_labelled_point() -> None:
+    """Point(x, y) without an assignment target auto-assigns the first free letter."""
+    document, values = evaluate_script("Point(4, 0)")
+
+    assert len(document.objects) == 1
+    obj = document.objects[0]
+    assert obj.kind == "point"
+    assert obj.definition.type == "free"
+    assert obj.definition.x == 4.0
+    assert obj.definition.y == 0.0
+    # Must be a valid identifier label, not empty.
+    assert obj.id and obj.label
+
+
+def test_bare_point_after_named_points_skips_occupied_labels() -> None:
+    """Anonymous Point gets the first label not already used by named objects."""
+    script = """
+A = Point(0, 0)
+B = Point(1, 0)
+Point(4, 0)
+"""
+    document, _ = evaluate_script(script)
+
+    auto_point = document.objects[-1]
+    assert auto_point.kind == "point"
+    assert auto_point.id not in {"A", "B"}
+    # Should be "C" — the next available letter.
+    assert auto_point.id == "C"
+
+
+def test_two_bare_point_commands_get_distinct_labels() -> None:
+    """Multiple anonymous commands each receive a unique auto-assigned label."""
+    script = """
+Point(1, 0)
+Point(2, 0)
+"""
+    document, _ = evaluate_script(script)
+
+    ids = [obj.id for obj in document.objects]
+    assert len(ids) == len(set(ids)), "Each anonymous point must have a unique label."
+
+
+def test_bare_point_command_label_avoids_named_targets_in_same_script() -> None:
+    """Pre-resolution must not assign a label that a later named statement will claim."""
+    script = """
+Point(1, 0)
+A = Point(0, 0)
+"""
+    document, _ = evaluate_script(script)
+
+    ids = [obj.id for obj in document.objects]
+    assert "A" in ids
+    # The anonymous point must have received a different label.
+    assert len(set(ids)) == 2

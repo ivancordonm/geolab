@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { App } from "./App";
+import { App, nextFunctionId } from "./App";
 import { saveDocument } from "./persistence/documentPersistence";
 import type { EvaluateScriptResponse } from "./types/script";
 
@@ -218,6 +218,21 @@ describe("script editor flow", () => {
     expect(screen.getByText("Function graph")).toBeInTheDocument();
     expect(screen.getByLabelText("10 objects")).toBeInTheDocument();
     expect(document.querySelector('[data-object-id="f"]')).not.toBeNull();
+  });
+
+  it("assigns sequential automatic names for unnamed functions", () => {
+    const documentWithFunctions = {
+      schemaVersion: 1 as const,
+      id: "doc",
+      title: "Doc",
+      viewport: { centerX: 0, centerY: 0, scale: 60 },
+      objects: [
+        { id: "A", label: "A", kind: "point" as const, visible: true, definition: { type: "free" as const, x: 0, y: 0 } },
+        { id: "f_1", label: "f_1", kind: "function" as const, visible: true, definition: { type: "function_expression" as const, expression: "x" } },
+      ],
+    };
+
+    expect(nextFunctionId(documentWithFunctions)).toBe("f_2");
   });
 });
 

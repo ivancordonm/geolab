@@ -25,4 +25,16 @@ describe("functionExpression", () => {
       expression: "cosh(x) - 1",
     });
   });
+
+  it("parses unnamed y-expressions for automatic naming", () => {
+    expect(parseFunctionObjectCommand("y = x^2 + 1")).toEqual({
+      expression: "x^2 + 1",
+    });
+  });
+
+  it("parses bare expressions for automatic naming", () => {
+    expect(parseFunctionObjectCommand("sin(x)")).toEqual({
+      expression: "sin(x)",
+    });
+  });
 });

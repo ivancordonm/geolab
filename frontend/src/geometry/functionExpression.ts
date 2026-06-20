@@ -89,7 +89,7 @@ export function compileFunctionExpression(expression: string): (x: number) => nu
   };
 }
 
-export function parseFunctionObjectCommand(command: string): { id: string; expression: string } | null {
+export function parseFunctionObjectCommand(command: string): { id?: string; expression: string } | null {
   const trimmed = command.trim();
   const functionMatch = trimmed.match(
     /^([A-Za-z_][A-Za-z0-9_]*)\s*=\s*Function\s*\((.*)\)\s*$/i,
@@ -111,7 +111,19 @@ export function parseFunctionObjectCommand(command: string): { id: string; expre
     };
   }
 
-  return null;
+  if (/^y\s*=\s*.+$/i.test(trimmed)) {
+    return {
+      expression: normalizeFunctionExpression(trimmed),
+    };
+  }
+
+  try {
+    return {
+      expression: normalizeFunctionExpression(trimmed),
+    };
+  } catch {
+    return null;
+  }
 }
 
 function tokenize(expression: string): Token[] {

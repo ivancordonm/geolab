@@ -100,9 +100,9 @@ describe("ObjectList", () => {
       />,
     );
 
-    await user.type(screen.getByLabelText("Add object command"), "f = Function(y = x^2){Enter}");
+    await user.type(screen.getByLabelText("Add object command"), "y = x^2{Enter}");
 
-    expect(onSubmitCommand).toHaveBeenCalledWith("f = Function(y = x^2)");
+    expect(onSubmitCommand).toHaveBeenCalledWith("y = x^2");
     expect(screen.queryByRole("button", { name: /add object command/i })).toBeNull();
   });
 

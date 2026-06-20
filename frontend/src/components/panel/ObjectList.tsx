@@ -153,12 +153,12 @@ export function ObjectList({
             type="text"
             value={command}
             onChange={(event) => setCommand(event.target.value)}
-            placeholder="f = Function(y = x^2)"
+            placeholder="y = x^2"
             aria-describedby="object-command-help"
             className="w-full rounded-lg border border-edge bg-surface px-3 py-2 text-sm text-content outline-none transition focus:border-brand-400 focus:ring-1 focus:ring-brand-400"
           />
           <p id="object-command-help" className="mb-0 mt-1 text-xs text-muted">
-            Press Enter. Example: <code>f = Function(y = x^2)</code>
+            Press Enter. Example: <code>y = x^2</code> or <code>f = Function(y = x^2)</code>
           </p>
           {commandError !== null ? (
             <p role="alert" className="mb-0 mt-2 text-xs font-semibold text-danger-fg">

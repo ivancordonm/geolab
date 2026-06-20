@@ -102,13 +102,14 @@ export function App() {
   const handleSubmitObjectCommand = useCallback(async (command: string) => {
     const functionCommand = parseFunctionObjectCommand(command);
     if (functionCommand !== null) {
-      const duplicate = geometry.document.objects.some((object) => object.id === functionCommand.id || object.label === functionCommand.id);
+      const objectId = functionCommand.id ?? nextFunctionId(geometry.document);
+      const duplicate = geometry.document.objects.some((object) => object.id === objectId || object.label === objectId);
       if (duplicate) {
-        throw new Error(`An object named '${functionCommand.id}' already exists.`);
+        throw new Error(`An object named '${objectId}' already exists.`);
       }
       const object: FunctionGraph = {
-        id: functionCommand.id,
-        label: functionCommand.id,
+        id: objectId,
+        label: objectId,
         kind: "function",
         visible: true,
         definition: {
@@ -489,6 +490,15 @@ function createEmptyDocument(viewport: GeometryDocument["viewport"]): GeometryDo
     objects: [],
     viewport,
   };
+}
+
+export function nextFunctionId(document: GeometryDocument): string {
+  const occupied = new Set(document.objects.flatMap((object) => [object.id, object.label]));
+  let index = 1;
+  while (occupied.has(`f_${index}`)) {
+    index += 1;
+  }
+  return `f_${index}`;
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {

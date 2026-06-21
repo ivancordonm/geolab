@@ -29,24 +29,21 @@ export function buildFunctionPathData(
   const evaluator = compileFunctionExpression(object.definition.expression);
   const bounds = getWorldBounds(viewport, size);
   const points: string[] = [];
-  // previousSample / previousScreen are null when the last valid point is unknown
+  // previousSample is null when the last valid point is unknown
   // (start of path, after a null sample, or after an off-screen point).
   let previousSample: { x: number; y: number } | null = null;
-  let previousScreen: { x: number; y: number } | null = null;
 
   for (let index = 0; index <= SAMPLE_COUNT; index += 1) {
     const x = bounds.minX + (index / SAMPLE_COUNT) * (bounds.maxX - bounds.minX);
     const y = sampleFunctionY(evaluator, x);
     if (y === null) {
       previousSample = null;
-      previousScreen = null;
       continue;
     }
 
     const screen = worldToScreen({ x, y }, viewport, size);
     if (!Number.isFinite(screen.x) || !Number.isFinite(screen.y)) {
       previousSample = null;
-      previousScreen = null;
       continue;
     }
 
@@ -60,18 +57,18 @@ export function buildFunctionPathData(
     if (points.length === 0 || previousSample === null) {
       points.push(`M ${screen.x.toFixed(2)} ${screen.y.toFixed(2)}`);
       previousSample = { x, y };
-      previousScreen = screen;
       continue;
     }
 
     // Case 2: check for a pole between two valid consecutive samples.
-    // Gate: only bisect when the screen-space jump exceeds one canvas height
-    // (poles produce huge screen jumps; smooth steep curves stay bounded).
-    const suspicious =
-      previousScreen !== null &&
-      Math.abs(screen.y - previousScreen.y) > size.height;
-
-    if (suspicious && segmentHasPole(previousSample, { x, y }, evaluator)) {
+    // segmentHasPole is the authoritative bisection detector: it samples inside
+    // the interval and only reports a pole when the function actually diverges to
+    // a null sample. We must NOT pre-gate on screen-jump magnitude — that gate has
+    // false negatives (a pole sitting mid-interval, or a same-sign pole like 1/x²,
+    // leaves both straddling samples on-screen with a sub-canvas jump) and would
+    // let a connecting line be drawn straight across the asymptote. The evaluator
+    // is cheap, so running the detector on every segment is acceptable.
+    if (segmentHasPole(previousSample, { x, y }, evaluator)) {
       // Locate the pole so each extension stays strictly on its own side.
       const poleX = findPoleX(previousSample, { x, y }, evaluator);
 
@@ -96,7 +93,6 @@ export function buildFunctionPathData(
     }
 
     previousSample = { x, y };
-    previousScreen = screen;
   }
 
   return points.length < 2 ? null : points.join(" ");

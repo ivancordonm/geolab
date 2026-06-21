@@ -53,6 +53,44 @@ function hasVerticalCrossing(pathData: string | null, canvasHeight: number): boo
   return false;
 }
 
+/**
+ * Robust artifact detector: returns true if any drawn "L" segment connects two
+ * points that lie on opposite sides of the pole (in world-x) while at least one
+ * endpoint is on-screen — i.e. a *visible* connecting line straight across the
+ * vertical asymptote. Unlike `hasVerticalCrossing` (which only catches the case
+ * where one endpoint is above the top edge and the other below the bottom), this
+ * also catches the zoomed-out / mid-interval case where both straddling samples
+ * stay on-screen with a sub-canvas-height jump — the artifact in the bug report.
+ * A straddle whose endpoints are both off the same edge is the branch's own
+ * off-screen segment near the pole, not a connecting artifact, so it is ignored.
+ */
+function connectsAcrossPole(
+  pathData: string | null,
+  vp: GeometryViewport,
+  size: CanvasSize,
+  poleX: number,
+): boolean {
+  if (!pathData) return false;
+  const toWorldX = (sx: number) => vp.centerX + (sx - size.width / 2) / vp.scale;
+  const tokens = pathData.trim().split(/\s+/);
+  const cmds: { cmd: string; x: number; y: number }[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (t === "M" || t === "L") {
+      cmds.push({ cmd: t, x: toWorldX(parseFloat(tokens[i + 1] ?? "0")), y: parseFloat(tokens[i + 2] ?? "0") });
+      i += 2;
+    }
+  }
+  const onScreen = (y: number) => y >= 0 && y <= size.height;
+  for (let i = 1; i < cmds.length; i++) {
+    const p = cmds[i - 1]!;
+    const c = cmds[i]!;
+    if (c.cmd !== "L") continue;
+    if ((p.x - poleX) * (c.x - poleX) < 0 && (onScreen(p.y) || onScreen(c.y))) return true;
+  }
+  return false;
+}
+
 describe("buildFunctionPathData", () => {
   it("keeps a continuous curve in a single path segment", () => {
     const pathData = buildFunctionPathData(makeFunction("x^2"), viewport, size);
@@ -189,5 +227,36 @@ describe("buildFunctionPathData", () => {
     const wide: GeometryViewport = { centerX: 0, centerY: 0, scale: 60 };
     const pathData = buildFunctionPathData(makeFunction("tan(x)"), wide, size);
     expect(hasVerticalCrossing(pathData, size.height)).toBe(false);
+  });
+
+  // ─── No connecting line across the pole, swept over real-app viewports ──────
+  // Regression for the bug-report screenshot: at low zoom (or whenever the pole
+  // sits mid sample-interval) both straddling samples land on-screen and the
+  // screen-jump stays under one canvas height. The old magnitude gate
+  // (|Δscreen.y| > size.height) skipped pole detection for those segments and a
+  // line was drawn straight across the asymptote. The fix runs the authoritative
+  // segmentHasPole detector on every segment. This sweep uses the real app canvas
+  // (1000×700) across the full zoom range and every pole position within a step.
+
+  it("never draws a connecting line across the pole over the real viewport range", () => {
+    const realSize: CanvasSize = { width: 1000, height: 700 };
+    const cases = [
+      { expr: "1/x", poleX: 0 },
+      { expr: "1/x^2", poleX: 0 },
+      { expr: "1/(x-5)", poleX: 5 },
+    ];
+    const failures: string[] = [];
+    for (const { expr, poleX } of cases) {
+      for (const scale of [24, 30, 40, 50, 60, 72, 100, 140, 180]) {
+        for (let cx = poleX - 2; cx <= poleX + 2; cx += 0.013) {
+          const vp: GeometryViewport = { centerX: cx, centerY: 0, scale };
+          const pathData = buildFunctionPathData(makeFunction(expr), vp, realSize);
+          if (connectsAcrossPole(pathData, vp, realSize, poleX)) {
+            failures.push(`${expr} scale=${scale} cx=${cx.toFixed(3)}`);
+          }
+        }
+      }
+    }
+    expect(failures).toEqual([]);
   });
 });

@@ -18,7 +18,7 @@ const SAMPLE_COUNT = 240;
 const MAX_ABS_Y = 1e6;
 // Depth needed: step ≈ 0.04 at lowest zoom (scale 60); to reach |y| > MAX_ABS_Y
 // near a pole (e.g. 1/x), we need the interval < 1e-6, so ~16 halvings minimum.
-// 20 gives comfortable headroom. At most 20 evaluations per suspicious segment.
+// 20 gives comfortable headroom. At most 20 evaluations per segment checked.
 const BISECTION_MAX_DEPTH = 20;
 
 export function buildFunctionPathData(

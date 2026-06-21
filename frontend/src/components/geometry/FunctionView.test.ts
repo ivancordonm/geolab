@@ -21,6 +21,38 @@ function moveCount(pathData: string | null): number {
   return pathData?.match(/M/g)?.length ?? 0;
 }
 
+/**
+ * Returns true if the path contains a segment that connects a point above the
+ * top edge (screen.y < 0) directly to a point below the bottom edge
+ * (screen.y > canvasHeight) — the signature of the "connecting line" bug across
+ * a vertical asymptote.
+ */
+function hasVerticalCrossing(pathData: string | null, canvasHeight: number): boolean {
+  if (!pathData) return false;
+  // Parse tokens: each command is "M x y" or "L x y"
+  const tokens = pathData.trim().split(/\s+/);
+  const cmds: { cmd: string; y: number }[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (t === "M" || t === "L") {
+      const y = parseFloat(tokens[i + 2] ?? "0");
+      cmds.push({ cmd: t, y });
+      i += 2;
+    }
+  }
+  for (let i = 1; i < cmds.length; i++) {
+    const prev = cmds[i - 1]!;
+    const cur = cmds[i]!;
+    if (cur.cmd !== "L") continue;
+    const prevAbove = prev.y < 0;
+    const prevBelow = prev.y > canvasHeight;
+    const curAbove = cur.y < 0;
+    const curBelow = cur.y > canvasHeight;
+    if ((prevAbove && curBelow) || (prevBelow && curAbove)) return true;
+  }
+  return false;
+}
+
 describe("buildFunctionPathData", () => {
   it("keeps a continuous curve in a single path segment", () => {
     const pathData = buildFunctionPathData(makeFunction("x^2"), viewport, size);
@@ -113,5 +145,49 @@ describe("buildFunctionPathData", () => {
     const pathData = buildFunctionPathData(makeFunction("sqrt(x)"), viewport, size);
 
     expect(pathData).not.toBeNull();
+  });
+
+  // ─── No "connecting line" across the asymptote ────────────────────────────
+  // hasVerticalCrossing detects the specific artifact: a single "L" segment
+  // joining a point above the top edge to one below the bottom edge.
+
+  it("1/x centered: no vertical crossing line across the asymptote", () => {
+    const pathData = buildFunctionPathData(makeFunction("1/x"), viewport, size);
+    expect(hasVerticalCrossing(pathData, size.height)).toBe(false);
+  });
+
+  it("1/x off-center: no vertical crossing line", () => {
+    const offCenter: GeometryViewport = { centerX: 0.37, centerY: 0, scale: 100 };
+    const pathData = buildFunctionPathData(makeFunction("1/x"), offCenter, size);
+    expect(hasVerticalCrossing(pathData, size.height)).toBe(false);
+  });
+
+  it("1/x zoomed in: no vertical crossing line", () => {
+    const zoomed: GeometryViewport = { centerX: 0.05, centerY: 0, scale: 180 };
+    const pathData = buildFunctionPathData(makeFunction("1/x"), zoomed, size);
+    expect(hasVerticalCrossing(pathData, size.height)).toBe(false);
+  });
+
+  it("1/x zoomed out (wide view as in screenshot): no vertical crossing line", () => {
+    const wide: GeometryViewport = { centerX: 5, centerY: 0, scale: 30 };
+    const pathData = buildFunctionPathData(makeFunction("1/x"), wide, size);
+    expect(hasVerticalCrossing(pathData, size.height)).toBe(false);
+  });
+
+  it("1/(x-5): no vertical crossing line", () => {
+    const shifted: GeometryViewport = { centerX: 5, centerY: 0, scale: 100 };
+    const pathData = buildFunctionPathData(makeFunction("1/(x-5)"), shifted, size);
+    expect(hasVerticalCrossing(pathData, size.height)).toBe(false);
+  });
+
+  it("1/x^2 same-sign pole: no vertical crossing line", () => {
+    const pathData = buildFunctionPathData(makeFunction("1/x^2"), viewport, size);
+    expect(hasVerticalCrossing(pathData, size.height)).toBe(false);
+  });
+
+  it("tan(x): no vertical crossing line across any pole", () => {
+    const wide: GeometryViewport = { centerX: 0, centerY: 0, scale: 60 };
+    const pathData = buildFunctionPathData(makeFunction("tan(x)"), wide, size);
+    expect(hasVerticalCrossing(pathData, size.height)).toBe(false);
   });
 });

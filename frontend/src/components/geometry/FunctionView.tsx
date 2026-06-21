@@ -72,20 +72,22 @@ export function buildFunctionPathData(
       Math.abs(screen.y - previousScreen.y) > size.height;
 
     if (suspicious && segmentHasPole(previousSample, { x, y }, evaluator)) {
-      // Extend previous branch toward the pole (so it visually reaches the edge).
-      const approachPrev = bisectTowardPole(previousSample, { x, y }, evaluator, viewport, size);
-      for (const pt of approachPrev) {
+      // Locate the pole so each extension stays strictly on its own side.
+      const poleX = findPoleX(previousSample, { x, y }, evaluator);
+
+      // Extend the left branch from previousSample toward the pole (stays left of poleX).
+      for (const pt of extendBranchToEdge(previousSample, poleX, evaluator, viewport, size)) {
         points.push(`L ${pt.x.toFixed(2)} ${pt.y.toFixed(2)}`);
       }
 
-      // Start new sub-path: extend current branch back toward the pole from this side.
-      const approachNext = bisectTowardPole({ x, y }, previousSample, evaluator, viewport, size);
-      // approachNext is ordered toward the pole; reverse to order from edge toward sample.
-      const reversed = approachNext.slice().reverse();
-      const startPt = reversed[0] ?? screen;
+      // Start a new sub-path for the right branch (stays right of poleX).
+      // Bisection from {x,y} toward poleX gives points ordered away from {x,y};
+      // reverse them so the sub-path starts near the canvas edge and ends at the sample.
+      const right = extendBranchToEdge({ x, y }, poleX, evaluator, viewport, size).reverse();
+      const startPt = right[0] ?? screen;
       points.push(`M ${startPt.x.toFixed(2)} ${startPt.y.toFixed(2)}`);
-      for (let i = 1; i < reversed.length; i++) {
-        points.push(`L ${reversed[i]!.x.toFixed(2)} ${reversed[i]!.y.toFixed(2)}`);
+      for (let i = 1; i < right.length; i++) {
+        points.push(`L ${right[i]!.x.toFixed(2)} ${right[i]!.y.toFixed(2)}`);
       }
       points.push(`L ${screen.x.toFixed(2)} ${screen.y.toFixed(2)}`);
     } else {
@@ -185,40 +187,69 @@ function segmentHasPole(
 }
 
 /**
- * Walk bisection steps from `start` toward the pole (located between `start`
- * and `other`) and collect screen-space points, so each branch visually reaches
- * the canvas edge.  Returns points in order from `start` toward the pole.
+ * Bisect to locate the x-coordinate of the pole between `prev` and `next`.
+ * Always advances the endpoint with smaller |y| (farther from the pole),
+ * so the bracket converges toward the singularity from both sides.
+ * Returns the midpoint x when a null sample is found, or the best
+ * approximation after BISECTION_MAX_DEPTH iterations.
  */
-function bisectTowardPole(
-  start: { x: number; y: number },
-  other: { x: number; y: number },
+function findPoleX(
+  prev: { x: number; y: number },
+  next: { x: number; y: number },
+  evaluator: (x: number) => number,
+): number {
+  let lo = prev.x;
+  let hi = next.x;
+  let loY = prev.y;
+  let hiY = next.y;
+
+  for (let i = 0; i < BISECTION_MAX_DEPTH; i++) {
+    const xm = (lo + hi) / 2;
+    const ym = sampleFunctionY(evaluator, xm);
+    if (ym === null) return xm;
+    if (Math.abs(loY) < Math.abs(hiY)) {
+      lo = xm;
+      loY = ym;
+    } else {
+      hi = xm;
+      hiY = ym;
+    }
+  }
+  return (lo + hi) / 2;
+}
+
+/**
+ * Starting from `fromSample`, bisect strictly between fromSample.x and poleX
+ * (never crossing to the other side of the pole) and collect screen-space points.
+ * Stops when a sample is null, the screen point is non-finite, or the point
+ * has gone off-canvas (screen.y < 0 or > size.height).
+ * Returns points ordered from fromSample toward the pole.
+ */
+function extendBranchToEdge(
+  fromSample: { x: number; y: number },
+  poleX: number,
   evaluator: (x: number) => number,
   viewport: GeometryViewport,
   size: CanvasSize,
 ): Array<{ x: number; y: number }> {
-  const result: Array<{ x: number; y: number }> = [];
-  // We walk from `start` toward the pole. The pole is on the `other` side, so
-  // we keep `a = start` and shrink `b` toward the midpoint as long as |y| grows.
-  let a = start;
-  let b = other;
+  const pts: Array<{ x: number; y: number }> = [];
+  let lo = fromSample.x;
+  const hi = poleX;
 
-  for (let d = 0; d < BISECTION_MAX_DEPTH; d++) {
-    const xm = (a.x + b.x) / 2;
+  for (let i = 0; i < BISECTION_MAX_DEPTH; i++) {
+    const xm = (lo + hi) / 2;
     const ym = sampleFunctionY(evaluator, xm);
-    if (ym === null) break; // reached the pole region
+    if (ym === null) break;
 
     const sc = worldToScreen({ x: xm, y: ym }, viewport, size);
     if (!Number.isFinite(sc.x) || !Number.isFinite(sc.y)) break;
 
-    result.push(sc);
+    pts.push(sc);
 
-    // Move toward the pole: the side with larger |y| is nearer the pole.
-    if (Math.abs(ym) > Math.abs(a.y)) {
-      // midpoint is closer to pole than `a` — narrow toward midpoint from `a` side
-      a = { x: xm, y: ym };
-    } else {
-      b = { x: xm, y: ym };
-    }
+    // Once the point goes off-canvas we have reached the visual edge — stop.
+    if (sc.y < 0 || sc.y > size.height) break;
+
+    lo = xm;
   }
-  return result;
+  return pts;
 }

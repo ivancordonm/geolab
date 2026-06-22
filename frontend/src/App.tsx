@@ -432,6 +432,7 @@ export function App() {
                     onSetObjectLabel={geometry.setObjectLabel}
                     onSetObjectColor={geometry.setObjectColor}
                     onSetObjectStyle={geometry.setObjectStyle}
+                    onUpdateFunctionExpression={geometry.updateFunctionExpression}
                     onDeleteObject={handleDeleteObject}
                     onSubmitCommand={handleSubmitObjectCommand}
                   />

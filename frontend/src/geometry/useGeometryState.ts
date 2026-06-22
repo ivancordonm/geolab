@@ -32,6 +32,7 @@ export interface GeometryState {
   setObjectLabel: (objectId: GeometryObjectId, label: string) => void;
   setObjectColor: (objectId: GeometryObjectId, color: string | null) => void;
   setObjectStyle: (objectId: GeometryObjectId, patch: Partial<GeometryStyle>) => void;
+  updateFunctionExpression: (objectId: GeometryObjectId, expression: string) => void;
   removeObject: (objectId: GeometryObjectId) => void;
   setObjectLabelOffset: (objectId: GeometryObjectId, x: number, y: number) => void;
   setViewport: (viewport: GeometryViewport) => void;
@@ -248,6 +249,19 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
     applyDocument(nextDocument);
   }, [applyDocument, recordDocumentChange]);
 
+  const updateFunctionExpression = useCallback((objectId: GeometryObjectId, expression: string) => {
+    recordDocumentChange();
+    const currentDocument = graphRef.current!.document;
+    const nextDocument: GeometryDocument = {
+      ...currentDocument,
+      objects: currentDocument.objects.map((o) => {
+        if (o.id !== objectId || o.kind !== "function") return o;
+        return { ...o, definition: { type: "function_expression", expression } };
+      }),
+    };
+    applyDocument(nextDocument);
+  }, [applyDocument, recordDocumentChange]);
+
   const removeObject = useCallback((objectId: GeometryObjectId) => {
     const currentDocument = graphRef.current!.document;
     const removedIds = new Set<GeometryObjectId>([objectId]);
@@ -334,6 +348,7 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
     setObjectLabel,
     setObjectColor,
     setObjectStyle,
+    updateFunctionExpression,
     removeObject,
     setObjectLabelOffset,
     setViewport,

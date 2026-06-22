@@ -1,4 +1,4 @@
-import { MoreVertical, Trash2, X } from "lucide-react";
+import { Check, MoreVertical, Trash2, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -14,6 +14,7 @@ interface ObjectListProps {
   onSetObjectLabel?: (objectId: string, label: string) => void;
   onSetObjectColor?: (objectId: string, color: string | null) => void;
   onSetObjectStyle?: (objectId: string, patch: Partial<GeometryStyle>) => void;
+  onUpdateFunctionExpression?: (objectId: string, expression: string) => void;
   onDeleteObject?: (objectId: string) => void;
   onSubmitCommand?: (command: string) => Promise<void> | void;
 }
@@ -66,6 +67,7 @@ export function ObjectList({
   onSetObjectLabel,
   onSetObjectColor,
   onSetObjectStyle,
+  onUpdateFunctionExpression,
   onDeleteObject,
   onSubmitCommand,
 }: ObjectListProps) {
@@ -75,6 +77,9 @@ export function ObjectList({
   const [command, setCommand] = useState("");
   const [commandError, setCommandError] = useState<string | null>(null);
   const [submittingCommand, setSubmittingCommand] = useState(false);
+  const [editingFunctionId, setEditingFunctionId] = useState<string | null>(null);
+  const [editingExpression, setEditingExpression] = useState("");
+  const editInputRef = useRef<HTMLInputElement>(null);
 
   // Close menu on outside click
   useEffect(() => {
@@ -97,6 +102,32 @@ export function ObjectList({
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [menu]);
+
+  // Focus input when entering function edit mode
+  useEffect(() => {
+    if (editingFunctionId !== null) {
+      editInputRef.current?.focus();
+      editInputRef.current?.select();
+    }
+  }, [editingFunctionId]);
+
+  const startEditingFunction = (objectId: string, expression: string) => {
+    setEditingFunctionId(objectId);
+    setEditingExpression(expression);
+  };
+
+  const commitFunctionEdit = () => {
+    if (editingFunctionId === null) return;
+    const trimmed = editingExpression.trim();
+    if (trimmed) {
+      onUpdateFunctionExpression?.(editingFunctionId, trimmed);
+    }
+    setEditingFunctionId(null);
+  };
+
+  const cancelFunctionEdit = () => {
+    setEditingFunctionId(null);
+  };
 
   const POPOVER_WIDTH = 224; // w-56
   const openMenu = (objectId: string, trigger: HTMLElement) => {
@@ -205,33 +236,76 @@ export function ObjectList({
                 </button>
 
                 {/* Contenido del objeto */}
-                <button
-                  type="button"
-                  aria-pressed={selected}
-                  onClick={() => onSelectObject(object.id)}
-                  className={`flex min-w-0 flex-1 items-center gap-2.5 py-2 text-left transition-opacity focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand-500 ${
-                    object.visible ? "" : "opacity-40"
-                  }`}
-                >
-                  <span className="block min-w-0">
-                    <strong className="block truncate text-sm font-semibold text-content">
-                      {object.label}
-                    </strong>
-                    <small className="block text-xs text-muted">{describeObject(object)}</small>
-                    <small className="block text-xs text-subtle">
-                      {dependencies.length > 0
-                        ? `Depends on ${dependencies.join(", ")}`
-                        : "Independent"}
-                    </small>
-                  </span>
-                  <span
-                    className={`ml-auto shrink-0 text-[0.65rem] font-bold uppercase tracking-wide ${
-                      undefinedValue ? "text-danger-fg" : "text-success-fg"
+                {object.kind === "function" && editingFunctionId === object.id ? (
+                  <div className={`flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-1 ${object.visible ? "" : "opacity-40"}`}>
+                    <span className="block min-w-0 flex-1">
+                      <strong className="block truncate text-sm font-semibold text-content">
+                        {object.label}
+                      </strong>
+                      <input
+                        ref={editInputRef}
+                        type="text"
+                        value={editingExpression}
+                        onChange={(e) => setEditingExpression(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") { e.preventDefault(); commitFunctionEdit(); }
+                          if (e.key === "Escape") { e.preventDefault(); cancelFunctionEdit(); }
+                        }}
+                        onBlur={commitFunctionEdit}
+                        className="mt-0.5 w-full rounded border border-brand-400 bg-surface px-1.5 py-0.5 font-mono text-xs text-content outline-none ring-1 ring-brand-400"
+                      />
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="Confirmar"
+                      onMouseDown={(e) => { e.preventDefault(); commitFunctionEdit(); }}
+                      className="shrink-0 rounded p-1 text-success-fg hover:bg-surface-muted"
+                    >
+                      <Check size={13} aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Cancelar"
+                      onMouseDown={(e) => { e.preventDefault(); cancelFunctionEdit(); }}
+                      className="shrink-0 rounded p-1 text-muted hover:bg-surface-muted hover:text-content"
+                    >
+                      <X size={13} aria-hidden />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => {
+                      onSelectObject(object.id);
+                      if (object.kind === "function" && onUpdateFunctionExpression !== undefined) {
+                        startEditingFunction(object.id, object.definition.expression);
+                      }
+                    }}
+                    className={`flex min-w-0 flex-1 items-center gap-2.5 py-2 text-left transition-opacity focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand-500 ${
+                      object.visible ? "" : "opacity-40"
                     }`}
                   >
-                    {undefinedValue ? "undefined" : object.kind}
-                  </span>
-                </button>
+                    <span className="block min-w-0">
+                      <strong className="block truncate text-sm font-semibold text-content">
+                        {object.label}
+                      </strong>
+                      <small className="block font-mono text-xs text-muted">{describeObject(object)}</small>
+                      <small className="block text-xs text-subtle">
+                        {dependencies.length > 0
+                          ? `Depends on ${dependencies.join(", ")}`
+                          : "Independent"}
+                      </small>
+                    </span>
+                    <span
+                      className={`ml-auto shrink-0 text-[0.65rem] font-bold uppercase tracking-wide ${
+                        undefinedValue ? "text-danger-fg" : "text-success-fg"
+                      }`}
+                    >
+                      {undefinedValue ? "undefined" : object.kind}
+                    </span>
+                  </button>
+                )}
 
                 {/* Botón tres puntos */}
                 {(onSetObjectLabel !== undefined || onSetObjectColor !== undefined || onSetObjectStyle !== undefined || onDeleteObject !== undefined) && (
@@ -596,7 +670,10 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
 }
 
 function describeObject(object: GeometryObject): string {
-  const descriptions: Record<GeometryObject["definition"]["type"], string> = {
+  if (object.definition.type === "function_expression") {
+    return object.definition.expression;
+  }
+  const descriptions: Record<Exclude<GeometryObject["definition"]["type"], "function_expression">, string> = {
     free: "Free point",
     through_points: "Line through points",
     between_points: "Segment between points",
@@ -619,10 +696,9 @@ function describeObject(object: GeometryObject): string {
     translation: "Translation",
     rotation: "Rotation",
     arc_through_points: "Arc through points",
-    function_expression: "Function graph",
     polygon: "Polygon",
     regular_polygon: "Regular polygon",
     vector_polygon: "Vector polygon",
   };
-  return descriptions[object.definition.type];
+  return descriptions[object.definition.type as Exclude<GeometryObject["definition"]["type"], "function_expression">];
 }

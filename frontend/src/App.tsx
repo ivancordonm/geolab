@@ -18,6 +18,7 @@ import { ConstructionToolbar } from "./components/geometry/ConstructionToolbar";
 import { GeometryCanvas } from "./components/geometry/GeometryCanvas";
 import { ObjectList } from "./components/panel/ObjectList";
 import { ScriptEditor } from "./components/panel/ScriptEditor";
+import { CloudDocumentsPanel } from "./components/persistence/CloudDocumentsPanel";
 import { PersistenceControls } from "./components/persistence/PersistenceControls";
 import { SidebarTabs } from "./components/SidebarTabs";
 import { ThemeToggle } from "./components/ThemeToggle";
@@ -36,6 +37,7 @@ import {
 } from "./persistence/documentPersistence";
 import { downloadTextFile } from "./persistence/download";
 import { useAutoSaveDocument } from "./persistence/useAutoSaveDocument";
+import { useCloudDocuments } from "./persistence/useCloudDocuments";
 import type { GeometryDocument } from "./types/geometry";
 import type { FunctionGraph } from "./types/geometry";
 import type { ScriptErrorDetail } from "./types/script";
@@ -53,6 +55,7 @@ c1 = Circle(A, C)`;
 export function App() {
   const { theme, toggleTheme } = useTheme();
   const auth = useAuth();
+  const cloud = useCloudDocuments(() => void auth.signOut());
   const [startup] = useState(restoreStartupDocument);
   const geometry = useGeometryState(startup.document);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
@@ -233,6 +236,37 @@ export function App() {
     }
   }, [currentDocument, geometry.document.title, reportPersistenceError]);
 
+  const handleSaveToCloud = useCallback(() => {
+    if (cloud.cloudId !== null) {
+      void cloud.saveCurrent(geometry.document.title, currentDocument());
+      return;
+    }
+    const title = window.prompt("Title for this construction:", geometry.document.title);
+    if (title !== null && title.trim() !== "") {
+      void cloud.saveAsNew(title.trim(), currentDocument());
+    }
+  }, [cloud, currentDocument, geometry.document.title]);
+
+  const handleSaveAsNewToCloud = useCallback(() => {
+    const title = window.prompt("Title for the new construction:", geometry.document.title);
+    if (title !== null && title.trim() !== "") {
+      void cloud.saveAsNew(title.trim(), currentDocument());
+    }
+  }, [cloud, currentDocument, geometry.document.title]);
+
+  const handleOpenCloudDocument = useCallback(
+    (id: string) => {
+      void (async () => {
+        const document = await cloud.openDocument(id);
+        if (document !== null) {
+          replaceConstruction(document);
+          setPersistenceNotice({ message: "Cloud construction loaded.", error: null });
+        }
+      })();
+    },
+    [cloud, replaceConstruction],
+  );
+
   const runScript = useCallback(
     async (script: string): Promise<void> => {
       setRunningScript(true);
@@ -313,6 +347,10 @@ export function App() {
         onImportError={reportPersistenceError}
         onExportScript={handleExportScript}
         menuSide="right"
+        cloudEnabled={auth.user !== null}
+        onSaveToCloud={handleSaveToCloud}
+        onSaveAsNewToCloud={handleSaveAsNewToCloud}
+        onOpenCloudPanel={cloud.openPanel}
       />
     </>
   );
@@ -482,6 +520,17 @@ export function App() {
           />
         </div>
       </div>
+
+      <CloudDocumentsPanel
+        open={cloud.panelOpen}
+        documents={cloud.documents}
+        loading={cloud.loading}
+        error={cloud.error}
+        onClose={cloud.closePanel}
+        onOpenDocument={handleOpenCloudDocument}
+        onRenameDocument={(id, title) => void cloud.renameDocument(id, title)}
+        onDeleteDocument={(id) => void cloud.deleteDocument(id)}
+      />
     </div>
   );
 }

@@ -236,23 +236,34 @@ export function App() {
     }
   }, [currentDocument, geometry.document.title, reportPersistenceError]);
 
+  const reportCloudSaveResult = useCallback((ok: boolean) => {
+    if (ok) {
+      setPersistenceNotice({ message: "Construction saved to the cloud.", error: null });
+    } else {
+      setPersistenceNotice({
+        message: null,
+        error: cloud.error ?? "Unable to save construction to the cloud.",
+      });
+    }
+  }, [cloud.error]);
+
   const handleSaveToCloud = useCallback(() => {
     if (cloud.cloudId !== null) {
-      void cloud.saveCurrent(geometry.document.title, currentDocument());
+      void cloud.saveCurrent(geometry.document.title, currentDocument()).then(reportCloudSaveResult);
       return;
     }
     const title = window.prompt("Title for this construction:", geometry.document.title);
     if (title !== null && title.trim() !== "") {
-      void cloud.saveAsNew(title.trim(), currentDocument());
+      void cloud.saveAsNew(title.trim(), currentDocument()).then(reportCloudSaveResult);
     }
-  }, [cloud, currentDocument, geometry.document.title]);
+  }, [cloud, currentDocument, geometry.document.title, reportCloudSaveResult]);
 
   const handleSaveAsNewToCloud = useCallback(() => {
     const title = window.prompt("Title for the new construction:", geometry.document.title);
     if (title !== null && title.trim() !== "") {
-      void cloud.saveAsNew(title.trim(), currentDocument());
+      void cloud.saveAsNew(title.trim(), currentDocument()).then(reportCloudSaveResult);
     }
-  }, [cloud, currentDocument, geometry.document.title]);
+  }, [cloud, currentDocument, geometry.document.title, reportCloudSaveResult]);
 
   const handleOpenCloudDocument = useCallback(
     (id: string) => {

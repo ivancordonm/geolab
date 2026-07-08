@@ -21,8 +21,8 @@ export interface UseCloudDocumentsResult {
   cloudId: string | null;
   openPanel: () => void;
   closePanel: () => void;
-  saveCurrent: (title: string, document: GeometryDocument) => Promise<void>;
-  saveAsNew: (title: string, document: GeometryDocument) => Promise<void>;
+  saveCurrent: (title: string, document: GeometryDocument) => Promise<boolean>;
+  saveAsNew: (title: string, document: GeometryDocument) => Promise<boolean>;
   openDocument: (id: string) => Promise<GeometryDocument | null>;
   renameDocument: (id: string, title: string) => Promise<void>;
   deleteDocument: (id: string) => Promise<void>;
@@ -71,22 +71,23 @@ export function useCloudDocuments(onUnauthorized: () => void): UseCloudDocuments
   const closePanel = useCallback(() => setPanelOpen(false), []);
 
   const saveAsNew = useCallback(
-    async (title: string, document: GeometryDocument) => {
+    async (title: string, document: GeometryDocument): Promise<boolean> => {
       const result = await withErrorHandling(() => createDocument(title, document));
       if (result.ok) {
         setCloudId(result.value.id);
       }
+      return result.ok;
     },
     [withErrorHandling],
   );
 
   const saveCurrent = useCallback(
-    async (title: string, document: GeometryDocument) => {
+    async (title: string, document: GeometryDocument): Promise<boolean> => {
       if (cloudId === null) {
-        await saveAsNew(title, document);
-        return;
+        return saveAsNew(title, document);
       }
-      await withErrorHandling(() => updateDocument(cloudId, { title, document }));
+      const result = await withErrorHandling(() => updateDocument(cloudId, { title, document }));
+      return result.ok;
     },
     [cloudId, saveAsNew, withErrorHandling],
   );

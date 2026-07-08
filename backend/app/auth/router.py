@@ -77,7 +77,14 @@ def login_with_google(
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(response: Response) -> None:
-    response.delete_cookie(SESSION_COOKIE_NAME, path="/")
+    settings = get_settings()
+    response.delete_cookie(
+        SESSION_COOKIE_NAME,
+        path="/",
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
+    )
 
 
 @router.get("/me", response_model=UserProfile)

@@ -65,3 +65,25 @@ def test_logout_clears_session(client, monkeypatch) -> None:
     response = client.get("/auth/me")
 
     assert response.status_code == 401
+
+
+def test_logout_deletes_cookie_with_matching_attributes_in_production(
+    client, monkeypatch
+) -> None:
+    # In production the session cookie is set with Secure + SameSite=None so
+    # it can be sent cross-site. If logout's delete_cookie uses different
+    # attributes (e.g. the Starlette defaults Secure=False, SameSite=Lax),
+    # browsers silently ignore the deletion and the session survives.
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setattr(auth_router, "verify_google_id_token", lambda token: _identity())
+
+    login_response = client.post("/auth/google", json={"idToken": "fake"})
+    login_set_cookie = login_response.headers["set-cookie"]
+    assert "Secure" in login_set_cookie
+    assert "samesite=none" in login_set_cookie.lower()
+
+    logout_response = client.post("/auth/logout")
+    logout_set_cookie = logout_response.headers["set-cookie"]
+
+    assert "Secure" in logout_set_cookie
+    assert "samesite=none" in logout_set_cookie.lower()

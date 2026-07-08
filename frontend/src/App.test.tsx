@@ -47,6 +47,23 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/**
+ * App now calls `fetchCurrentUser()` (GET /auth/me) on mount via `useAuth`.
+ * Every fetch mock in this file must answer that call (with a guest 401) in
+ * addition to whatever URL the test itself cares about.
+ */
+function withAuthFallback(
+  handler: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response> | Response,
+) {
+  return vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input.toString();
+    if (url === "/auth/me") {
+      return Promise.resolve(new Response(null, { status: 401 }));
+    }
+    return handler(input, init);
+  });
+}
+
 describe("script editor flow", () => {
   it("clears the script editor without changing the current construction", async () => {
     const user = userEvent.setup();
@@ -102,11 +119,13 @@ describe("script editor flow", () => {
 
   it("calls the backend and replaces the current canvas construction", async () => {
     const user = userEvent.setup();
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify(successfulResponse), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
+    const fetchMock = withAuthFallback(() =>
+      Promise.resolve(
+        new Response(JSON.stringify(successfulResponse), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      ),
     );
     vi.stubGlobal("fetch", fetchMock);
     render(<App />);
@@ -129,7 +148,9 @@ describe("script editor flow", () => {
       "/geometry/evaluate-script",
       expect.objectContaining({ method: "POST" }),
     );
-    const request = fetchMock.mock.calls[0][1] as RequestInit;
+    const scriptCall = fetchMock.mock.calls.find(([url]) => url === "/geometry/evaluate-script");
+    expect(scriptCall).toBeDefined();
+    const request = scriptCall![1] as RequestInit;
     expect(JSON.parse(request.body as string).script).toContain("PQ = Segment(P, Q)");
   });
 
@@ -137,18 +158,20 @@ describe("script editor flow", () => {
     const user = userEvent.setup();
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            detail: {
-              code: "undefined_reference",
-              message: "Object 'B' must be defined before it is used",
-              line: 2,
-              column: 14,
-              sourceLine: "AB = Line(A, B)",
-            },
-          }),
-          { status: 422, headers: { "Content-Type": "application/json" } },
+      withAuthFallback(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              detail: {
+                code: "undefined_reference",
+                message: "Object 'B' must be defined before it is used",
+                line: 2,
+                column: 14,
+                sourceLine: "AB = Line(A, B)",
+              },
+            }),
+            { status: 422, headers: { "Content-Type": "application/json" } },
+          ),
         ),
       ),
     );
@@ -245,20 +268,22 @@ describe("assistant flow", () => {
       generatedScript: "P = Point(1, 2)\nQ = Point(3, 4)\nPQ = Segment(P, Q)",
       warnings: [],
     };
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(agentResponse), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify(successfulResponse), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        }),
-      );
+    const otherResponses = [
+      new Response(JSON.stringify(agentResponse), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+      new Response(JSON.stringify(successfulResponse), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    ];
+    let otherCallIndex = 0;
+    const fetchMock = withAuthFallback(() => {
+      const response = otherResponses[otherCallIndex];
+      otherCallIndex += 1;
+      return Promise.resolve(response);
+    });
     vi.stubGlobal("fetch", fetchMock);
     render(<App />);
 
@@ -271,8 +296,11 @@ describe("assistant flow", () => {
     expect(preview).toHaveTextContent("PQ = Segment(P, Q)");
     expect(screen.getByText("I created two points and connected them with a deterministic segment."))
       .toBeInTheDocument();
-    expect(fetchMock.mock.calls[0][0]).toBe("/agent/plan");
-    const planRequest = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    const planCallIndex = fetchMock.mock.calls.findIndex(([url]) => url === "/agent/plan");
+    expect(planCallIndex).toBeGreaterThanOrEqual(0);
+    const planRequest = JSON.parse(
+      (fetchMock.mock.calls[planCallIndex][1] as RequestInit).body as string,
+    );
     expect(planRequest.userRequest).toBe("Draw segment PQ");
     expect(planRequest.currentScript).toContain("A = Point(-2, -1)");
     expect(planRequest.config.temperature).toBe(1);
@@ -282,22 +310,27 @@ describe("assistant flow", () => {
     expect(await screen.findByText("The reviewed script was applied.")).toBeInTheDocument();
     expect(screen.getByLabelText("3 objects")).toBeInTheDocument();
     expect(document.querySelector('[data-object-id="PQ"]')).not.toBeNull();
-    expect(fetchMock.mock.calls[1][0]).toBe("/geometry/evaluate-script");
+    const scriptCallIndex = fetchMock.mock.calls.findIndex(
+      ([url]) => url === "/geometry/evaluate-script",
+    );
+    expect(scriptCallIndex).toBeGreaterThan(planCallIndex);
   });
 
   it("shows deterministic planner errors for unsupported requests", async () => {
     const user = userEvent.setup();
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            detail: {
-              code: "unsupported_request",
-              message: "I can currently plan supported classical geometry constructions.",
-            },
-          }),
-          { status: 422, headers: { "Content-Type": "application/json" } },
+      withAuthFallback(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              detail: {
+                code: "unsupported_request",
+                message: "I can currently plan supported classical geometry constructions.",
+              },
+            }),
+            { status: 422, headers: { "Content-Type": "application/json" } },
+          ),
         ),
       ),
     );
@@ -316,15 +349,17 @@ describe("assistant flow", () => {
     const user = userEvent.setup();
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            reasoning: "A completed assistant response.",
-            plan: ["Create point P."],
-            generatedScript: "P = Point(1, 2)",
-            warnings: [],
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } },
+      withAuthFallback(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              reasoning: "A completed assistant response.",
+              plan: ["Create point P."],
+              generatedScript: "P = Point(1, 2)",
+              warnings: [],
+            }),
+            { status: 200, headers: { "Content-Type": "application/json" } },
+          ),
         ),
       ),
     );

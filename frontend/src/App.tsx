@@ -11,7 +11,9 @@ import {
 } from "lucide-react";
 
 import { evaluateConstructionScript, ScriptEvaluationError } from "./api/geometryApi";
+import { useAuth } from "./auth/useAuth";
 import { AssistantPanel } from "./components/assistant/AssistantPanel";
+import { AuthControl } from "./components/auth/AuthControl";
 import { ConstructionToolbar } from "./components/geometry/ConstructionToolbar";
 import { GeometryCanvas } from "./components/geometry/GeometryCanvas";
 import { ObjectList } from "./components/panel/ObjectList";
@@ -50,6 +52,7 @@ c1 = Circle(A, C)`;
 
 export function App() {
   const { theme, toggleTheme } = useTheme();
+  const auth = useAuth();
   const [startup] = useState(restoreStartupDocument);
   const geometry = useGeometryState(startup.document);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
@@ -67,6 +70,12 @@ export function App() {
     const id = setTimeout(() => setPersistenceNotice({ message: null, error: null }), 3000);
     return () => clearTimeout(id);
   }, [persistenceNotice.message, persistenceNotice.error]);
+
+  useEffect(() => {
+    if (auth.error !== null) {
+      setPersistenceNotice({ message: null, error: auth.error });
+    }
+  }, [auth.error]);
 
   const constructionTools = useConstructionTools({
     document: geometry.document,
@@ -288,6 +297,11 @@ export function App() {
       >
         <RotateCcw size={18} aria-hidden />
       </button>
+      <AuthControl
+        user={auth.user}
+        onCredential={(idToken) => void auth.signIn(idToken)}
+        onSignOut={() => void auth.signOut()}
+      />
       <PersistenceControls
         message={persistenceNotice.message}
         error={persistenceNotice.error}

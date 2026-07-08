@@ -19,7 +19,7 @@ def upgrade() -> None:
     op.create_table(
         "users",
         sa.Column("id", sa.String(length=36), primary_key=True),
-        sa.Column("google_sub", sa.String(), nullable=False, unique=True),
+        sa.Column("google_sub", sa.String(), nullable=False),
         sa.Column("email", sa.String(), nullable=False),
         sa.Column("name", sa.String(), nullable=True),
         sa.Column("picture_url", sa.String(), nullable=True),

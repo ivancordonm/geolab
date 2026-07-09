@@ -10,6 +10,7 @@ afterEach(() => {
 
 describe("GoogleSignInButton", () => {
   it("renders nothing when no Google client id is configured", () => {
+    vi.stubEnv("VITE_GOOGLE_CLIENT_ID", "");
     const { container } = render(<GoogleSignInButton onCredential={vi.fn()} />);
     expect(container).toBeEmptyDOMElement();
   });
@@ -27,6 +28,10 @@ describe("GoogleSignInButton", () => {
 
     expect(initialize).toHaveBeenCalledWith(
       expect.objectContaining({ client_id: "test-client-id" }),
+    );
+    expect(renderButton).toHaveBeenCalledWith(
+      expect.any(HTMLElement),
+      expect.objectContaining({ type: "icon" }),
     );
     const callback = initialize.mock.calls[0][0].callback as (r: { credential: string }) => void;
     callback({ credential: "fake-jwt" });

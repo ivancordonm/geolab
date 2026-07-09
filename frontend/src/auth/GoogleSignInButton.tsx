@@ -46,8 +46,8 @@ export function GoogleSignInButton({ onCredential }: GoogleSignInButtonProps) {
       });
       window.google.accounts.id.renderButton(containerRef.current, {
         theme: "outline",
-        size: "medium",
-        type: "standard",
+        size: "large",
+        type: "icon",
       });
     };
 

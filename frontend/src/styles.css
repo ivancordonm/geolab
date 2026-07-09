@@ -165,11 +165,11 @@
     cursor: pointer;
   }
 
-  /* Google Identity Services can render the icon variant in the page. Its
-     injected SVG has no intrinsic dimensions, so it can collapse to 0×0
-     (most visibly when the button changes hover state). Scope the correction
-     to our wrapper to avoid affecting application SVGs. */
-  .google-sign-in-button svg {
+  /* Google Identity Services renders its icon button inside the invisible
+     .gsi-host overlay. Its injected SVG has no intrinsic dimensions, so it
+     can collapse to 0×0 and shrink the clickable area. Scope the correction
+     to the host so it never affects our own "G" glyph or application SVGs. */
+  .gsi-host svg {
     width: 20px;
     height: 20px;
   }

@@ -346,7 +346,6 @@ export function App() {
         user={auth.user}
         onCredential={(idToken) => void auth.signIn(idToken)}
         onSignOut={() => void auth.signOut()}
-        theme={theme}
       />
       <PersistenceControls
         message={persistenceNotice.message}

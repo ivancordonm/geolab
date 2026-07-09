@@ -9,14 +9,16 @@ interface AuthControlProps {
   user: UserProfile | null;
   onCredential: (idToken: string) => void;
   onSignOut: () => void;
-  theme: "light" | "dark";
 }
 
-export function AuthControl({ user, onCredential, onSignOut, theme }: AuthControlProps) {
+export function AuthControl({ user, onCredential, onSignOut }: AuthControlProps) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [menuPos, setMenuPos] = useState<{ top?: number; left?: number; bottom?: number }>({
+    top: 0,
+    left: 0,
+  });
 
   useEffect(() => {
     if (!open) {
@@ -33,13 +35,24 @@ export function AuthControl({ user, onCredential, onSignOut, theme }: AuthContro
   }, [open]);
 
   if (user === null) {
-    return <GoogleSignInButton onCredential={onCredential} theme={theme} />;
+    return <GoogleSignInButton onCredential={onCredential} />;
   }
+
+  // Same anchoring strategy as PersistenceControls: the trigger sits near the
+  // bottom of the toolbar, so when the menu does not fit below the button's
+  // top edge we pin its bottom to the button instead of letting it overflow
+  // the viewport.
+  const MENU_HEIGHT_EST = 130;
 
   const handleToggle = (): void => {
     if (!open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      setMenuPos({ top: rect.top, left: rect.right + 8 });
+      const fitsBelow = window.innerHeight - rect.top > MENU_HEIGHT_EST;
+      if (fitsBelow) {
+        setMenuPos({ top: rect.top, left: rect.right + 8 });
+      } else {
+        setMenuPos({ bottom: window.innerHeight - rect.bottom, left: rect.right + 8 });
+      }
     }
     setOpen((value) => !value);
   };
@@ -74,7 +87,7 @@ export function AuthControl({ user, onCredential, onSignOut, theme }: AuthContro
               ref={menuRef}
               role="menu"
               aria-label="Account menu"
-              style={{ position: "fixed", top: menuPos.top, left: menuPos.left }}
+              style={{ position: "fixed", ...menuPos }}
               className="z-50 w-52 overflow-hidden rounded-xl border border-edge bg-surface p-1.5 shadow-pop"
             >
               <div className="px-2.5 py-2 text-xs text-muted">

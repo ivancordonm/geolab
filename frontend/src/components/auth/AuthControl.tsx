@@ -9,9 +9,10 @@ interface AuthControlProps {
   user: UserProfile | null;
   onCredential: (idToken: string) => void;
   onSignOut: () => void;
+  theme: "light" | "dark";
 }
 
-export function AuthControl({ user, onCredential, onSignOut }: AuthControlProps) {
+export function AuthControl({ user, onCredential, onSignOut, theme }: AuthControlProps) {
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -32,7 +33,7 @@ export function AuthControl({ user, onCredential, onSignOut }: AuthControlProps)
   }, [open]);
 
   if (user === null) {
-    return <GoogleSignInButton onCredential={onCredential} />;
+    return <GoogleSignInButton onCredential={onCredential} theme={theme} />;
   }
 
   const handleToggle = (): void => {

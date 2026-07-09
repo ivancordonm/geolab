@@ -12,7 +12,7 @@ afterEach(() => {
 describe("AuthControl", () => {
   it("shows the Google sign-in button when signed out", () => {
     vi.stubEnv("VITE_GOOGLE_CLIENT_ID", "test-client-id");
-    render(<AuthControl user={null} onCredential={vi.fn()} onSignOut={vi.fn()} />);
+    render(<AuthControl user={null} onCredential={vi.fn()} onSignOut={vi.fn()} theme="light" />);
     expect(screen.getByLabelText("Sign in with Google")).toBeInTheDocument();
   });
 
@@ -23,6 +23,7 @@ describe("AuthControl", () => {
         user={{ id: "1", email: "a@example.com", name: "Ada", pictureUrl: null }}
         onCredential={vi.fn()}
         onSignOut={onSignOut}
+        theme="light"
       />,
     );
 

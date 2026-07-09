@@ -1,0 +1,34 @@
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { AuthControl } from "./AuthControl";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+  delete (window as { google?: unknown }).google;
+});
+
+describe("AuthControl", () => {
+  it("shows the Google sign-in button when signed out", () => {
+    vi.stubEnv("VITE_GOOGLE_CLIENT_ID", "test-client-id");
+    render(<AuthControl user={null} onCredential={vi.fn()} onSignOut={vi.fn()} />);
+    expect(screen.getByLabelText("Sign in with Google")).toBeInTheDocument();
+  });
+
+  it("shows the account menu and signs out when signed in", async () => {
+    const onSignOut = vi.fn();
+    render(
+      <AuthControl
+        user={{ id: "1", email: "a@example.com", name: "Ada", pictureUrl: null }}
+        onCredential={vi.fn()}
+        onSignOut={onSignOut}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Account menu" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Sign out" }));
+
+    expect(onSignOut).toHaveBeenCalled();
+  });
+});

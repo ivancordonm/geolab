@@ -3,12 +3,15 @@ import { createPortal } from "react-dom";
 import type { ChangeEvent, ReactNode } from "react";
 import {
   ChevronDown,
+  Copy,
   Download,
+  DownloadCloud,
   FileCode,
   FolderOpen,
   Save,
   Trash2,
   Upload,
+  UploadCloud,
 } from "lucide-react";
 
 interface PersistenceControlsProps {
@@ -23,6 +26,10 @@ interface PersistenceControlsProps {
   onExportScript: () => void;
   /** Lado hacia el que se abre el menú desplegable. Por defecto "right" (abre hacia la derecha). */
   menuSide?: "right" | "left";
+  cloudEnabled?: boolean;
+  onSaveToCloud?: () => void;
+  onSaveAsNewToCloud?: () => void;
+  onOpenCloudPanel?: () => void;
 }
 
 export function PersistenceControls({
@@ -36,6 +43,10 @@ export function PersistenceControls({
   onImportError,
   onExportScript,
   menuSide = "right",
+  cloudEnabled = false,
+  onSaveToCloud,
+  onSaveAsNewToCloud,
+  onOpenCloudPanel,
 }: PersistenceControlsProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -131,12 +142,6 @@ export function PersistenceControls({
           style={{ position: "fixed", ...menuPos }}
           className="z-50 w-52 overflow-hidden rounded-xl border border-edge bg-surface p-1.5 shadow-pop"
         >
-          <MenuItem icon={<Save size={16} aria-hidden />} onClick={() => run(onSave)}>
-            Save
-          </MenuItem>
-          <MenuItem icon={<FolderOpen size={16} aria-hidden />} onClick={() => run(onLoad)}>
-            Load
-          </MenuItem>
           <MenuItem icon={<Download size={16} aria-hidden />} onClick={() => run(onExportJson)}>
             Export JSON
           </MenuItem>
@@ -149,6 +154,29 @@ export function PersistenceControls({
           <MenuItem icon={<FileCode size={16} aria-hidden />} onClick={() => run(onExportScript)}>
             Export Script
           </MenuItem>
+          {cloudEnabled ? (
+            <>
+              <div className="my-1 h-px bg-edge" role="separator" />
+              <MenuItem
+                icon={<UploadCloud size={16} aria-hidden />}
+                onClick={() => run(() => onSaveToCloud?.())}
+              >
+                Save
+              </MenuItem>
+              <MenuItem
+                icon={<Copy size={16} aria-hidden />}
+                onClick={() => run(() => onSaveAsNewToCloud?.())}
+              >
+                Save as new...
+              </MenuItem>
+              <MenuItem
+                icon={<DownloadCloud size={16} aria-hidden />}
+                onClick={() => run(() => onOpenCloudPanel?.())}
+              >
+                Open
+              </MenuItem>
+            </>
+          ) : null}
           <div className="my-1 h-px bg-edge" role="separator" />
           <MenuItem
             icon={<Trash2 size={16} aria-hidden />}

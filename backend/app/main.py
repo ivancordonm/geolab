@@ -7,6 +7,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.agent.router import router as agent_router
+from app.auth.router import router as auth_router
+from app.config import get_settings
+from app.documents.router import router as documents_router
 from app.geometry.router import router as geometry_router
 from app.mcp_server import mcp, mcp_http_app
 
@@ -26,9 +29,11 @@ app = FastAPI(
 )
 
 # CORS configuration for frontend (Vercel + local dev)
+settings = get_settings()
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.frontend_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -37,6 +42,8 @@ app.add_middleware(
 
 app.include_router(geometry_router)
 app.include_router(agent_router)
+app.include_router(auth_router)
+app.include_router(documents_router)
 
 
 @app.get("/")

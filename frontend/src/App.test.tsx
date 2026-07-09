@@ -238,7 +238,8 @@ describe("script editor flow", () => {
     await user.type(commandInput, "f = Function(y = sin(x) + sqrt(abs(x))){Enter}");
 
     expect(await screen.findByText("f")).toBeInTheDocument();
-    expect(screen.getByText("Function graph")).toBeInTheDocument();
+    expect(screen.getByText("sin(x) + sqrt(abs(x))")).toBeInTheDocument();
+    expect(screen.getByText("function", { exact: true })).toBeInTheDocument();
     expect(screen.getByLabelText("10 objects")).toBeInTheDocument();
     expect(document.querySelector('[data-object-id="f"]')).not.toBeNull();
   });

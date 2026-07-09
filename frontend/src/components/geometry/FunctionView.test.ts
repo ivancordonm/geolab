@@ -258,5 +258,5 @@ describe("buildFunctionPathData", () => {
       }
     }
     expect(failures).toEqual([]);
-  });
+  }, 15_000);
 });

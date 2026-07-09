@@ -21,7 +21,7 @@ target_metadata = Base.metadata
 def _database_url() -> str:
     settings = get_settings()
     if not settings.database_url:
-        raise RuntimeError("DATABASE_URL is not set. Add it to backend/.env.")
+        raise RuntimeError("STORAGE_DATABASE_URL is not set. Add it to backend/.env.")
     return _to_sqlalchemy_url(settings.database_url)
 
 

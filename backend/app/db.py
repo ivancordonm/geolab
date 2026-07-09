@@ -27,7 +27,7 @@ def _to_sqlalchemy_url(raw_url: str) -> str:
 def _create_session_factory() -> sessionmaker[Session]:
     settings = get_settings()
     if not settings.database_url:
-        raise RuntimeError("DATABASE_URL is not set. Add it to backend/.env.")
+        raise RuntimeError("STORAGE_DATABASE_URL is not set. Add it to backend/.env.")
     engine = create_engine(_to_sqlalchemy_url(settings.database_url), pool_pre_ping=True)
     return sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 

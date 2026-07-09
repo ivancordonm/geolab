@@ -32,7 +32,7 @@ class Settings:
 
 def get_settings() -> Settings:
     return Settings(
-        database_url=os.getenv("DATABASE_URL"),
+        database_url=os.getenv("STORAGE_DATABASE_URL"),
         google_client_id=os.getenv("GOOGLE_CLIENT_ID"),
         jwt_secret=os.getenv("JWT_SECRET"),
         jwt_expire_days=int(os.getenv("JWT_EXPIRE_DAYS", "30")),

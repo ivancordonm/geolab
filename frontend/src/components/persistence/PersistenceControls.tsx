@@ -142,12 +142,6 @@ export function PersistenceControls({
           style={{ position: "fixed", ...menuPos }}
           className="z-50 w-52 overflow-hidden rounded-xl border border-edge bg-surface p-1.5 shadow-pop"
         >
-          <MenuItem icon={<Save size={16} aria-hidden />} onClick={() => run(onSave)}>
-            Save
-          </MenuItem>
-          <MenuItem icon={<FolderOpen size={16} aria-hidden />} onClick={() => run(onLoad)}>
-            Load
-          </MenuItem>
           <MenuItem icon={<Download size={16} aria-hidden />} onClick={() => run(onExportJson)}>
             Export JSON
           </MenuItem>
@@ -167,7 +161,7 @@ export function PersistenceControls({
                 icon={<UploadCloud size={16} aria-hidden />}
                 onClick={() => run(() => onSaveToCloud?.())}
               >
-                Save to cloud
+                Save
               </MenuItem>
               <MenuItem
                 icon={<Copy size={16} aria-hidden />}
@@ -179,7 +173,7 @@ export function PersistenceControls({
                 icon={<DownloadCloud size={16} aria-hidden />}
                 onClick={() => run(() => onOpenCloudPanel?.())}
               >
-                Open from cloud
+                Open
               </MenuItem>
             </>
           ) : null}

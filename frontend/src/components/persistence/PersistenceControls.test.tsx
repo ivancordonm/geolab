@@ -20,7 +20,7 @@ describe("PersistenceControls cloud actions", () => {
   it("hides cloud menu items when cloudEnabled is false", async () => {
     render(<PersistenceControls {...baseProps} />);
     await userEvent.click(screen.getByRole("button", { name: "Construction actions" }));
-    expect(screen.queryByRole("menuitem", { name: "Save to cloud" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Save as new..." })).not.toBeInTheDocument();
   });
 
   it("shows cloud menu items and triggers callbacks when cloudEnabled is true", async () => {
@@ -38,11 +38,11 @@ describe("PersistenceControls cloud actions", () => {
     );
 
     await userEvent.click(screen.getByRole("button", { name: "Construction actions" }));
-    await userEvent.click(screen.getByRole("menuitem", { name: "Save to cloud" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Save" }));
     expect(onSaveToCloud).toHaveBeenCalled();
 
     await userEvent.click(screen.getByRole("button", { name: "Construction actions" }));
-    await userEvent.click(screen.getByRole("menuitem", { name: "Open from cloud" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: "Open" }));
     expect(onOpenCloudPanel).toHaveBeenCalled();
   });
 });

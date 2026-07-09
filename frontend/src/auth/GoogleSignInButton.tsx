@@ -75,5 +75,5 @@ export function GoogleSignInButton({ onCredential }: GoogleSignInButtonProps) {
     return null;
   }
 
-  return <div ref={containerRef} aria-label="Sign in with Google" />;
+  return <div ref={containerRef} className="google-sign-in-button" aria-label="Sign in with Google" />;
 }

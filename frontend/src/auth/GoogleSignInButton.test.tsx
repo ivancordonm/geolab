@@ -33,6 +33,7 @@ describe("GoogleSignInButton", () => {
       expect.any(HTMLElement),
       expect.objectContaining({ type: "icon" }),
     );
+    expect(screen.getByLabelText("Sign in with Google")).toHaveClass("google-sign-in-button");
     const callback = initialize.mock.calls[0][0].callback as (r: { credential: string }) => void;
     callback({ credential: "fake-jwt" });
     expect(onCredential).toHaveBeenCalledWith("fake-jwt");

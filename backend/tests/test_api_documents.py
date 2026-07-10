@@ -133,3 +133,22 @@ def test_documents_are_isolated_between_users(client, monkeypatch) -> None:
     assert other_client.get(f"/documents/{document_id}").status_code == 404
     assert other_client.put(f"/documents/{document_id}", json={"title": "Hijacked"}).status_code == 404
     assert other_client.delete(f"/documents/{document_id}").status_code == 404
+
+
+def test_document_share_token_column_defaults_to_none(client, monkeypatch) -> None:
+    _login(client, monkeypatch, sub="user-a", email="a@example.com")
+    create_response = client.post(
+        "/documents", json={"title": "T", "document": _sample_document()}
+    )
+    assert create_response.status_code == 201
+    # A freshly created document is not shared yet.
+    from app.models import Document
+    from app.db import get_db
+
+    override = app.dependency_overrides[get_db]
+    session = next(override())
+    try:
+        document = session.query(Document).one()
+        assert document.share_token is None
+    finally:
+        session.close()

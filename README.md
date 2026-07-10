@@ -136,7 +136,12 @@ on every tab/browser close.
 
 To keep the cookie first-party, `frontend/vercel.json` proxies `/auth`,
 `/documents`, `/geometry`, and `/agent` same-origin to
-`https://geolab-api.anticentro.es`. Required environment configuration:
+`https://geolab-api.anticentro.es`. **Each prefix needs two rewrite rules**: the
+bare collection path (`/documents`) *and* the wildcard (`/documents/:path*`).
+Vercel's `:path*` does not match the bare collection root, so a single
+`/documents/:path*` rule leaves `GET /documents` (list) and `POST /documents`
+(create) falling through to the SPA and returning 404 — even though
+`PUT /documents/:id` works. Required environment configuration:
 
 - **Frontend project:** leave `VITE_API_BASE_URL` **empty** so API calls are
   relative and hit the same origin (then get proxied). Setting it to any

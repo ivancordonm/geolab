@@ -2,9 +2,13 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
+    { "source": "/auth", "destination": "https://geolab-api.anticentro.es/auth" },
     { "source": "/auth/:path*", "destination": "https://geolab-api.anticentro.es/auth/:path*" },
+    { "source": "/documents", "destination": "https://geolab-api.anticentro.es/documents" },
     { "source": "/documents/:path*", "destination": "https://geolab-api.anticentro.es/documents/:path*" },
+    { "source": "/geometry", "destination": "https://geolab-api.anticentro.es/geometry" },
     { "source": "/geometry/:path*", "destination": "https://geolab-api.anticentro.es/geometry/:path*" },
+    { "source": "/agent", "destination": "https://geolab-api.anticentro.es/agent" },
     { "source": "/agent/:path*", "destination": "https://geolab-api.anticentro.es/agent/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]

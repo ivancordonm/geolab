@@ -6,7 +6,6 @@ import re
 
 from sympy import E, Float, Integer, Symbol, pi
 from sympy.core.expr import Expr
-from sympy.core.symbol import Symbol
 from sympy.functions import (
     Abs,
     acos,

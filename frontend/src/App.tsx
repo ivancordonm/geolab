@@ -37,7 +37,11 @@ import {
 } from "./persistence/documentPersistence";
 import { downloadTextFile } from "./persistence/download";
 import { useAutoSaveDocument } from "./persistence/useAutoSaveDocument";
-import { useCloudDocuments } from "./persistence/useCloudDocuments";
+import {
+  useCloudDocuments,
+  type CloudActionResult,
+} from "./persistence/useCloudDocuments";
+import type { DocumentDetail } from "./types/documents";
 import type { GeometryDocument } from "./types/geometry";
 import type { FunctionGraph } from "./types/geometry";
 import type { ScriptErrorDetail } from "./types/script";
@@ -55,7 +59,24 @@ c1 = Circle(A, C)`;
 export function App() {
   const { theme, toggleTheme } = useTheme();
   const auth = useAuth();
-  const cloud = useCloudDocuments(() => void auth.signOut());
+  const signOut = auth.signOut;
+  const handleUnauthorized = useCallback(() => void signOut(), [signOut]);
+  const cloud = useCloudDocuments(handleUnauthorized);
+  const {
+    panelOpen: cloudPanelOpen,
+    documents: cloudDocuments,
+    loading: cloudLoading,
+    error: cloudError,
+    cloudId,
+    openPanel: openCloudPanel,
+    closePanel: closeCloudPanel,
+    detachDocument: detachCloudDocument,
+    saveCurrent: saveCurrentCloudDocument,
+    saveAsNew: saveAsNewCloudDocument,
+    openDocument: openCloudDocument,
+    renameDocument: renameCloudDocument,
+    deleteDocument: deleteCloudDocument,
+  } = cloud;
   const [startup] = useState(restoreStartupDocument);
   const geometry = useGeometryState(startup.document);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
@@ -85,6 +106,9 @@ export function App() {
     onApplyObjectChanges: geometry.applyObjectChanges,
     onSelectObject: setSelectedObjectId,
   });
+  const cancelConstruction = constructionTools.cancel;
+  const replaceGeometryDocument = geometry.replaceDocument;
+  const setGeometryDocumentTitle = geometry.setDocumentTitle;
 
   const reportPersistenceError = useCallback((error: Error) => {
     setPersistenceNotice({ message: null, error: error.message });
@@ -93,11 +117,11 @@ export function App() {
 
   const replaceConstruction = useCallback(
     (document: GeometryDocument) => {
-      geometry.replaceDocument(document);
-      constructionTools.cancel();
+      replaceGeometryDocument(document);
+      cancelConstruction();
       setSelectedObjectId(null);
     },
-    [constructionTools.cancel, geometry.replaceDocument],
+    [cancelConstruction, replaceGeometryDocument],
   );
 
   const currentDocument = useCallback(
@@ -184,30 +208,33 @@ export function App() {
         setPersistenceNotice({ message: "No saved construction was found.", error: null });
         return;
       }
+      detachCloudDocument();
       replaceConstruction(saved);
       setPersistenceNotice({ message: "Saved construction loaded.", error: null });
     } catch (error) {
       reportPersistenceError(asError(error, "Unable to load construction."));
     }
-  }, [replaceConstruction, reportPersistenceError]);
+  }, [detachCloudDocument, replaceConstruction, reportPersistenceError]);
 
   const handleClear = useCallback(() => {
     clearDocument();
+    detachCloudDocument();
     replaceConstruction(createEmptyDocument(geometry.viewport));
     setPersistenceNotice({ message: "Construction cleared.", error: null });
-  }, [geometry.viewport, replaceConstruction]);
+  }, [detachCloudDocument, geometry.viewport, replaceConstruction]);
 
   const handleImportJson = useCallback(
     (serialized: string) => {
       try {
         const imported = importDocumentJson(serialized);
+        detachCloudDocument();
         replaceConstruction(imported);
         setPersistenceNotice({ message: "JSON construction imported.", error: null });
       } catch (error) {
         reportPersistenceError(asError(error, "Unable to import construction."));
       }
     },
-    [replaceConstruction, reportPersistenceError],
+    [detachCloudDocument, replaceConstruction, reportPersistenceError],
   );
 
   const handleExportJson = useCallback(() => {
@@ -236,46 +263,57 @@ export function App() {
     }
   }, [currentDocument, geometry.document.title, reportPersistenceError]);
 
-  const reportCloudSaveResult = useCallback((ok: boolean) => {
-    if (ok) {
+  const reportCloudSaveResult = useCallback((result: CloudActionResult<DocumentDetail>) => {
+    if (result.status === "superseded") return;
+    if (result.status === "success") {
+      setGeometryDocumentTitle(result.value.title);
       setPersistenceNotice({ message: "Construction saved to the cloud.", error: null });
     } else {
-      setPersistenceNotice({
-        message: null,
-        error: cloud.error ?? "Unable to save construction to the cloud.",
-      });
+      setPersistenceNotice({ message: null, error: result.error });
     }
-  }, [cloud.error]);
+  }, [setGeometryDocumentTitle]);
 
   const handleSaveToCloud = useCallback(() => {
-    if (cloud.cloudId !== null) {
-      void cloud.saveCurrent(geometry.document.title, currentDocument()).then(reportCloudSaveResult);
+    if (cloudId !== null) {
+      void saveCurrentCloudDocument(geometry.document.title, currentDocument()).then(reportCloudSaveResult);
       return;
     }
     const title = window.prompt("Title for this construction:", geometry.document.title);
     if (title !== null && title.trim() !== "") {
-      void cloud.saveAsNew(title.trim(), currentDocument()).then(reportCloudSaveResult);
+      void saveAsNewCloudDocument(title.trim(), currentDocument()).then(reportCloudSaveResult);
     }
-  }, [cloud, currentDocument, geometry.document.title, reportCloudSaveResult]);
+  }, [cloudId, currentDocument, geometry.document.title, reportCloudSaveResult, saveAsNewCloudDocument, saveCurrentCloudDocument]);
 
   const handleSaveAsNewToCloud = useCallback(() => {
     const title = window.prompt("Title for the new construction:", geometry.document.title);
     if (title !== null && title.trim() !== "") {
-      void cloud.saveAsNew(title.trim(), currentDocument()).then(reportCloudSaveResult);
+      void saveAsNewCloudDocument(title.trim(), currentDocument()).then(reportCloudSaveResult);
     }
-  }, [cloud, currentDocument, geometry.document.title, reportCloudSaveResult]);
+  }, [currentDocument, geometry.document.title, reportCloudSaveResult, saveAsNewCloudDocument]);
 
   const handleOpenCloudDocument = useCallback(
     (id: string) => {
       void (async () => {
-        const document = await cloud.openDocument(id);
-        if (document !== null) {
-          replaceConstruction(document);
+        const result = await openCloudDocument(id);
+        if (result.status === "success") {
+          replaceConstruction(result.value.document);
           setPersistenceNotice({ message: "Cloud construction loaded.", error: null });
         }
       })();
     },
-    [cloud, replaceConstruction],
+    [openCloudDocument, replaceConstruction],
+  );
+
+  const handleRenameCloudDocument = useCallback(
+    (id: string, title: string) => {
+      void (async () => {
+        const result = await renameCloudDocument(id, title);
+        if (result.status === "success" && cloudId === id) {
+          setGeometryDocumentTitle(result.value.title);
+        }
+      })();
+    },
+    [cloudId, renameCloudDocument, setGeometryDocumentTitle],
   );
 
   const runScript = useCallback(
@@ -289,8 +327,9 @@ export function App() {
           documentId: "canvas_script",
           title: "Script construction",
         });
-        geometry.replaceDocument(response.document);
-        constructionTools.cancel();
+        detachCloudDocument();
+        replaceGeometryDocument(response.document);
+        cancelConstruction();
         setSelectedObjectId(null);
         setScriptOutput(`Created ${response.document.objects.length} objects successfully.`);
       } catch (error) {
@@ -304,7 +343,7 @@ export function App() {
         setRunningScript(false);
       }
     },
-    [constructionTools.cancel, geometry.replaceDocument],
+    [cancelConstruction, detachCloudDocument, replaceGeometryDocument],
   );
 
   // Controles de la tira izquierda (debajo del separador).
@@ -361,7 +400,7 @@ export function App() {
         cloudEnabled={auth.user !== null}
         onSaveToCloud={handleSaveToCloud}
         onSaveAsNewToCloud={handleSaveAsNewToCloud}
-        onOpenCloudPanel={cloud.openPanel}
+        onOpenCloudPanel={openCloudPanel}
       />
     </>
   );
@@ -533,14 +572,14 @@ export function App() {
       </div>
 
       <CloudDocumentsPanel
-        open={cloud.panelOpen}
-        documents={cloud.documents}
-        loading={cloud.loading}
-        error={cloud.error}
-        onClose={cloud.closePanel}
+        open={cloudPanelOpen}
+        documents={cloudDocuments}
+        loading={cloudLoading}
+        error={cloudError}
+        onClose={closeCloudPanel}
         onOpenDocument={handleOpenCloudDocument}
-        onRenameDocument={(id, title) => void cloud.renameDocument(id, title)}
-        onDeleteDocument={(id) => void cloud.deleteDocument(id)}
+        onRenameDocument={handleRenameCloudDocument}
+        onDeleteDocument={(id) => void deleteCloudDocument(id)}
       />
     </div>
   );

@@ -57,17 +57,33 @@ On a free-point move:
 Cycles, missing references, invalid parent types, duplicate IDs, and duplicate
 labels are rejected during validation.
 
-### 2.4 Local JSON persistence
+### 2.4 Local-first and authenticated cloud persistence
 
-No database is justified for a single-user MVP. Documents are JSON files with a
-schema version. The browser may additionally keep a versioned autosave in
-`localStorage`, but import/export remains the portable source of truth.
+Every construction remains a versioned JSON document. The browser keeps a
+debounced `localStorage` autosave and supports explicit local save/load plus
+portable JSON and construction-script exports. Signed-in users can additionally
+store documents in PostgreSQL through authenticated `/documents` CRUD.
+
+The document table owns persistence metadata (`id`, owner, timestamps) and its
+`title` column is canonical. Create/update/detail responses normalize the nested
+geometry payload to that title so browser and database state cannot silently
+diverge. Cloud lists are currently unpaginated.
 
 ### 2.5 Agent behind a planner interface
 
-`AgentPlanner` receives user text plus a compact document summary and produces
-a typed plan. The MVP uses `RuleBasedPlanner`. A future `LLMPlanner` may produce
-the same plan schema but cannot directly execute code or mutate state.
+`Planner` receives user text plus the current construction script and produces a
+typed plan and replacement script. The UI supports Hugging Face, OpenAI, and
+NVIDIA through an OpenAI-compatible planner. Server-side/legacy selection also
+supports Ollama, Claude, and `RuleBasedPlanner`. All implementations share the
+same validation/repair boundary and cannot directly mutate browser state.
+
+### 2.6 Google identity and GeoLab sessions
+
+The browser obtains a Google ID credential and sends it once to
+`POST /auth/google`. The backend validates audience/signature, upserts the user,
+and issues its own signed JWT in an HttpOnly cookie. Cookie `Secure`/`SameSite`
+settings derive from validated `APP_ENV`; CORS uses an explicit credentialed
+origin allowlist. Authenticated document routes always scope rows by user ID.
 
 ## 3. Component responsibilities
 
@@ -83,7 +99,9 @@ the same plan schema but cannot directly execute code or mutate state.
 | Script editor | Edit text, submit evaluation request, display diagnostics |
 | Object list | Inspect/select/hide objects without calculating geometry |
 | Assistant panel | Send prompts, preview plans/scripts, request execution |
-| API client | Typed HTTP boundary and error normalization |
+| API clients | Typed geometry, auth, and document HTTP boundaries |
+| Persistence hooks | Debounced local autosave and cloud document workflows |
+| Auth hook | Restore/login/logout UI session state without exposing the JWT |
 
 ### Backend
 
@@ -93,11 +111,12 @@ the same plan schema but cannot directly execute code or mutate state.
 | Geometry parser | Parse the construction language into a typed AST |
 | Geometry service | Evaluate AST, construct document, validate graph |
 | Geometry tools | Pure operations such as line coefficients/intersections |
-| Symbolic service | Parse allowlisted SymPy syntax, simplify, solve, serialize |
+| Symbolic tools | Parse allowlisted SymPy syntax, simplify, solve, serialize |
 | Tool registry | Declare names, descriptions, schemas, handlers, side effects |
-| Agent planner | Convert intent into a proposed sequence of typed tool calls |
-| Plan executor | Validate calls, execute tools, validate results, collect trace |
-| JSON repository | Save/load versioned documents with atomic file replacement |
+| Agent planners | Convert intent into a validated proposed construction script |
+| Auth service | Verify Google identity and issue/verify session cookies |
+| Document service | User-scoped SQLAlchemy CRUD over PostgreSQL |
+| MCP adapter | Stateless deterministic tools, exports, and geometry widget |
 
 ## 4. Canonical geometry model
 
@@ -174,6 +193,9 @@ type EvaluatedValue =
   | { type: "line"; a: number; b: number; c: number }
   | { type: "segment"; start: PointValue; end: PointValue }
   | { type: "circle"; center: PointValue; radius: number }
+  | { type: "arc"; center: PointValue; radius: number; start: PointValue; mid: PointValue; end: PointValue }
+  | { type: "polygon"; vertices: PointValue[] }
+  | { type: "function"; expression: string }
   | { type: "undefined"; code: string; message: string };
 ```
 
@@ -191,12 +213,19 @@ initially `1e-9` in world coordinates.
 | between_points | two points | segment |
 | center_through_point | two points | circle |
 | midpoint | two points | point |
+| polygon_vertex | polygon + zero-based index | point or undefined |
 | parallel_through | point + line | line |
 | perpendicular_through | point + line | line |
-| intersection | two supported curves | point or undefined |
+| intersection_ll | two lines | point or undefined |
+| intersection_lc | line + circle + index/selector | point or undefined |
+| intersection_cc | two circles + index/selector | point or undefined |
+| arc_through_points | three points | arc or undefined |
+| polygon / regular_polygon / vector_polygon | point parents or anchor | polygon |
 
-For the MVP, intersection should initially support line-line only. Circle
-intersections introduce zero/one/two-result cardinality and can follow later.
+Line-line, line-circle, and circle-circle intersections are implemented.
+Multi-solution circle intersections use either a deterministic numeric index or
+a directional selector. Arc values are validated and preserved by the backend,
+but its SVG/PNG exporter does not yet draw them; the frontend renderer does.
 
 ## 5. Construction scripting language
 
@@ -226,8 +255,12 @@ Comments begin with `#`. Blank lines are ignored.
 ```ebnf
 script      = { statement | comment | newline } ;
 statement   = identifier, "=", constructor, "(", [ arguments ], ")", newline ;
-constructor = "Point" | "Line" | "Segment" | "Circle" | "Midpoint"
-            | "ParallelLine" | "PerpendicularLine" | "Intersection" ;
+constructor = "Point" | "Line" | "Segment" | "Circle" | "Midpoint" | "Vertex"
+            | "ParallelLine" | "PerpendicularLine"
+            | "Intersection" | "IntersectionLL" | "IntersectionLC" | "IntersectionCC"
+            | "PerpendicularBisector" | "AngleBisector" | "Circumcircle"
+            | "Reflection" | "Homothety" | "Inversion" | "Translation" | "Rotation"
+            | "Arc" | "Function" | "Polygon" | "VectorPolygon" ;
 arguments   = argument, { ",", argument } ;
 argument    = number | identifier | coordinate ;
 coordinate  = "(", number, ",", number, ")" ;
@@ -266,24 +299,25 @@ All APIs use versioned Pydantic request/response models and structured errors.
 | Endpoint | Purpose |
 |---|---|
 | `POST /geometry/evaluate-script` | Parse and evaluate script into a document |
-| `POST /geometry/validate` | Validate schema, graph, and evaluated invariants |
-| `POST /symbolic/simplify` | Safely parse and simplify an expression |
-| `POST /symbolic/solve` | Solve equation(s) for requested symbol(s) |
 | `POST /agent/plan` | Produce a typed, unexecuted plan and proposed script |
+| `GET /agent/tools` | Discover deterministic tool JSON schemas |
+| `POST /agent/execute-tool` | Execute one validated tool against the REST workspace |
+| `POST /auth/google` / `POST /auth/logout` / `GET /auth/me` | Session lifecycle |
+| `/documents` CRUD | User-scoped PostgreSQL document persistence |
+| `POST /mcp` | Stateless MCP Streamable HTTP transport |
 
 Example plan response:
 
 ```json
 {
-  "summary": "Construct triangle ABC and its altitude from C.",
-  "steps": [
-    { "tool": "create_point", "arguments": { "label": "A", "x": 0, "y": 0 } },
-    { "tool": "create_point", "arguments": { "label": "B", "x": 4, "y": 0 } },
-    { "tool": "create_point", "arguments": { "label": "C", "x": 2, "y": 3 } },
-    { "tool": "create_line", "arguments": { "label": "AB", "pointA": "A", "pointB": "B" } },
-    { "tool": "create_perpendicular_line", "arguments": { "label": "h", "point": "C", "line": "AB" } }
+  "reasoning": "Construct the triangle, its base line, and the perpendicular through C.",
+  "plan": [
+    "Create points A, B, and C.",
+    "Create line AB.",
+    "Create the perpendicular through C."
   ],
-  "script": "A = Point(0, 0)\nB = Point(4, 0)\nC = Point(2, 3)\nAB = Line(A, B)\nh = PerpendicularLine(C, AB)"
+  "generatedScript": "A = Point(0, 0)\nB = Point(4, 0)\nC = Point(2, 3)\nAB = Line(A, B)\nh = PerpendicularLine(C, AB)",
+  "warnings": []
 }
 ```
 
@@ -342,9 +376,9 @@ User request
 Every tool result records success/failure, diagnostics, and document revision.
 A failed validation prevents state commit. Tool handlers do not depend on an LLM.
 
-### 7.3 Rule-based MVP examples
+### 7.3 Planner implementations
 
-The first planner recognizes constrained patterns such as:
+The rule-based planner recognizes constrained patterns such as:
 
 - “Create a triangle ABC”
 - “Construct the midpoint of AB”
@@ -352,13 +386,27 @@ The first planner recognizes constrained patterns such as:
 - “Create the circle centered at A through C”
 
 Ambiguous requests return clarification diagnostics rather than invented object
-references. A real LLM later plugs into the same `AgentPlanner` interface.
+references. OpenAI-compatible, Ollama, and Claude planners plug into the same
+interface and must return the same structured proposal.
 
 The implemented assistant follows an approval boundary: the planner receives a
 serialized snapshot of the current construction, returns a complete validated
 script and structured plan, and the frontend only applies that script after an
 explicit click. Application always goes through `/geometry/evaluate-script`;
 the planner never mutates geometry state.
+
+### 7.4 State lifetimes and MCP
+
+The public MCP tools are stateless. Each mutation creates a temporary workspace
+from the input `document` (or an empty document), and the caller must pass the
+returned snapshot into the next tool. MCP therefore does not share construction
+state between sessions.
+
+By contrast, `GET /geometry/graph` and `POST /agent/execute-tool` currently use
+one module-level `GeometryWorkspace` in the API process. That workspace resets
+on restart and is neither authenticated nor user-scoped. It must not be treated
+as private storage or a collaboration boundary. User-owned durable documents
+use the separate authenticated PostgreSQL routes.
 
 ## 8. Symbolic and Python safety
 
@@ -384,6 +432,10 @@ must be a separate isolated process/container with:
 - Parser fixture tests when a local parser is added.
 - Component interaction tests for tool selection and dragging.
 - End-to-end test for script -> canvas -> drag -> dependent update.
+- Hook/component tests for session failure handling, cloud title coherence,
+  debounced autosave, and bounded undo history.
+- `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build` are the
+  supported frontend checks.
 
 ### Backend
 
@@ -393,6 +445,10 @@ must be a separate isolated process/container with:
 - SymPy simplify/solve tests and unsafe-input rejection tests.
 - Rule-based planner tests.
 - API contract tests.
+- Auth/JWT, configuration validation, CORS, and user-isolated document CRUD
+  tests.
+- `.venv/bin/ruff check app tests` and `.venv/bin/pytest` are the supported
+  backend checks.
 
 ### Cross-runtime
 
@@ -418,5 +474,7 @@ runtimes must satisfy the same tolerances and diagnostic codes.
   rather than forcing them into geometry objects.
 - MCP: expose registry schemas and handlers through an adapter.
 - Real LLM: implement `LLMPlanner`; retain the same executor and validators.
-- Collaboration/database: replace `JsonDocumentRepository` behind a repository
-  interface; keep document schema and domain services unchanged.
+- Collaboration: add an explicitly user/session-scoped workspace and realtime
+  protocol; do not extend the current process-global REST workspace.
+- Persistence scale: add cloud-list pagination without changing the versioned
+  geometry payload or title-canonicalization rule.

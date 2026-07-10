@@ -1,5 +1,4 @@
 import type {
-  ArcValue,
   CircleValue,
   EvaluatedValue,
   EvaluationMap,
@@ -433,7 +432,6 @@ export class GeometryGraph {
     return recomputed;
   }
 
-  // eslint-disable-next-line complexity
   private evaluateObject(object: GeometryObject): EvaluatedValue {
     const def = object.definition;
     switch (def.type) {

@@ -28,6 +28,7 @@ export interface GeometryState {
     removedObjectIds: readonly GeometryObjectId[],
   ) => void;
   replaceDocument: (document: GeometryDocument) => void;
+  setDocumentTitle: (title: string) => void;
   toggleObjectVisibility: (objectId: GeometryObjectId) => void;
   setObjectLabel: (objectId: GeometryObjectId, label: string) => void;
   setObjectColor: (objectId: GeometryObjectId, color: string | null) => void;
@@ -42,6 +43,7 @@ export interface GeometryState {
 }
 
 const DEFAULT_VIEWPORT: GeometryViewport = { centerX: 0, centerY: 0, scale: 60 };
+export const MAX_HISTORY_SNAPSHOTS = 100;
 
 interface GeometrySnapshot {
   document: GeometryDocument;
@@ -97,6 +99,12 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
 
   const pushHistory = useCallback((snapshot: GeometrySnapshot) => {
     historyRef.current.past.push(snapshot);
+    if (historyRef.current.past.length > MAX_HISTORY_SNAPSHOTS) {
+      historyRef.current.past.splice(
+        0,
+        historyRef.current.past.length - MAX_HISTORY_SNAPSHOTS,
+      );
+    }
     historyRef.current.future = [];
     syncHistoryState();
   }, [syncHistoryState]);
@@ -193,6 +201,21 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
     viewportRef.current = nextViewport;
     setViewportState(nextViewport);
   }, [applyDocument, recordDocumentChange]);
+
+  const setDocumentTitle = useCallback((title: string) => {
+    const trimmed = title.trim();
+    const currentDocument = graphRef.current!.document;
+    if (trimmed === "" || trimmed === currentDocument.title) return;
+    historyRef.current.past = historyRef.current.past.map((snapshot) => ({
+      ...snapshot,
+      document: { ...snapshot.document, title: trimmed },
+    }));
+    historyRef.current.future = historyRef.current.future.map((snapshot) => ({
+      ...snapshot,
+      document: { ...snapshot.document, title: trimmed },
+    }));
+    applyDocument({ ...currentDocument, title: trimmed });
+  }, [applyDocument]);
 
   const toggleObjectVisibility = useCallback((objectId: GeometryObjectId) => {
     recordDocumentChange();
@@ -344,6 +367,7 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
     addObjects,
     applyObjectChanges,
     replaceDocument,
+    setDocumentTitle,
     toggleObjectVisibility,
     setObjectLabel,
     setObjectColor,

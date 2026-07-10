@@ -47,6 +47,8 @@ export function useAuth(): UseAuthResult {
     setError(null);
     try {
       await logoutRequest();
+    } catch {
+      setError("Unable to complete sign out on the server.");
     } finally {
       setUser(null);
     }

@@ -252,7 +252,7 @@ export function GeometryCanvas({
         onPointerWorldChange(world);
       }
     },
-    [activeTool, eventToWorld, onMoveFreePoint, onPointerWorldChange, onViewportChange, selectedObjectIds.length, size],
+    [activeTool, eventToWorld, onMoveFreePoint, onPointerWorldChange, onTranslateObject, onViewportChange, selectedObjectIds.length, size],
   );
 
   const stopDragging = useCallback(

@@ -11,7 +11,7 @@ describe("GeometryDocumentScriptGenerator", () => {
     expect(script).toContain("A = Point(-2, -1)");
     expect(script).toContain("AB = Line(A, B)");
     expect(script).toContain("M = Midpoint(A, B)");
-    expect(script).toContain("altitude = PerpendicularLine(C, AB)");
+    expect(script).toContain("h = PerpendicularLine(C, AB)");
     expect(() => new GeometryGraph(exampleGeometryDocument)).not.toThrow();
   });
 

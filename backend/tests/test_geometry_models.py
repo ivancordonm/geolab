@@ -11,6 +11,7 @@ from app.geometry.models import (
     geometry_document_from_json,
     geometry_document_to_json,
 )
+from app.geometry.script import evaluate_script
 
 FIXTURE_PATH = (
     Path(__file__).resolve().parents[2] / "shared" / "fixtures" / "basic-geometry.json"
@@ -60,6 +61,57 @@ def test_all_supported_constructions_match_shared_fixture() -> None:
     values = dump_values(evaluate_geometry_document(document))
 
     assert_nested_close(values, fixture["initialValues"])
+
+
+def test_frontend_polygon_vertex_arc_and_label_offset_round_trip_and_evaluate() -> None:
+    payload = {
+        "schemaVersion": 1,
+        "id": "frontend-contract",
+        "title": "Frontend contract",
+        "objects": [
+            {
+                "id": "A",
+                "label": "A",
+                "kind": "point",
+                "style": {"labelOffset": {"x": 8, "y": -6}},
+                "definition": {"type": "free", "x": 0, "y": 0},
+            },
+            {"id": "B", "label": "B", "kind": "point", "definition": {"type": "free", "x": 4, "y": 0}},
+            {"id": "C", "label": "C", "kind": "point", "definition": {"type": "free", "x": 2, "y": 3}},
+            {"id": "poly", "label": "poly", "kind": "polygon", "definition": {"type": "polygon", "points": ["A", "B", "C"]}},
+            {"id": "V", "label": "V", "kind": "point", "definition": {"type": "polygon_vertex", "polygon": "poly", "index": 1}},
+            {"id": "arc", "label": "arc", "kind": "arc", "definition": {"type": "arc_through_points", "pointA": "A", "pointMid": "C", "pointB": "B"}},
+        ],
+    }
+
+    document = GeometryDocument.model_validate(payload)
+    serialized = json.loads(geometry_document_to_json(document))
+    values = GeometryGraph(document).values
+
+    assert serialized["objects"][0]["style"]["labelOffset"] == {"x": 8.0, "y": -6.0}
+    assert serialized["objects"][3]["definition"]["points"] == ["A", "B", "C"]
+    assert "pointIds" not in serialized["objects"][3]["definition"]
+    assert values["V"].model_dump() == {"type": "point", "x": 4.0, "y": 0.0}
+    assert values["arc"].type == "arc"
+    assert values["arc"].model_dump()["mid"] == {"x": 2.0, "y": 3.0}
+
+
+def test_polygon_vertex_out_of_range_is_undefined() -> None:
+    document, values = evaluate_frontend_contract_script("V = Vertex(poly, 3)")
+
+    assert document.objects[-1].definition.type == "polygon_vertex"
+    assert values["V"].type == "undefined"
+    assert values["V"].code == "vertex_out_of_range"  # type: ignore[union-attr]
+
+
+def evaluate_frontend_contract_script(last_statement: str):
+    return evaluate_script(
+        "A = Point(0, 0)\n"
+        "B = Point(4, 0)\n"
+        "C = Point(2, 3)\n"
+        "poly = Polygon(A, B, C)\n"
+        f"{last_statement}"
+    )
 
 
 def test_moving_free_point_recomputes_only_transitive_dependants() -> None:

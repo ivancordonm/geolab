@@ -7,6 +7,8 @@ from math import cos, hypot, isfinite, pi, sin, sqrt
 
 from app.geometry.models import (
     AngleBisectorDefinition,
+    ArcThroughPointsDefinition,
+    ArcValue,
     CircleByCenterPointDefinition,
     CircleValue,
     CircumscribedDefinition,
@@ -32,6 +34,7 @@ from app.geometry.models import (
     Point,
     PointValue,
     PolygonDefinition,
+    PolygonVertexDefinition,
     PolygonValue,
     ReflectionOverLineDefinition,
     ReflectionOverPointDefinition,
@@ -72,6 +75,8 @@ def get_parent_ids(obj: GeometryObject) -> list[str]:
     definition = obj.definition
     if isinstance(definition, FreePointDefinition):
         return []
+    if isinstance(definition, PolygonVertexDefinition):
+        return [definition.polygon]
     if isinstance(definition, (LineThroughPointsDefinition, SegmentBetweenPointsDefinition, MidpointDefinition, PerpendicularBisectorDefinition)):
         return [definition.point_a, definition.point_b]
     if isinstance(definition, CircleByCenterPointDefinition):
@@ -102,6 +107,8 @@ def get_parent_ids(obj: GeometryObject) -> list[str]:
         return [definition.object_id, definition.from_, definition.to]
     if isinstance(definition, RotationDefinition):
         return [definition.object_id, definition.center]
+    if isinstance(definition, ArcThroughPointsDefinition):
+        return [definition.point_a, definition.point_mid, definition.point_b]
     if isinstance(definition, FunctionExpressionDefinition):
         return []
     # ─── Polygons ────────────────────────────────────────────────────────────
@@ -190,6 +197,8 @@ class GeometryGraph:
         if isinstance(definition, FreePointDefinition):
             if not isfinite(definition.x) or not isfinite(definition.y):
                 raise GeometryValidationError(f"Point '{obj.id}' coordinates must be finite")
+        elif isinstance(definition, PolygonVertexDefinition):
+            require_kind(definition.polygon, "polygon")
         elif isinstance(definition, (LineThroughPointsDefinition, SegmentBetweenPointsDefinition, MidpointDefinition, PerpendicularBisectorDefinition)):
             require_kind(definition.point_a, "point")
             require_kind(definition.point_b, "point")
@@ -275,6 +284,10 @@ class GeometryGraph:
                 )
             if not isfinite(definition.degrees):
                 raise GeometryValidationError(f"Object '{obj.id}' degrees must be finite")
+        elif isinstance(definition, ArcThroughPointsDefinition):
+            require_kind(definition.point_a, "point")
+            require_kind(definition.point_mid, "point")
+            require_kind(definition.point_b, "point")
         elif isinstance(definition, FunctionExpressionDefinition):
             normalize_function_expression(definition.expression)
         # ─── Polygons ─────────────────────────────────────────────────────────
@@ -339,6 +352,19 @@ class GeometryGraph:
 
         if isinstance(definition, FreePointDefinition):
             return PointValue(x=definition.x, y=definition.y)
+
+        if isinstance(definition, PolygonVertexDefinition):
+            polygon = self._require_value(obj.id, definition.polygon, "polygon")
+            if isinstance(polygon, UndefinedValue):
+                return polygon
+            assert isinstance(polygon, PolygonValue)
+            if definition.index >= len(polygon.vertices):
+                return UndefinedValue(
+                    code="vertex_out_of_range",
+                    message=f"Polygon vertex {definition.index} is out of range",
+                )
+            vertex = polygon.vertices[definition.index]
+            return PointValue(x=_clean_zero(vertex.x), y=_clean_zero(vertex.y))
 
         if isinstance(definition, LineThroughPointsDefinition):
             points = self._require_points(obj.id, definition.point_a, definition.point_b)
@@ -541,6 +567,31 @@ class GeometryGraph:
             if isinstance(source, UndefinedValue):
                 return source
             return _rotate_value(source, ctr, definition.degrees)
+
+        if isinstance(definition, ArcThroughPointsDefinition):
+            point_a = self._require_value(obj.id, definition.point_a, "point")
+            if isinstance(point_a, UndefinedValue):
+                return point_a
+            point_mid = self._require_value(obj.id, definition.point_mid, "point")
+            if isinstance(point_mid, UndefinedValue):
+                return point_mid
+            point_b = self._require_value(obj.id, definition.point_b, "point")
+            if isinstance(point_b, UndefinedValue):
+                return point_b
+            assert isinstance(point_a, PointValue)
+            assert isinstance(point_mid, PointValue)
+            assert isinstance(point_b, PointValue)
+            circle = _circumscribed_circle(point_a, point_mid, point_b)
+            if isinstance(circle, UndefinedValue):
+                return circle
+            assert isinstance(circle, CircleValue)
+            return ArcValue(
+                center=circle.center,
+                radius=circle.radius,
+                start=Coordinate(x=_clean_zero(point_a.x), y=_clean_zero(point_a.y)),
+                mid=Coordinate(x=_clean_zero(point_mid.x), y=_clean_zero(point_mid.y)),
+                end=Coordinate(x=_clean_zero(point_b.x), y=_clean_zero(point_b.y)),
+            )
 
         if isinstance(definition, FunctionExpressionDefinition):
             return FunctionValue(expression=normalize_function_expression(definition.expression))

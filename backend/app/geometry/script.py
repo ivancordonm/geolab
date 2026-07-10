@@ -14,6 +14,8 @@ from app.geometry.function_expression import (
 from app.geometry.models import (
     AngleBisectorLine,
     AngleBisectorDefinition,
+    Arc,
+    ArcThroughPointsDefinition,
     Circle,
     CircleByCenterPointDefinition,
     CircumscribedCircle,
@@ -50,6 +52,8 @@ from app.geometry.models import (
     Point,
     Polygon,
     PolygonDefinition,
+    PolygonVertexDefinition,
+    PolygonVertexPoint,
     ReflectionOverLine,
     ReflectionOverLineDefinition,
     ReflectionOverPoint,
@@ -70,6 +74,7 @@ CommandName = Literal[
     "Segment",
     "Circle",
     "Midpoint",
+    "Vertex",
     "ParallelLine",
     "PerpendicularLine",
     "IntersectionLL",
@@ -84,6 +89,7 @@ CommandName = Literal[
     "Inversion",
     "Translation",
     "Rotation",
+    "Arc",
     "Function",
     "Polygon",
     "VectorPolygon",
@@ -96,6 +102,7 @@ SUPPORTED_COMMANDS: frozenset[str] = frozenset(
         "Segment",
         "Circle",
         "Midpoint",
+        "Vertex",
         "ParallelLine",
         "PerpendicularLine",
         "IntersectionLL",
@@ -110,6 +117,7 @@ SUPPORTED_COMMANDS: frozenset[str] = frozenset(
         "Inversion",
         "Translation",
         "Rotation",
+        "Arc",
         "Function",
         "Polygon",
         "VectorPolygon",
@@ -364,6 +372,19 @@ def _build_object(
         if command == "Midpoint":
             return [Midpoint(id=statement.target, label=statement.target, definition=MidpointDefinition(point_a=first.id, point_b=second.id))]
 
+    if command == "Vertex":
+        _require_arity(statement, 2)
+        polygon = _resolve_reference(arguments[0], statement, symbols, argument_position=1)
+        _require_kind(polygon, "polygon", statement, 1)
+        index = _parse_nonnegative_integer(arguments[1], statement, argument_position=2)
+        return [
+            PolygonVertexPoint(
+                id=statement.target,
+                label=statement.target,
+                definition=PolygonVertexDefinition(polygon=polygon.id, index=index),
+            )
+        ]
+
     if command in ("ParallelLine", "PerpendicularLine"):
         _require_arity(statement, 2)
         point_arg = _resolve_point_argument(arguments[0], statement, symbols, objects, argument_position=1)
@@ -545,6 +566,23 @@ def _build_object(
         degrees = _parse_number(arguments[2], statement, argument_position=3)
         return [RotatedObject(id=statement.target, label=statement.target, kind=source.kind, definition=RotationDefinition(object_id=source.id, center=center.id, degrees=degrees))]
 
+    if command == "Arc":
+        _require_arity(statement, 3)
+        point_a = _resolve_point_argument(arguments[0], statement, symbols, objects, argument_position=1)
+        point_mid = _resolve_point_argument(arguments[1], statement, symbols, objects, argument_position=2)
+        point_b = _resolve_point_argument(arguments[2], statement, symbols, objects, argument_position=3)
+        return [
+            Arc(
+                id=statement.target,
+                label=statement.target,
+                definition=ArcThroughPointsDefinition(
+                    point_a=point_a.id,
+                    point_mid=point_mid.id,
+                    point_b=point_b.id,
+                ),
+            )
+        ]
+
     if command == "Function":
         _require_arity(statement, 1)
         expression = normalize_function_expression(arguments[0])
@@ -697,6 +735,23 @@ def _parse_index(token: str, statement: ParsedStatement, *, argument_position: i
             token,
         )
     return 1 if token.strip() == "1" else 2
+
+
+def _parse_nonnegative_integer(
+    token: str,
+    statement: ParsedStatement,
+    *,
+    argument_position: int,
+) -> int:
+    if re.fullmatch(r"\d+", token.strip()) is None:
+        _raise(
+            "expected_index",
+            f"Argument {argument_position} of {statement.command} must be a non-negative integer, received '{token}'",
+            statement.line,
+            statement.source_line,
+            token,
+        )
+    return int(token.strip())
 
 
 def _parse_selector(

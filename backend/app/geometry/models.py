@@ -25,10 +25,16 @@ class GeometryModel(BaseModel):
 StrokeDash: TypeAlias = Literal["solid", "dashed", "dotted"]
 
 
+class Coordinate(GeometryModel):
+    x: float
+    y: float
+
+
 class GeometryStyle(GeometryModel):
     color: str | None = None
     stroke_width: float | None = None
     stroke_dash: StrokeDash | None = None
+    label_offset: Coordinate | None = None
 
 
 class GeometryObjectBase(GeometryModel):
@@ -75,6 +81,12 @@ class MidpointDefinition(GeometryModel):
     type: Literal["midpoint"] = "midpoint"
     point_a: str
     point_b: str
+
+
+class PolygonVertexDefinition(GeometryModel):
+    type: Literal["polygon_vertex"] = "polygon_vertex"
+    polygon: str
+    index: int = Field(ge=0)
 
 
 class ParallelLineDefinition(GeometryModel):
@@ -215,6 +227,13 @@ class RotationDefinition(GeometryModel):
     degrees: float
 
 
+class ArcThroughPointsDefinition(GeometryModel):
+    type: Literal["arc_through_points"] = "arc_through_points"
+    point_a: str
+    point_mid: str
+    point_b: str
+
+
 class FunctionExpressionDefinition(GeometryModel):
     type: Literal["function_expression"] = "function_expression"
     expression: str
@@ -245,6 +264,11 @@ class Circle(GeometryObjectBase):
 class Midpoint(GeometryObjectBase):
     kind: Literal["point"] = "point"
     definition: MidpointDefinition
+
+
+class PolygonVertexPoint(GeometryObjectBase):
+    kind: Literal["point"] = "point"
+    definition: PolygonVertexDefinition
 
 
 class ParallelLine(GeometryObjectBase):
@@ -328,6 +352,11 @@ class RotatedObject(GeometryObjectBase):
     definition: RotationDefinition
 
 
+class Arc(GeometryObjectBase):
+    kind: Literal["arc"] = "arc"
+    definition: ArcThroughPointsDefinition
+
+
 class FunctionGraph(GeometryObjectBase):
     kind: Literal["function"] = "function"
     definition: FunctionExpressionDefinition
@@ -339,7 +368,10 @@ class PolygonDefinition(GeometryModel):
     """Basic polygon: N ≥ 3 existing point IDs define the vertices in order."""
 
     type: Literal["polygon"] = "polygon"
-    point_ids: list[str]
+    point_ids: list[str] = Field(
+        validation_alias=AliasChoices("points", "pointIds"),
+        serialization_alias="points",
+    )
 
 
 class RegularPolygonDefinition(GeometryModel):
@@ -376,6 +408,7 @@ GeometryObject: TypeAlias = (
     | Segment
     | Circle
     | Midpoint
+    | PolygonVertexPoint
     | ParallelLine
     | PerpendicularLine
     | IntersectionLL
@@ -391,6 +424,7 @@ GeometryObject: TypeAlias = (
     | InversionInCircle
     | TranslatedObject
     | RotatedObject
+    | Arc
     | FunctionGraph
     | Polygon
 )
@@ -441,11 +475,6 @@ class LineValue(GeometryModel):
     c: float
 
 
-class Coordinate(GeometryModel):
-    x: float
-    y: float
-
-
 class SegmentValue(GeometryModel):
     type: Literal["segment"] = "segment"
     start: Coordinate
@@ -456,6 +485,15 @@ class CircleValue(GeometryModel):
     type: Literal["circle"] = "circle"
     center: Coordinate
     radius: float
+
+
+class ArcValue(GeometryModel):
+    type: Literal["arc"] = "arc"
+    center: Coordinate
+    radius: float
+    start: Coordinate
+    mid: Coordinate
+    end: Coordinate
 
 
 class UndefinedValue(GeometryModel):
@@ -474,7 +512,16 @@ class FunctionValue(GeometryModel):
     expression: str
 
 
-EvaluatedValue: TypeAlias = PointValue | LineValue | SegmentValue | CircleValue | PolygonValue | FunctionValue | UndefinedValue
+EvaluatedValue: TypeAlias = (
+    PointValue
+    | LineValue
+    | SegmentValue
+    | CircleValue
+    | ArcValue
+    | PolygonValue
+    | FunctionValue
+    | UndefinedValue
+)
 
 
 def geometry_document_to_json(document: GeometryDocument, *, indent: int | None = 2) -> str:

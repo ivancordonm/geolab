@@ -2,12 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(npm run *)",
-      "Bash(git push *)",
-      "Bash(git commit *)",
-      "Bash(git add *)",
       "Skill(run)",
       "Skill(agent-browser)",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "Bash(agent-browser *)",
+      "Bash(git *)",
+      "Bash(cp /Users/ivan/IdeaProjects/madlab/mathllm/frontend/.env .env)",
+      "Bash(npm install *)",
+      "Bash(xargs -r kill)"
     ]
   }
 }

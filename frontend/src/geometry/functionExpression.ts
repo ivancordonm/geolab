@@ -378,6 +378,7 @@ function evaluateAst(node: AstNode, x: number): number {
         case "^":
           return left ** right;
       }
+      throw new FunctionExpressionError("Unknown binary operator.");
     }
     case "call": {
       const fn = FUNCTIONS[node.name];

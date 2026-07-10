@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import {
   DocumentsApiError,
@@ -8,10 +8,17 @@ import {
   listDocuments,
   updateDocument,
 } from "../api/documentsApi";
-import type { DocumentSummary } from "../types/documents";
+import type { DocumentDetail, DocumentSummary } from "../types/documents";
 import type { GeometryDocument } from "../types/geometry";
 
-type ActionResult<T> = { ok: true; value: T } | { ok: false };
+export type CloudActionResult<T> =
+  | { status: "success"; value: T }
+  | { status: "error"; error: string }
+  | { status: "superseded" };
+
+type RequestResult<T> =
+  | { status: "success"; value: T }
+  | { status: "error"; error: string; unauthorized: boolean };
 
 export interface UseCloudDocumentsResult {
   panelOpen: boolean;
@@ -21,121 +28,257 @@ export interface UseCloudDocumentsResult {
   cloudId: string | null;
   openPanel: () => void;
   closePanel: () => void;
-  saveCurrent: (title: string, document: GeometryDocument) => Promise<boolean>;
-  saveAsNew: (title: string, document: GeometryDocument) => Promise<boolean>;
-  openDocument: (id: string) => Promise<GeometryDocument | null>;
-  renameDocument: (id: string, title: string) => Promise<void>;
-  deleteDocument: (id: string) => Promise<void>;
+  detachDocument: () => void;
+  saveCurrent: (
+    title: string,
+    document: GeometryDocument,
+  ) => Promise<CloudActionResult<DocumentDetail>>;
+  saveAsNew: (
+    title: string,
+    document: GeometryDocument,
+  ) => Promise<CloudActionResult<DocumentDetail>>;
+  openDocument: (id: string) => Promise<CloudActionResult<DocumentDetail>>;
+  renameDocument: (id: string, title: string) => Promise<CloudActionResult<DocumentDetail>>;
+  deleteDocument: (id: string) => Promise<CloudActionResult<void>>;
+}
+
+async function requestResult<T>(action: () => Promise<T>): Promise<RequestResult<T>> {
+  try {
+    return { status: "success", value: await action() };
+  } catch (caughtError) {
+    const unauthorized = caughtError instanceof DocumentsApiError && caughtError.status === 401;
+    return {
+      status: "error",
+      error: unauthorized
+        ? "Your session expired. Please sign in again."
+        : caughtError instanceof Error
+          ? caughtError.message
+          : "Cloud request failed.",
+      unauthorized,
+    };
+  }
 }
 
 export function useCloudDocuments(onUnauthorized: () => void): UseCloudDocumentsResult {
   const [panelOpen, setPanelOpen] = useState(false);
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [cloudId, setCloudId] = useState<string | null>(null);
+  const [associationError, setAssociationError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
+  const [cloudId, setCloudIdState] = useState<string | null>(null);
+  const cloudIdRef = useRef<string | null>(null);
+  const associationGenerationRef = useRef(0);
+  const listGenerationRef = useRef(0);
+  const mutationQueueRef = useRef<Promise<void>>(Promise.resolve());
 
-  const withErrorHandling = useCallback(
-    async <T,>(action: () => Promise<T>): Promise<ActionResult<T>> => {
-      try {
-        const value = await action();
-        return { ok: true, value };
-      } catch (caughtError) {
-        if (caughtError instanceof DocumentsApiError && caughtError.status === 401) {
-          onUnauthorized();
-          setError("Your session expired. Please sign in again.");
-        } else {
-          setError(caughtError instanceof Error ? caughtError.message : "Cloud request failed.");
-        }
-        return { ok: false };
-      }
-    },
-    [onUnauthorized],
+  const enqueueMutation = useCallback(<T,>(action: () => Promise<T>): Promise<T> => {
+    const queued = mutationQueueRef.current.then(action);
+    mutationQueueRef.current = queued.then(
+      () => undefined,
+      () => undefined,
+    );
+    return queued;
+  }, []);
+
+  const setCloudId = useCallback((id: string | null) => {
+    cloudIdRef.current = id;
+    setCloudIdState(id);
+  }, []);
+
+  const invalidateList = useCallback(() => {
+    listGenerationRef.current += 1;
+    setLoading(false);
+    setListError(null);
+  }, []);
+
+  const beginAssociationOperation = useCallback((): number => {
+    associationGenerationRef.current += 1;
+    setAssociationError(null);
+    invalidateList();
+    return associationGenerationRef.current;
+  }, [invalidateList]);
+
+  const isCurrentAssociation = useCallback(
+    (generation: number): boolean => associationGenerationRef.current === generation,
+    [],
   );
 
-  const refreshList = useCallback(async () => {
+  const commitAssociationError = useCallback(
+    (generation: number, result: Extract<RequestResult<unknown>, { status: "error" }>) => {
+      if (!isCurrentAssociation(generation)) return;
+      setAssociationError(result.error);
+      if (result.unauthorized) onUnauthorized();
+    },
+    [isCurrentAssociation, onUnauthorized],
+  );
+
+  const refreshList = useCallback(async (): Promise<CloudActionResult<DocumentSummary[]>> => {
+    const generation = ++listGenerationRef.current;
     setLoading(true);
-    setError(null);
-    const result = await withErrorHandling(() => listDocuments());
-    if (result.ok) {
-      setDocuments(result.value);
+    setListError(null);
+    const result = await requestResult(() => listDocuments());
+    if (listGenerationRef.current !== generation) {
+      return { status: "superseded" };
     }
     setLoading(false);
-  }, [withErrorHandling]);
+    if (result.status === "error") {
+      setListError(result.error);
+      if (result.unauthorized) onUnauthorized();
+      return { status: "error", error: result.error };
+    }
+    setDocuments(result.value);
+    return result;
+  }, [onUnauthorized]);
 
   const openPanel = useCallback(() => {
     setPanelOpen(true);
     void refreshList();
   }, [refreshList]);
 
-  const closePanel = useCallback(() => setPanelOpen(false), []);
+  const closePanel = useCallback(() => {
+    setPanelOpen(false);
+    invalidateList();
+  }, [invalidateList]);
+
+  const detachDocument = useCallback(() => {
+    associationGenerationRef.current += 1;
+    invalidateList();
+    setAssociationError(null);
+    setCloudId(null);
+  }, [invalidateList, setCloudId]);
 
   const saveAsNew = useCallback(
-    async (title: string, document: GeometryDocument): Promise<boolean> => {
-      const result = await withErrorHandling(() => createDocument(title, document));
-      if (result.ok) {
-        setCloudId(result.value.id);
+    async (
+      title: string,
+      document: GeometryDocument,
+    ): Promise<CloudActionResult<DocumentDetail>> => {
+      const generation = beginAssociationOperation();
+      const result = await requestResult(() =>
+        enqueueMutation(() => createDocument(title, document)),
+      );
+      if (!isCurrentAssociation(generation)) return { status: "superseded" };
+      if (result.status === "error") {
+        commitAssociationError(generation, result);
+        return { status: "error", error: result.error };
       }
-      return result.ok;
+      setCloudId(result.value.id);
+      return result;
     },
-    [withErrorHandling],
+    [
+      beginAssociationOperation,
+      commitAssociationError,
+      enqueueMutation,
+      isCurrentAssociation,
+      setCloudId,
+    ],
   );
 
   const saveCurrent = useCallback(
-    async (title: string, document: GeometryDocument): Promise<boolean> => {
-      if (cloudId === null) {
-        return saveAsNew(title, document);
+    async (
+      title: string,
+      document: GeometryDocument,
+    ): Promise<CloudActionResult<DocumentDetail>> => {
+      const generation = beginAssociationOperation();
+      const associatedId = cloudIdRef.current;
+      const result = await requestResult(() =>
+        enqueueMutation(() =>
+          associatedId === null
+            ? createDocument(title, document)
+            : updateDocument(associatedId, { title, document }),
+        ),
+      );
+      if (!isCurrentAssociation(generation)) return { status: "superseded" };
+      if (result.status === "error") {
+        commitAssociationError(generation, result);
+        return { status: "error", error: result.error };
       }
-      const result = await withErrorHandling(() => updateDocument(cloudId, { title, document }));
-      return result.ok;
+      if (associatedId === null) setCloudId(result.value.id);
+      return result;
     },
-    [cloudId, saveAsNew, withErrorHandling],
+    [
+      beginAssociationOperation,
+      commitAssociationError,
+      enqueueMutation,
+      isCurrentAssociation,
+      setCloudId,
+    ],
   );
 
   const openDocument = useCallback(
-    async (id: string): Promise<GeometryDocument | null> => {
-      const result = await withErrorHandling(() => getDocument(id));
-      if (!result.ok) {
-        return null;
+    async (id: string): Promise<CloudActionResult<DocumentDetail>> => {
+      const generation = beginAssociationOperation();
+      const result = await requestResult(() => getDocument(id));
+      if (!isCurrentAssociation(generation)) return { status: "superseded" };
+      if (result.status === "error") {
+        commitAssociationError(generation, result);
+        return { status: "error", error: result.error };
       }
       setCloudId(result.value.id);
       setPanelOpen(false);
-      return result.value.document;
+      return result;
     },
-    [withErrorHandling],
+    [beginAssociationOperation, commitAssociationError, isCurrentAssociation, setCloudId],
   );
 
   const renameDocument = useCallback(
-    async (id: string, title: string) => {
-      const result = await withErrorHandling(() => updateDocument(id, { title }));
-      if (result.ok) {
-        await refreshList();
+    async (id: string, title: string): Promise<CloudActionResult<DocumentDetail>> => {
+      const generation = beginAssociationOperation();
+      const result = await requestResult(() =>
+        enqueueMutation(() => updateDocument(id, { title })),
+      );
+      if (!isCurrentAssociation(generation)) return { status: "superseded" };
+      if (result.status === "error") {
+        commitAssociationError(generation, result);
+        return { status: "error", error: result.error };
       }
+      await refreshList();
+      if (!isCurrentAssociation(generation)) return { status: "superseded" };
+      return result;
     },
-    [refreshList, withErrorHandling],
+    [
+      beginAssociationOperation,
+      commitAssociationError,
+      enqueueMutation,
+      isCurrentAssociation,
+      refreshList,
+    ],
   );
 
   const deleteDocument = useCallback(
-    async (id: string) => {
-      const result = await withErrorHandling(() => deleteDocumentRequest(id));
-      if (result.ok) {
-        if (cloudId === id) {
-          setCloudId(null);
-        }
-        await refreshList();
+    async (id: string): Promise<CloudActionResult<void>> => {
+      const generation = beginAssociationOperation();
+      const result = await requestResult(() =>
+        enqueueMutation(() => deleteDocumentRequest(id)),
+      );
+      if (!isCurrentAssociation(generation)) return { status: "superseded" };
+      if (result.status === "error") {
+        commitAssociationError(generation, result);
+        return { status: "error", error: result.error };
       }
+      if (cloudIdRef.current === id) setCloudId(null);
+      await refreshList();
+      if (!isCurrentAssociation(generation)) return { status: "superseded" };
+      return result;
     },
-    [cloudId, refreshList, withErrorHandling],
+    [
+      beginAssociationOperation,
+      commitAssociationError,
+      enqueueMutation,
+      isCurrentAssociation,
+      refreshList,
+      setCloudId,
+    ],
   );
 
   return {
     panelOpen,
     documents,
     loading,
-    error,
+    error: associationError ?? listError,
     cloudId,
     openPanel,
     closePanel,
+    detachDocument,
     saveCurrent,
     saveAsNew,
     openDocument,

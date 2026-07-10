@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { App, nextFunctionId } from "./App";
+import { exampleGeometryDocument } from "./geometry/example";
 import { saveDocument } from "./persistence/documentPersistence";
 import type { EvaluateScriptResponse } from "./types/script";
 
@@ -62,6 +63,15 @@ function withAuthFallback(
     }
     return handler(input, init);
   });
+}
+
+function cloudDetail(title: string) {
+  return {
+    id: "cloud-1",
+    title,
+    document: { ...exampleGeometryDocument, title },
+    updatedAt: "2026-01-01T00:00:00Z",
+  };
 }
 
 describe("script editor flow", () => {
@@ -257,6 +267,82 @@ describe("script editor flow", () => {
     };
 
     expect(nextFunctionId(documentWithFunctions)).toBe("f_2");
+  });
+});
+
+describe("cloud document title flow", () => {
+  it("keeps the canonical title after save-as-new, open, and active rename", async () => {
+    const user = userEvent.setup();
+    let cloudTitle = "Saved title";
+    const prompt = vi
+      .fn()
+      .mockReturnValueOnce(cloudTitle)
+      .mockReturnValueOnce(null);
+    vi.stubGlobal("prompt", prompt);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === "string" ? input : input.toString();
+        if (url === "/auth/me") {
+          return new Response(
+            JSON.stringify({
+              id: "user-1",
+              email: "ada@example.com",
+              name: "Ada",
+              pictureUrl: null,
+            }),
+            { status: 200 },
+          );
+        }
+        if (url === "/documents" && init?.method === "POST") {
+          cloudTitle = JSON.parse(init.body as string).title as string;
+          return new Response(JSON.stringify(cloudDetail(cloudTitle)), { status: 201 });
+        }
+        if (url === "/documents" && init?.method === undefined) {
+          return new Response(
+            JSON.stringify([
+              { id: "cloud-1", title: cloudTitle, updatedAt: "2026-01-01T00:00:00Z" },
+            ]),
+            { status: 200 },
+          );
+        }
+        if (url === "/documents/cloud-1" && init?.method === undefined) {
+          return new Response(JSON.stringify(cloudDetail(cloudTitle)), { status: 200 });
+        }
+        if (url === "/documents/cloud-1" && init?.method === "PUT") {
+          cloudTitle = JSON.parse(init.body as string).title as string;
+          return new Response(JSON.stringify(cloudDetail(cloudTitle)), { status: 200 });
+        }
+        throw new Error(`Unexpected request: ${url}`);
+      }),
+    );
+
+    render(<App />);
+    await screen.findByRole("button", { name: "Account menu" });
+
+    await user.click(screen.getByRole("button", { name: "Construction actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Save as new..." }));
+    expect(await screen.findByRole("status")).toHaveTextContent("saved to the cloud");
+
+    await user.click(screen.getByRole("button", { name: "Construction actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Open" }));
+    await user.click(await screen.findByRole("button", { name: /^Saved title/ }));
+
+    await user.click(screen.getByRole("button", { name: "Construction actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Open" }));
+    await user.click(await screen.findByRole("button", { name: "Rename Saved title" }));
+    const titleInput = screen.getByDisplayValue("Saved title");
+    await user.clear(titleInput);
+    await user.type(titleInput, "Renamed title{Enter}");
+    await screen.findByRole("button", { name: "Rename Renamed title" });
+    await user.click(screen.getByRole("button", { name: "Close" }));
+
+    await user.click(screen.getByRole("button", { name: "Construction actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Save as new..." }));
+    expect(prompt).toHaveBeenLastCalledWith(
+      "Title for the new construction:",
+      "Renamed title",
+    );
   });
 });
 

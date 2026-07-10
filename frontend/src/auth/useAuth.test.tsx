@@ -81,4 +81,31 @@ describe("useAuth", () => {
 
     expect(result.current.user).toBeNull();
   });
+
+  it("signOut clears the local user and exposes an error without rejecting on failure", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({ id: "1", email: "a@example.com", name: "Ada", pictureUrl: null }),
+            { status: 200 },
+          ),
+        )
+        .mockResolvedValueOnce(new Response(null, { status: 500 })),
+    );
+
+    const { result } = renderHook(() => useAuth());
+    await waitFor(() => expect(result.current.user).not.toBeNull());
+
+    await expect(
+      act(async () => {
+        await result.current.signOut();
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(result.current.user).toBeNull();
+    expect(result.current.error).toBe("Unable to complete sign out on the server.");
+  });
 });

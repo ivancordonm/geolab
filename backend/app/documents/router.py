@@ -24,12 +24,21 @@ def _summary(document: Document) -> DocumentSummary:
 
 
 def _detail(document: Document) -> DocumentDetail:
+    geometry_document = GeometryDocument.model_validate(document.data).model_copy(
+        update={"title": document.title}
+    )
     return DocumentDetail(
         id=document.id,
         title=document.title,
-        document=GeometryDocument.model_validate(document.data),
+        document=geometry_document,
         updated_at=document.updated_at,
     )
+
+
+def _document_data(document: GeometryDocument, title: str) -> dict:
+    """Serialize a geometry document with the database row title as canonical."""
+
+    return document.model_copy(update={"title": title}).model_dump(by_alias=True)
 
 
 def _get_owned_document(session: Session, user: User, document_id: str) -> Document:
@@ -63,7 +72,7 @@ def create_document(
         user_id=user.id,
         title=request.title,
         schema_version=request.document.schema_version,
-        data=request.document.model_dump(by_alias=True),
+        data=_document_data(request.document, request.title),
     )
     session.add(document)
     session.commit()
@@ -92,7 +101,10 @@ def update_document(
         document.title = request.title
     if request.document is not None:
         document.schema_version = request.document.schema_version
-        document.data = request.document.model_dump(by_alias=True)
+        document.data = _document_data(request.document, document.title)
+    elif request.title is not None:
+        stored_document = GeometryDocument.model_validate(document.data)
+        document.data = _document_data(stored_document, document.title)
     session.commit()
     session.refresh(document)
     return _detail(document)

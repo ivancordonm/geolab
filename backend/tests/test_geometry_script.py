@@ -1,5 +1,7 @@
 import pytest
 
+from app.geometry.engine import GeometryGraph
+from app.geometry.models import geometry_document_from_json, geometry_document_to_json
 from app.geometry.script import ConstructionScriptError, evaluate_script, parse_script
 
 VALID_SCRIPT = """# A triangle with dependent constructions
@@ -58,6 +60,33 @@ def test_valid_script_converts_to_shared_model_and_evaluates() -> None:
     assert values["M"].model_dump() == {"type": "point", "x": 2.0, "y": 0.0}
     assert values["h"].model_dump() == {"type": "line", "a": 1.0, "b": 0.0, "c": -2.0}
     assert values["c1"].type == "circle"
+
+
+def test_frontend_export_equivalent_script_round_trips_vertex_and_arc() -> None:
+    script = (
+        "A = Point(0, 0)\n"
+        "B = Point(4, 0)\n"
+        "C = Point(2, 3)\n"
+        "poly = Polygon(A, B, C)\n"
+        "V = Vertex(poly, 1)\n"
+        "arc = Arc(A, C, B)"
+    )
+
+    document, values = evaluate_script(script, document_id="frontend-round-trip")
+    restored = geometry_document_from_json(geometry_document_to_json(document))
+    restored_values = GeometryGraph(restored).values
+
+    assert [obj.definition.type for obj in restored.objects[-2:]] == [
+        "polygon_vertex",
+        "arc_through_points",
+    ]
+    assert restored.objects[3].model_dump(by_alias=True)["definition"]["points"] == [
+        "A",
+        "B",
+        "C",
+    ]
+    assert restored_values["V"] == values["V"]
+    assert restored_values["arc"] == values["arc"]
 
 
 def test_function_command_creates_a_graph_object() -> None:

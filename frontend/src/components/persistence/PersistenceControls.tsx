@@ -154,6 +154,13 @@ export function PersistenceControls({
           <MenuItem icon={<FileCode size={16} aria-hidden />} onClick={() => run(onExportScript)}>
             Export Script
           </MenuItem>
+          <div className="my-1 h-px bg-edge" role="separator" />
+          <MenuItem icon={<Save size={16} aria-hidden />} onClick={() => run(onSave)}>
+            Save locally
+          </MenuItem>
+          <MenuItem icon={<FolderOpen size={16} aria-hidden />} onClick={() => run(onLoad)}>
+            Load local save
+          </MenuItem>
           {cloudEnabled ? (
             <>
               <div className="my-1 h-px bg-edge" role="separator" />

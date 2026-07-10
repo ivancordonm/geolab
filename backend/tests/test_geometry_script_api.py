@@ -62,3 +62,26 @@ def test_evaluate_script_endpoint_supports_function_graphs() -> None:
         "expression": "sin(x) + sqrt(Abs(x))",
     }
     assert payload["values"]["f"] == {"type": "function", "expression": "sin(x) + sqrt(Abs(x))"}
+
+
+def test_evaluate_script_endpoint_returns_polygon_vertex_and_arc_values() -> None:
+    response = client.post(
+        "/geometry/evaluate-script",
+        json={
+            "script": (
+                "A = Point(0, 0)\n"
+                "B = Point(4, 0)\n"
+                "C = Point(2, 3)\n"
+                "poly = Polygon(A, B, C)\n"
+                "V = Vertex(poly, 1)\n"
+                "arc = Arc(A, C, B)"
+            )
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["document"]["objects"][3]["definition"]["points"] == ["A", "B", "C"]
+    assert payload["values"]["V"] == {"type": "point", "x": 4.0, "y": 0.0}
+    assert payload["values"]["arc"]["type"] == "arc"
+    assert payload["values"]["arc"]["mid"] == {"x": 2.0, "y": 3.0}

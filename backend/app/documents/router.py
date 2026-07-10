@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import secrets
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -11,6 +13,7 @@ from app.documents.schemas import (
     DocumentDetail,
     DocumentSummary,
     SaveDocumentRequest,
+    ShareResponse,
     UpdateDocumentRequest,
 )
 from app.geometry.models import GeometryDocument
@@ -32,6 +35,7 @@ def _detail(document: Document) -> DocumentDetail:
         title=document.title,
         document=geometry_document,
         updated_at=document.updated_at,
+        shared=document.share_token is not None,
     )
 
 
@@ -118,4 +122,29 @@ def delete_document(
 ) -> None:
     document = _get_owned_document(session, user, document_id)
     session.delete(document)
+    session.commit()
+
+
+@router.post("/{document_id}/share", response_model=ShareResponse)
+def share_document(
+    document_id: str,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_db),
+) -> ShareResponse:
+    document = _get_owned_document(session, user, document_id)
+    if document.share_token is None:
+        document.share_token = secrets.token_urlsafe(16)
+        session.commit()
+        session.refresh(document)
+    return ShareResponse(token=document.share_token)
+
+
+@router.delete("/{document_id}/share", status_code=status.HTTP_204_NO_CONTENT)
+def unshare_document(
+    document_id: str,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_db),
+) -> None:
+    document = _get_owned_document(session, user, document_id)
+    document.share_token = None
     session.commit()

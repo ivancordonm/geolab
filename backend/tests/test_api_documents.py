@@ -152,3 +152,47 @@ def test_document_share_token_column_defaults_to_none(client, monkeypatch) -> No
         assert document.share_token is None
     finally:
         session.close()
+
+
+def test_share_generates_token_and_is_idempotent(client, monkeypatch) -> None:
+    _login(client, monkeypatch, sub="user-a", email="a@example.com")
+    doc_id = client.post(
+        "/documents", json={"title": "T", "document": _sample_document()}
+    ).json()["id"]
+
+    first = client.post(f"/documents/{doc_id}/share")
+    assert first.status_code == 200
+    token = first.json()["token"]
+    assert token
+
+    second = client.post(f"/documents/{doc_id}/share")
+    assert second.status_code == 200
+    assert second.json()["token"] == token
+
+    detail = client.get(f"/documents/{doc_id}").json()
+    assert detail["shared"] is True
+
+
+def test_unshare_clears_token(client, monkeypatch) -> None:
+    _login(client, monkeypatch, sub="user-a", email="a@example.com")
+    doc_id = client.post(
+        "/documents", json={"title": "T", "document": _sample_document()}
+    ).json()["id"]
+    client.post(f"/documents/{doc_id}/share")
+
+    revoke = client.delete(f"/documents/{doc_id}/share")
+    assert revoke.status_code == 204
+
+    detail = client.get(f"/documents/{doc_id}").json()
+    assert detail["shared"] is False
+
+
+def test_share_other_users_document_is_not_found(client, monkeypatch) -> None:
+    _login(client, monkeypatch, sub="user-a", email="a@example.com")
+    doc_id = client.post(
+        "/documents", json={"title": "T", "document": _sample_document()}
+    ).json()["id"]
+    _login(client, monkeypatch, sub="user-b", email="b@example.com")
+
+    assert client.post(f"/documents/{doc_id}/share").status_code == 404
+    assert client.delete(f"/documents/{doc_id}/share").status_code == 404

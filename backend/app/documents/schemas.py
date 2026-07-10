@@ -46,3 +46,8 @@ class DocumentDetail(GeometryModel):
     title: str
     document: GeometryDocument
     updated_at: datetime
+    shared: bool = False
+
+
+class ShareResponse(GeometryModel):
+    token: str

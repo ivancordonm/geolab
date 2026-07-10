@@ -2,10 +2,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
-    { "source": "/auth/:path*", "destination": "https://geolab-seven.vercel.app/auth/:path*" },
-    { "source": "/documents/:path*", "destination": "https://geolab-seven.vercel.app/documents/:path*" },
-    { "source": "/geometry/:path*", "destination": "https://geolab-seven.vercel.app/geometry/:path*" },
-    { "source": "/agent/:path*", "destination": "https://geolab-seven.vercel.app/agent/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

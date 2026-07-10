@@ -20,6 +20,7 @@ class Settings:
     jwt_expire_days: int
     app_env: str
     frontend_origins: list[str]
+    cookie_domain: str | None
 
     @property
     def cookie_secure(self) -> bool:
@@ -40,6 +41,7 @@ def get_settings() -> Settings:
         frontend_origins=_parse_origins(
             os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
         ),
+        cookie_domain=os.getenv("COOKIE_DOMAIN"),
     )
 
 

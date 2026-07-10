@@ -35,6 +35,7 @@ def _set_session_cookie(response: Response, user_id: str) -> None:
         samesite=settings.cookie_samesite,
         max_age=settings.jwt_expire_days * 24 * 60 * 60,
         path="/",
+        domain=settings.cookie_domain,
     )
 
 
@@ -84,6 +85,7 @@ def logout(response: Response) -> None:
         httponly=True,
         secure=settings.cookie_secure,
         samesite=settings.cookie_samesite,
+        domain=settings.cookie_domain,
     )
 
 

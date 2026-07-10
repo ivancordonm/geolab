@@ -10,7 +10,7 @@ import {
   Undo2,
 } from "lucide-react";
 
-import { shareDocument, unshareDocument } from "./api/documentsApi";
+import { fetchSharedDocument, shareDocument, unshareDocument } from "./api/documentsApi";
 import { evaluateConstructionScript, ScriptEvaluationError } from "./api/geometryApi";
 import { useAuth } from "./auth/useAuth";
 import { AssistantPanel } from "./components/assistant/AssistantPanel";
@@ -37,6 +37,7 @@ import {
   saveDocument,
 } from "./persistence/documentPersistence";
 import { downloadTextFile } from "./persistence/download";
+import { readShareTokenFromLocation } from "./persistence/sharedLink";
 import { useAutoSaveDocument } from "./persistence/useAutoSaveDocument";
 import {
   useCloudDocuments,
@@ -90,6 +91,7 @@ export function App() {
   }>({ message: null, error: startup.error });
   const [panelOpen, setPanelOpen] = useState(true);
   const [shared, setShared] = useState(false);
+  const [viewingShared, setViewingShared] = useState(false);
 
   useEffect(() => {
     if (persistenceNotice.message === null && persistenceNotice.error === null) return;
@@ -193,6 +195,25 @@ export function App() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [geometry, handleDeleteObject, selectedObjectId]);
+
+  useEffect(() => {
+    const token = readShareTokenFromLocation(window.location);
+    if (token === null) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    void (async () => {
+      try {
+        const shared = await fetchSharedDocument(token);
+        detachCloudDocument();
+        replaceConstruction(shared.document);
+        setShared(false);
+        setViewingShared(true);
+      } catch {
+        setPersistenceNotice({ message: null, error: "This shared link is no longer available." });
+      }
+    })();
+    // Run once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSave = useCallback(() => {
     try {
@@ -465,6 +486,22 @@ export function App() {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden">
+      {viewingShared && (
+        <div
+          className="absolute left-1/2 top-3 z-20 -translate-x-1/2 max-w-[90vw] rounded-card border border-edge bg-surface/95 px-4 py-2 text-sm text-muted shadow-card backdrop-blur"
+          role="status"
+        >
+          Viewing a shared construction. Changes are not saved to the original — sign in and use
+          &ldquo;Save as new&rdquo; to keep a copy.
+          <button
+            type="button"
+            onClick={() => setViewingShared(false)}
+            className="ml-3 rounded-md border border-edge px-2 py-0.5 text-xs font-semibold text-muted hover:text-content"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
       {/* Capa base: canvas a pantalla completa */}
       <div className="absolute inset-0">
         <GeometryCanvas

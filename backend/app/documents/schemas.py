@@ -51,3 +51,9 @@ class DocumentDetail(GeometryModel):
 
 class ShareResponse(GeometryModel):
     token: str
+
+
+class PublicDocument(GeometryModel):
+    title: str
+    document: GeometryDocument
+    updated_at: datetime

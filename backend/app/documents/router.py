@@ -12,6 +12,7 @@ from app.db import get_db
 from app.documents.schemas import (
     DocumentDetail,
     DocumentSummary,
+    PublicDocument,
     SaveDocumentRequest,
     ShareResponse,
     UpdateDocumentRequest,
@@ -82,6 +83,24 @@ def create_document(
     session.commit()
     session.refresh(document)
     return _detail(document)
+
+
+@router.get("/shared/{token}", response_model=PublicDocument)
+def read_shared_document(
+    token: str,
+    session: Session = Depends(get_db),
+) -> PublicDocument:
+    document = session.query(Document).filter_by(share_token=token).one_or_none()
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+    geometry_document = GeometryDocument.model_validate(document.data).model_copy(
+        update={"title": document.title}
+    )
+    return PublicDocument(
+        title=document.title,
+        document=geometry_document,
+        updated_at=document.updated_at,
+    )
 
 
 @router.get("/{document_id}", response_model=DocumentDetail)

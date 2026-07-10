@@ -10,6 +10,7 @@ import {
   Undo2,
 } from "lucide-react";
 
+import { shareDocument, unshareDocument } from "./api/documentsApi";
 import { evaluateConstructionScript, ScriptEvaluationError } from "./api/geometryApi";
 import { useAuth } from "./auth/useAuth";
 import { AssistantPanel } from "./components/assistant/AssistantPanel";
@@ -88,6 +89,7 @@ export function App() {
     error: string | null;
   }>({ message: null, error: startup.error });
   const [panelOpen, setPanelOpen] = useState(true);
+  const [shared, setShared] = useState(false);
 
   useEffect(() => {
     if (persistenceNotice.message === null && persistenceNotice.error === null) return;
@@ -209,6 +211,7 @@ export function App() {
         return;
       }
       detachCloudDocument();
+      setShared(false);
       replaceConstruction(saved);
       setPersistenceNotice({ message: "Saved construction loaded.", error: null });
     } catch (error) {
@@ -219,6 +222,7 @@ export function App() {
   const handleClear = useCallback(() => {
     clearDocument();
     detachCloudDocument();
+    setShared(false);
     replaceConstruction(createEmptyDocument(geometry.viewport));
     setPersistenceNotice({ message: "Construction cleared.", error: null });
   }, [detachCloudDocument, geometry.viewport, replaceConstruction]);
@@ -228,6 +232,7 @@ export function App() {
       try {
         const imported = importDocumentJson(serialized);
         detachCloudDocument();
+        setShared(false);
         replaceConstruction(imported);
         setPersistenceNotice({ message: "JSON construction imported.", error: null });
       } catch (error) {
@@ -291,12 +296,56 @@ export function App() {
     }
   }, [currentDocument, geometry.document.title, reportCloudSaveResult, saveAsNewCloudDocument]);
 
+  const handleShare = useCallback(() => {
+    void (async () => {
+      let id = cloudId;
+      if (id === null) {
+        const title = window.prompt("Title for this construction:", geometry.document.title);
+        if (title === null || title.trim() === "") return;
+        const result = await saveAsNewCloudDocument(title.trim(), currentDocument());
+        if (result.status !== "success") {
+          if (result.status === "error") setPersistenceNotice({ message: null, error: result.error });
+          return;
+        }
+        setGeometryDocumentTitle(result.value.title);
+        id = result.value.id;
+      }
+      try {
+        const { token } = await shareDocument(id);
+        const url = `${window.location.origin}/?share=${token}`;
+        try {
+          await navigator.clipboard.writeText(url);
+          setPersistenceNotice({ message: "Share link copied.", error: null });
+        } catch {
+          setPersistenceNotice({ message: url, error: null });
+        }
+        setShared(true);
+      } catch (error) {
+        reportPersistenceError(asError(error, "Unable to share construction."));
+      }
+    })();
+  }, [cloudId, currentDocument, geometry.document.title, reportPersistenceError, saveAsNewCloudDocument, setGeometryDocumentTitle]);
+
+  const handleStopSharing = useCallback(() => {
+    if (cloudId === null) return;
+    void (async () => {
+      try {
+        await unshareDocument(cloudId);
+        setShared(false);
+        setPersistenceNotice({ message: "Sharing stopped.", error: null });
+      } catch (error) {
+        reportPersistenceError(asError(error, "Unable to stop sharing."));
+      }
+    })();
+  }, [cloudId, reportPersistenceError]);
+
   const handleOpenCloudDocument = useCallback(
     (id: string) => {
       void (async () => {
         const result = await openCloudDocument(id);
         if (result.status === "success") {
           replaceConstruction(result.value.document);
+          setShared(result.value.shared);
           setPersistenceNotice({ message: "Cloud construction loaded.", error: null });
         }
       })();
@@ -398,9 +447,12 @@ export function App() {
         onExportScript={handleExportScript}
         menuSide="right"
         cloudEnabled={auth.user !== null}
+        shared={shared}
         onSaveToCloud={handleSaveToCloud}
         onSaveAsNewToCloud={handleSaveAsNewToCloud}
         onOpenCloudPanel={openCloudPanel}
+        onShare={handleShare}
+        onStopSharing={handleStopSharing}
       />
     </>
   );

@@ -9,6 +9,7 @@ import {
   FileCode,
   FolderOpen,
   Save,
+  Share2,
   Trash2,
   Upload,
   UploadCloud,
@@ -27,9 +28,12 @@ interface PersistenceControlsProps {
   /** Lado hacia el que se abre el menú desplegable. Por defecto "right" (abre hacia la derecha). */
   menuSide?: "right" | "left";
   cloudEnabled?: boolean;
+  shared?: boolean;
   onSaveToCloud?: () => void;
   onSaveAsNewToCloud?: () => void;
   onOpenCloudPanel?: () => void;
+  onShare?: () => void;
+  onStopSharing?: () => void;
 }
 
 export function PersistenceControls({
@@ -44,9 +48,12 @@ export function PersistenceControls({
   onExportScript,
   menuSide = "right",
   cloudEnabled = false,
+  shared = false,
   onSaveToCloud,
   onSaveAsNewToCloud,
   onOpenCloudPanel,
+  onShare,
+  onStopSharing,
 }: PersistenceControlsProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -182,6 +189,21 @@ export function PersistenceControls({
               >
                 Open
               </MenuItem>
+              {shared ? (
+                <MenuItem
+                  icon={<Share2 size={16} aria-hidden />}
+                  onClick={() => run(() => onStopSharing?.())}
+                >
+                  Stop sharing
+                </MenuItem>
+              ) : (
+                <MenuItem
+                  icon={<Share2 size={16} aria-hidden />}
+                  onClick={() => run(() => onShare?.())}
+                >
+                  Share...
+                </MenuItem>
+              )}
             </>
           ) : null}
           <div className="my-1 h-px bg-edge" role="separator" />

@@ -117,6 +117,38 @@ The frontend assistant sends its selected OpenAI-compatible base URL, model,
 and API key with the planning request. “Remember key” controls whether the
 browser uses local or session storage; do not enable it on an untrusted device.
 
+## Production deployment (Vercel)
+
+Two separate Vercel projects, each with a custom subdomain of `anticentro.es`:
+
+| Project  | Custom domain                | Raw Vercel URL             |
+|----------|------------------------------|----------------------------|
+| Frontend | `geolab.anticentro.es`       | `geolab-seven.vercel.app`  |
+| Backend  | `geolab-api.anticentro.es`   | (FastAPI)                  |
+
+**The frontend must reach the backend through its custom domain, same-origin —
+never through the raw `*.vercel.app` URL.** The session cookie (`geolab_session`)
+is `HttpOnly; Secure; SameSite=None`. If the browser calls
+`geolab-seven.vercel.app` from a page on `geolab.anticentro.es`, the request is
+cross-site (`vercel.app` ≠ `anticentro.es`), so the cookie is third-party and
+gets dropped by Safari/ITP and third-party-cookie blockers — the session is lost
+on every tab/browser close.
+
+To keep the cookie first-party, `frontend/vercel.json` proxies `/auth`,
+`/documents`, `/geometry`, and `/agent` same-origin to
+`https://geolab-api.anticentro.es`. Required environment configuration:
+
+- **Frontend project:** leave `VITE_API_BASE_URL` **empty** so API calls are
+  relative and hit the same origin (then get proxied). Setting it to any
+  `*.vercel.app` URL reintroduces the third-party-cookie bug.
+- **Backend project:** `COOKIE_DOMAIN` unset (host-only on
+  `geolab.anticentro.es`, recommended) or `.anticentro.es`; `APP_ENV=production`;
+  and `FRONTEND_ORIGIN` including `https://geolab.anticentro.es`.
+
+Verify after deploy: DevTools → Network shows `/auth/me` going to
+`geolab.anticentro.es` (not `*.vercel.app`), and Application → Cookies shows
+`geolab_session` with a real `Expires` date (not `Session`).
+
 ## HTTP and MCP surfaces
 
 Important REST routes:

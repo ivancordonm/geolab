@@ -145,6 +145,23 @@ SymPy input is never evaluated directly. All requests are parsed through an allo
 ### Agent approval boundary
 The planner (`/agent/plan`) returns a proposal with a validated script. The UI previews the script and requires explicit user click to apply it via `/geometry/evaluate-script`. The planner never mutates state. This preserves user agency and makes debugging deterministic (the same script always produces the same geometry).
 
+## Production deployment topology
+
+Two separate Vercel projects, each on a custom subdomain of `anticentro.es`:
+
+- **Frontend:** `geolab.anticentro.es` (raw Vercel URL `geolab-seven.vercel.app`)
+- **Backend (FastAPI):** `geolab-api.anticentro.es`
+
+The `geolab_session` cookie is `HttpOnly; Secure; SameSite=None`. The frontend
+must call the backend **same-origin via its custom domain**, never the raw
+`*.vercel.app` URL — `vercel.app` and `anticentro.es` are different sites, so a
+cross-`vercel.app` call makes the cookie third-party and it is dropped on
+tab/browser close (Safari/ITP, third-party-cookie blockers). To keep it
+first-party, `frontend/vercel.json` proxies `/auth`, `/documents`, `/geometry`,
+and `/agent` same-origin to `https://geolab-api.anticentro.es`, and
+`VITE_API_BASE_URL` must stay **empty** in the frontend Vercel project. See the
+"Production deployment (Vercel)" section of `README.md` for the full checklist.
+
 ## Known limitations and future work
 
 - **No symbolic validation yet:** The `/geometry/validate` endpoint is not implemented. Complex algebra and proof is deferred.

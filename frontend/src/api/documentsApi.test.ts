@@ -4,8 +4,11 @@ import {
   DocumentsApiError,
   createDocument,
   deleteDocument,
+  fetchSharedDocument,
   getDocument,
   listDocuments,
+  shareDocument,
+  unshareDocument,
   updateDocument,
 } from "./documentsApi";
 
@@ -93,5 +96,61 @@ describe("documentsApi", () => {
 
     const [, init] = fetchMock.mock.calls[0];
     expect(JSON.parse(init.body as string)).toEqual({ title: "Renamed" });
+  });
+
+  it("shares a document and returns the token", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ token: "abc123" }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await shareDocument("doc-1");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/documents/doc-1/share",
+      expect.objectContaining({ method: "POST", credentials: "include" }),
+    );
+    expect(result).toEqual({ token: "abc123" });
+  });
+
+  it("unshares a document", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await unshareDocument("doc-1");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/documents/doc-1/share",
+      expect.objectContaining({ method: "DELETE", credentials: "include" }),
+    );
+  });
+
+  it("fetches a shared document by token", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          title: "Shared",
+          document: sampleDocument,
+          updatedAt: "2026-01-01T00:00:00Z",
+        }),
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await fetchSharedDocument("tok");
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/documents/shared/tok",
+      expect.objectContaining({ credentials: "include" }),
+    );
+    expect(result.title).toBe("Shared");
+  });
+
+  it("throws DocumentsApiError for an unknown shared token", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 404 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(fetchSharedDocument("nope")).rejects.toBeInstanceOf(DocumentsApiError);
   });
 });

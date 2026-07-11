@@ -233,6 +233,7 @@ export function App() {
       }
       detachCloudDocument();
       setShared(false);
+      setViewingShared(false);
       replaceConstruction(saved);
       setPersistenceNotice({ message: "Saved construction loaded.", error: null });
     } catch (error) {
@@ -244,6 +245,7 @@ export function App() {
     clearDocument();
     detachCloudDocument();
     setShared(false);
+    setViewingShared(false);
     replaceConstruction(createEmptyDocument(geometry.viewport));
     setPersistenceNotice({ message: "Construction cleared.", error: null });
   }, [detachCloudDocument, geometry.viewport, replaceConstruction]);
@@ -254,6 +256,7 @@ export function App() {
         const imported = importDocumentJson(serialized);
         detachCloudDocument();
         setShared(false);
+        setViewingShared(false);
         replaceConstruction(imported);
         setPersistenceNotice({ message: "JSON construction imported.", error: null });
       } catch (error) {
@@ -367,6 +370,7 @@ export function App() {
         if (result.status === "success") {
           replaceConstruction(result.value.document);
           setShared(result.value.shared);
+          setViewingShared(false);
           setPersistenceNotice({ message: "Cloud construction loaded.", error: null });
         }
       })();
@@ -668,7 +672,13 @@ export function App() {
         onClose={closeCloudPanel}
         onOpenDocument={handleOpenCloudDocument}
         onRenameDocument={handleRenameCloudDocument}
-        onDeleteDocument={(id) => void deleteCloudDocument(id)}
+        onDeleteDocument={(id) => {
+          if (id === cloudId) {
+            setShared(false);
+            setViewingShared(false);
+          }
+          void deleteCloudDocument(id);
+        }}
       />
     </div>
   );

@@ -21,6 +21,7 @@ import { ObjectList } from "./components/panel/ObjectList";
 import { ScriptEditor } from "./components/panel/ScriptEditor";
 import { CloudDocumentsPanel } from "./components/persistence/CloudDocumentsPanel";
 import { PersistenceControls } from "./components/persistence/PersistenceControls";
+import { ShareDialog } from "./components/persistence/ShareDialog";
 import { SidebarTabs } from "./components/SidebarTabs";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { useTheme } from "./theme/useTheme";
@@ -92,6 +93,7 @@ export function App() {
   const [panelOpen, setPanelOpen] = useState(true);
   const [shared, setShared] = useState(false);
   const [viewingShared, setViewingShared] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (persistenceNotice.message === null && persistenceNotice.error === null) return;
@@ -234,6 +236,7 @@ export function App() {
       detachCloudDocument();
       setShared(false);
       setViewingShared(false);
+      setShareUrl(null);
       replaceConstruction(saved);
       setPersistenceNotice({ message: "Saved construction loaded.", error: null });
     } catch (error) {
@@ -246,6 +249,7 @@ export function App() {
     detachCloudDocument();
     setShared(false);
     setViewingShared(false);
+    setShareUrl(null);
     replaceConstruction(createEmptyDocument(geometry.viewport));
     setPersistenceNotice({ message: "Construction cleared.", error: null });
   }, [detachCloudDocument, geometry.viewport, replaceConstruction]);
@@ -257,6 +261,7 @@ export function App() {
         detachCloudDocument();
         setShared(false);
         setViewingShared(false);
+        setShareUrl(null);
         replaceConstruction(imported);
         setPersistenceNotice({ message: "JSON construction imported.", error: null });
       } catch (error) {
@@ -337,13 +342,8 @@ export function App() {
       try {
         const { token } = await shareDocument(id);
         const url = `${window.location.origin}/?share=${token}`;
-        try {
-          await navigator.clipboard.writeText(url);
-          setPersistenceNotice({ message: "Share link copied.", error: null });
-        } catch {
-          setPersistenceNotice({ message: url, error: null });
-        }
         setShared(true);
+        setShareUrl(url);
       } catch (error) {
         reportPersistenceError(asError(error, "Unable to share construction."));
       }
@@ -371,6 +371,7 @@ export function App() {
           replaceConstruction(result.value.document);
           setShared(result.value.shared);
           setViewingShared(false);
+          setShareUrl(null);
           setPersistenceNotice({ message: "Cloud construction loaded.", error: null });
         }
       })();
@@ -676,9 +677,17 @@ export function App() {
           if (id === cloudId) {
             setShared(false);
             setViewingShared(false);
+            setShareUrl(null);
           }
           void deleteCloudDocument(id);
         }}
+      />
+
+      <ShareDialog
+        open={shareUrl !== null}
+        url={shareUrl}
+        onClose={() => setShareUrl(null)}
+        onStopSharing={handleStopSharing}
       />
     </div>
   );

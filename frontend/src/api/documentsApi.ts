@@ -1,4 +1,4 @@
-import type { DocumentDetail, DocumentSummary } from "../types/documents";
+import type { DocumentDetail, DocumentSummary, PublicDocumentDetail } from "../types/documents";
 import type { GeometryDocument } from "../types/geometry";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -58,4 +58,16 @@ export function updateDocument(
 
 export function deleteDocument(id: string): Promise<void> {
   return request<void>(`/documents/${id}`, { method: "DELETE" });
+}
+
+export function shareDocument(id: string): Promise<{ token: string }> {
+  return request<{ token: string }>(`/documents/${id}/share`, { method: "POST" });
+}
+
+export function unshareDocument(id: string): Promise<void> {
+  return request<void>(`/documents/${id}/share`, { method: "DELETE" });
+}
+
+export function fetchSharedDocument(token: string): Promise<PublicDocumentDetail> {
+  return request<PublicDocumentDetail>(`/documents/shared/${token}`);
 }

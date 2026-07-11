@@ -45,6 +45,9 @@ class Document(Base):
     title: Mapped[str] = mapped_column(String, nullable=False)
     schema_version: Mapped[int] = mapped_column(Integer, nullable=False)
     data: Mapped[dict] = mapped_column(JSON, nullable=False)
+    share_token: Mapped[str | None] = mapped_column(
+        String(64), unique=True, nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow

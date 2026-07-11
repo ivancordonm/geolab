@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import secrets
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -10,7 +12,9 @@ from app.db import get_db
 from app.documents.schemas import (
     DocumentDetail,
     DocumentSummary,
+    PublicDocument,
     SaveDocumentRequest,
+    ShareResponse,
     UpdateDocumentRequest,
 )
 from app.geometry.models import GeometryDocument
@@ -32,6 +36,7 @@ def _detail(document: Document) -> DocumentDetail:
         title=document.title,
         document=geometry_document,
         updated_at=document.updated_at,
+        shared=document.share_token is not None,
     )
 
 
@@ -80,6 +85,24 @@ def create_document(
     return _detail(document)
 
 
+@router.get("/shared/{token}", response_model=PublicDocument)
+def read_shared_document(
+    token: str,
+    session: Session = Depends(get_db),
+) -> PublicDocument:
+    document = session.query(Document).filter_by(share_token=token).one_or_none()
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+    geometry_document = GeometryDocument.model_validate(document.data).model_copy(
+        update={"title": document.title}
+    )
+    return PublicDocument(
+        title=document.title,
+        document=geometry_document,
+        updated_at=document.updated_at,
+    )
+
+
 @router.get("/{document_id}", response_model=DocumentDetail)
 def get_document(
     document_id: str,
@@ -118,4 +141,29 @@ def delete_document(
 ) -> None:
     document = _get_owned_document(session, user, document_id)
     session.delete(document)
+    session.commit()
+
+
+@router.post("/{document_id}/share", response_model=ShareResponse)
+def share_document(
+    document_id: str,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_db),
+) -> ShareResponse:
+    document = _get_owned_document(session, user, document_id)
+    if document.share_token is None:
+        document.share_token = secrets.token_urlsafe(16)
+        session.commit()
+        session.refresh(document)
+    return ShareResponse(token=document.share_token)
+
+
+@router.delete("/{document_id}/share", status_code=status.HTTP_204_NO_CONTENT)
+def unshare_document(
+    document_id: str,
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_db),
+) -> None:
+    document = _get_owned_document(session, user, document_id)
+    document.share_token = None
     session.commit()

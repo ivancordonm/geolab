@@ -133,3 +133,98 @@ def test_documents_are_isolated_between_users(client, monkeypatch) -> None:
     assert other_client.get(f"/documents/{document_id}").status_code == 404
     assert other_client.put(f"/documents/{document_id}", json={"title": "Hijacked"}).status_code == 404
     assert other_client.delete(f"/documents/{document_id}").status_code == 404
+
+
+def test_document_share_token_column_defaults_to_none(client, monkeypatch) -> None:
+    _login(client, monkeypatch, sub="user-a", email="a@example.com")
+    create_response = client.post(
+        "/documents", json={"title": "T", "document": _sample_document()}
+    )
+    assert create_response.status_code == 201
+    # A freshly created document is not shared yet.
+    from app.models import Document
+    from app.db import get_db
+
+    override = app.dependency_overrides[get_db]
+    session = next(override())
+    try:
+        document = session.query(Document).one()
+        assert document.share_token is None
+    finally:
+        session.close()
+
+
+def test_share_generates_token_and_is_idempotent(client, monkeypatch) -> None:
+    _login(client, monkeypatch, sub="user-a", email="a@example.com")
+    doc_id = client.post(
+        "/documents", json={"title": "T", "document": _sample_document()}
+    ).json()["id"]
+
+    first = client.post(f"/documents/{doc_id}/share")
+    assert first.status_code == 200
+    token = first.json()["token"]
+    assert token
+
+    second = client.post(f"/documents/{doc_id}/share")
+    assert second.status_code == 200
+    assert second.json()["token"] == token
+
+    detail = client.get(f"/documents/{doc_id}").json()
+    assert detail["shared"] is True
+
+
+def test_unshare_clears_token(client, monkeypatch) -> None:
+    _login(client, monkeypatch, sub="user-a", email="a@example.com")
+    doc_id = client.post(
+        "/documents", json={"title": "T", "document": _sample_document()}
+    ).json()["id"]
+    client.post(f"/documents/{doc_id}/share")
+
+    revoke = client.delete(f"/documents/{doc_id}/share")
+    assert revoke.status_code == 204
+
+    detail = client.get(f"/documents/{doc_id}").json()
+    assert detail["shared"] is False
+
+
+def test_share_other_users_document_is_not_found(client, monkeypatch) -> None:
+    _login(client, monkeypatch, sub="user-a", email="a@example.com")
+    doc_id = client.post(
+        "/documents", json={"title": "T", "document": _sample_document()}
+    ).json()["id"]
+    _login(client, monkeypatch, sub="user-b", email="b@example.com")
+
+    assert client.post(f"/documents/{doc_id}/share").status_code == 404
+    assert client.delete(f"/documents/{doc_id}/share").status_code == 404
+
+
+def test_public_read_returns_shared_document_without_auth(client, monkeypatch) -> None:
+    _login(client, monkeypatch, sub="user-a", email="a@example.com")
+    doc_id = client.post(
+        "/documents", json={"title": "Shared", "document": _sample_document()}
+    ).json()["id"]
+    token = client.post(f"/documents/{doc_id}/share").json()["token"]
+
+    # New client with no session cookie.
+    anon = TestClient(app)
+    response = anon.get(f"/documents/shared/{token}")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["title"] == "Shared"
+    assert body["document"]["objects"] == []
+    assert "id" not in body  # internal row id not exposed
+
+
+def test_public_read_of_revoked_token_is_not_found(client, monkeypatch) -> None:
+    _login(client, monkeypatch, sub="user-a", email="a@example.com")
+    doc_id = client.post(
+        "/documents", json={"title": "T", "document": _sample_document()}
+    ).json()["id"]
+    token = client.post(f"/documents/{doc_id}/share").json()["token"]
+    client.delete(f"/documents/{doc_id}/share")
+
+    assert client.get(f"/documents/shared/{token}").status_code == 404
+
+
+def test_public_read_of_unknown_token_is_not_found(client) -> None:
+    assert client.get("/documents/shared/does-not-exist").status_code == 404

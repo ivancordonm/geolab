@@ -11,4 +11,11 @@ export interface DocumentDetail {
   title: string;
   document: GeometryDocument;
   updatedAt: string;
+  shared: boolean;
+}
+
+export interface PublicDocumentDetail {
+  title: string;
+  document: GeometryDocument;
+  updatedAt: string;
 }

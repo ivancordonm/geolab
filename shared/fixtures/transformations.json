@@ -1,0 +1,263 @@
+{
+  "script": "A = Point(1, 1)\nB = Point(0, 0)\nC = Point(0, 2)\nD = Point(2, -1)\nP = Point(2, 0)\nU = Point(1, 0)\naxis = Line(B, C)\nR = Reflection(A, axis)\nRP = Reflection(A, B)\nT = Translation(A, B, D)\nG = Rotation(A, B, 90)\nH = Homothety(B, P, 2)\nc1 = Circle(B, U)\nInv = Inversion(P, c1)\n",
+  "document": {
+    "schemaVersion": 1,
+    "id": "doc_transformations",
+    "title": "Transformations",
+    "objects": [
+      {
+        "id": "A",
+        "label": "A",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 1.0,
+          "y": 1.0
+        }
+      },
+      {
+        "id": "B",
+        "label": "B",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 0.0,
+          "y": 0.0
+        }
+      },
+      {
+        "id": "C",
+        "label": "C",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 0.0,
+          "y": 2.0
+        }
+      },
+      {
+        "id": "D",
+        "label": "D",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 2.0,
+          "y": -1.0
+        }
+      },
+      {
+        "id": "P",
+        "label": "P",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 2.0,
+          "y": 0.0
+        }
+      },
+      {
+        "id": "U",
+        "label": "U",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 1.0,
+          "y": 0.0
+        }
+      },
+      {
+        "id": "axis",
+        "label": "axis",
+        "visible": true,
+        "style": null,
+        "kind": "line",
+        "definition": {
+          "type": "through_points",
+          "pointA": "B",
+          "pointB": "C"
+        }
+      },
+      {
+        "id": "R",
+        "label": "R",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "reflection_over_line",
+          "object": "A",
+          "line": "axis"
+        }
+      },
+      {
+        "id": "RP",
+        "label": "RP",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "reflection_over_point",
+          "object": "A",
+          "center": "B"
+        }
+      },
+      {
+        "id": "T",
+        "label": "T",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "translation",
+          "object": "A",
+          "from": "B",
+          "to": "D"
+        }
+      },
+      {
+        "id": "G",
+        "label": "G",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "rotation",
+          "object": "A",
+          "center": "B",
+          "degrees": 90.0
+        }
+      },
+      {
+        "id": "H",
+        "label": "H",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "homothety_scalar",
+          "center": "B",
+          "point": "P",
+          "ratio": 2.0
+        }
+      },
+      {
+        "id": "c1",
+        "label": "c1",
+        "visible": true,
+        "style": null,
+        "kind": "circle",
+        "definition": {
+          "type": "center_through_point",
+          "center": "B",
+          "point": "U"
+        }
+      },
+      {
+        "id": "Inv",
+        "label": "Inv",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "inversion_in_circle",
+          "point": "P",
+          "circle": "c1"
+        }
+      }
+    ],
+    "viewport": {
+      "centerX": 0.0,
+      "centerY": 0.0,
+      "scale": 50.0
+    },
+    "metadata": null
+  },
+  "initialValues": {
+    "A": {
+      "type": "point",
+      "x": 1.0,
+      "y": 1.0
+    },
+    "B": {
+      "type": "point",
+      "x": 0.0,
+      "y": 0.0
+    },
+    "C": {
+      "type": "point",
+      "x": 0.0,
+      "y": 2.0
+    },
+    "D": {
+      "type": "point",
+      "x": 2.0,
+      "y": -1.0
+    },
+    "P": {
+      "type": "point",
+      "x": 2.0,
+      "y": 0.0
+    },
+    "U": {
+      "type": "point",
+      "x": 1.0,
+      "y": 0.0
+    },
+    "axis": {
+      "type": "line",
+      "a": 1.0,
+      "b": 0.0,
+      "c": 0.0
+    },
+    "R": {
+      "type": "point",
+      "x": -1.0,
+      "y": 1.0
+    },
+    "RP": {
+      "type": "point",
+      "x": -1.0,
+      "y": -1.0
+    },
+    "T": {
+      "type": "point",
+      "x": 3.0,
+      "y": 0.0
+    },
+    "G": {
+      "type": "point",
+      "x": -0.9999999999999999,
+      "y": 1.0
+    },
+    "H": {
+      "type": "point",
+      "x": 4.0,
+      "y": 0.0
+    },
+    "c1": {
+      "type": "circle",
+      "center": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "radius": 1.0
+    },
+    "Inv": {
+      "type": "point",
+      "x": 0.5,
+      "y": 0.0
+    }
+  }
+}

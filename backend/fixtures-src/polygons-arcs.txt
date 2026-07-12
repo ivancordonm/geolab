@@ -1,0 +1,8 @@
+A = Point(0, 0)
+B = Point(4, 0)
+C = Point(2, 3)
+poly = Polygon(A, B, C)
+V = Vertex(poly, 1)
+reg = Polygon(A, B, 5)
+vec = VectorPolygon(A, (1, 0), (0, 1))
+arc = Arc(A, C, B)

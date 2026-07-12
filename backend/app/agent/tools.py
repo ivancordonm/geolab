@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 from collections.abc import Callable
 
 from pydantic import BaseModel
@@ -14,6 +15,9 @@ from app.agent.models import (
     EmptyToolInput,
     EvaluateScriptToolInput,
     EvaluateScriptToolOutput,
+    ExportJsonOutput,
+    ExportPngOutput,
+    ExportSvgOutput,
     FunctionConstructionInput,
     GetGraphToolOutput,
     GraphObjectView,
@@ -39,6 +43,7 @@ from app.agent.models import (
 from app.agent.registry import ToolDefinition, ToolExecutionError, ToolRegistry
 from app.geometry.engine import GeometryGraph
 from app.geometry.function_expression import normalize_function_expression
+from app.geometry.rendering import render_graph_png, render_graph_svg
 from app.geometry.models import (
     AngleBisectorDefinition,
     AngleBisectorLine,
@@ -111,6 +116,21 @@ def graph_view_from_access_map(access_map: GraphAccessMap) -> GraphView:
         id_map={node.object.id: index for index, node in enumerate(nodes)},
         label_map=dict(access_map.id_by_label),
     )
+
+
+def _export_svg(workspace: GeometryWorkspace) -> ExportSvgOutput:
+    graph = graph_view_from_access_map(workspace.graph_access_map())
+    return ExportSvgOutput(svg=render_graph_svg(graph))
+
+
+def _export_png(workspace: GeometryWorkspace) -> ExportPngOutput:
+    graph = graph_view_from_access_map(workspace.graph_access_map())
+    return ExportPngOutput(png_base64=base64.b64encode(render_graph_png(graph)).decode("ascii"))
+
+
+def _export_json(workspace: GeometryWorkspace) -> ExportJsonOutput:
+    document = workspace.document_snapshot()
+    return ExportJsonOutput(document_json=document.model_dump_json(by_alias=True, indent=2))
 
 
 def create_geometry_tool_registry(workspace: GeometryWorkspace) -> ToolRegistry:
@@ -395,6 +415,36 @@ def create_geometry_tool_registry(workspace: GeometryWorkspace) -> ToolRegistry:
             GetGraphToolOutput,
             False,
             lambda model: GetGraphToolOutput(graph=graph_view_from_access_map(workspace.graph_access_map())),
+        )
+    )
+    registry.register(
+        _definition(
+            "export_svg",
+            "Render the current construction as an SVG image string without mutation.",
+            EmptyToolInput,
+            ExportSvgOutput,
+            False,
+            lambda model: _export_svg(workspace),
+        )
+    )
+    registry.register(
+        _definition(
+            "export_png",
+            "Render the current construction as a base64-encoded PNG without mutation.",
+            EmptyToolInput,
+            ExportPngOutput,
+            False,
+            lambda model: _export_png(workspace),
+        )
+    )
+    registry.register(
+        _definition(
+            "export_json",
+            "Serialize the current versioned document as pretty-printed JSON without mutation.",
+            EmptyToolInput,
+            ExportJsonOutput,
+            False,
+            lambda model: _export_json(workspace),
         )
     )
     return registry

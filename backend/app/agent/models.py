@@ -214,3 +214,15 @@ class EvaluateScriptToolOutput(GeometryModel):
 
 class GetGraphToolOutput(GeometryModel):
     graph: GraphView
+
+
+class ExportSvgOutput(GeometryModel):
+    svg: str
+
+
+class ExportPngOutput(GeometryModel):
+    png_base64: str
+
+
+class ExportJsonOutput(GeometryModel):
+    document_json: str

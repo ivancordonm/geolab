@@ -1,3 +1,5 @@
+import base64
+import json
 from types import MappingProxyType
 
 import pytest
@@ -36,6 +38,9 @@ EXPECTED_TOOLS = {
     "validate_construction",
     "evaluate_script",
     "get_current_graph",
+    "export_svg",
+    "export_png",
+    "export_json",
 }
 
 
@@ -268,3 +273,24 @@ def test_invalid_function_expression_is_rejected_without_mutation() -> None:
     with pytest.raises(ToolExecutionError):
         execute(registry, "create_function", {"objectId": "f1", "expression": "__import__('os')"})
     assert workspace.revision == 0
+
+
+def test_export_tools_return_svg_png_and_json() -> None:
+    workspace = GeometryWorkspace()
+    registry = create_geometry_tool_registry(workspace)
+    execute(registry, "create_point", {"objectId": "A", "x": 0, "y": 0})
+
+    svg = execute(registry, "export_svg", {})
+    assert "<svg" in svg.svg
+
+    png = execute(registry, "export_png", {})
+    assert base64.b64decode(png.png_base64)[:8] == b"\x89PNG\r\n\x1a\n"
+
+    exported = execute(registry, "export_json", {})
+    payload = json.loads(exported.document_json)
+    assert payload["objects"][0]["id"] == "A"
+
+    descriptors = {d.name: d for d in registry.descriptors()}
+    assert descriptors["export_svg"].mutates_geometry_state is False
+    assert descriptors["export_png"].mutates_geometry_state is False
+    assert descriptors["export_json"].mutates_geometry_state is False

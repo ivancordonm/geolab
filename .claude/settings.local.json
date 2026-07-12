@@ -7,9 +7,9 @@
       "Bash(curl *)",
       "Bash(agent-browser *)",
       "Bash(git *)",
-      "Bash(cp /Users/ivan/IdeaProjects/madlab/mathllm/frontend/.env .env)",
       "Bash(npm install *)",
-      "Bash(xargs -r kill)"
+      "Bash(xargs -r kill)",
+      "Bash(python3 *)"
     ]
   }
 }

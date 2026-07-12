@@ -7,8 +7,6 @@ import { PersistenceControls } from "./PersistenceControls";
 const baseProps = {
   message: null,
   error: null,
-  onSave: vi.fn(),
-  onLoad: vi.fn(),
   onClear: vi.fn(),
   onExportJson: vi.fn(),
   onImportJson: vi.fn(),
@@ -21,6 +19,8 @@ describe("PersistenceControls cloud actions", () => {
     render(<PersistenceControls {...baseProps} />);
     await userEvent.click(screen.getByRole("button", { name: "Construction actions" }));
     expect(screen.queryByRole("menuitem", { name: "Save as new..." })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Save locally" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Load local save" })).not.toBeInTheDocument();
   });
 
   it("shows cloud menu items and triggers callbacks when cloudEnabled is true", async () => {

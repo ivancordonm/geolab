@@ -35,7 +35,6 @@ import {
   exportDocumentJson,
   importDocumentJson,
   loadDocument,
-  saveDocument,
 } from "./persistence/documentPersistence";
 import { downloadTextFile } from "./persistence/download";
 import { readShareTokenFromLocation } from "./persistence/sharedLink";
@@ -216,33 +215,6 @@ export function App() {
     // Run once on mount.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const handleSave = useCallback(() => {
-    try {
-      saveDocument(currentDocument());
-      setPersistenceNotice({ message: "Construction saved locally.", error: null });
-    } catch (error) {
-      reportPersistenceError(asError(error, "Unable to save construction."));
-    }
-  }, [currentDocument, reportPersistenceError]);
-
-  const handleLoad = useCallback(() => {
-    try {
-      const saved = loadDocument();
-      if (saved === null) {
-        setPersistenceNotice({ message: "No saved construction was found.", error: null });
-        return;
-      }
-      detachCloudDocument();
-      setShared(false);
-      setViewingShared(false);
-      setShareUrl(null);
-      replaceConstruction(saved);
-      setPersistenceNotice({ message: "Saved construction loaded.", error: null });
-    } catch (error) {
-      reportPersistenceError(asError(error, "Unable to load construction."));
-    }
-  }, [detachCloudDocument, replaceConstruction, reportPersistenceError]);
 
   const handleClear = useCallback(() => {
     clearDocument();
@@ -464,8 +436,6 @@ export function App() {
       <PersistenceControls
         message={persistenceNotice.message}
         error={persistenceNotice.error}
-        onSave={handleSave}
-        onLoad={handleLoad}
         onClear={handleClear}
         onExportJson={handleExportJson}
         onImportJson={handleImportJson}

@@ -7,8 +7,6 @@ import {
   Download,
   DownloadCloud,
   FileCode,
-  FolderOpen,
-  Save,
   Share2,
   Trash2,
   Upload,
@@ -18,8 +16,6 @@ import {
 interface PersistenceControlsProps {
   message: string | null;
   error: string | null;
-  onSave: () => void;
-  onLoad: () => void;
   onClear: () => void;
   onExportJson: () => void;
   onImportJson: (serialized: string) => void;
@@ -39,8 +35,6 @@ interface PersistenceControlsProps {
 export function PersistenceControls({
   message,
   error,
-  onSave,
-  onLoad,
   onClear,
   onExportJson,
   onImportJson,
@@ -160,13 +154,6 @@ export function PersistenceControls({
           </MenuItem>
           <MenuItem icon={<FileCode size={16} aria-hidden />} onClick={() => run(onExportScript)}>
             Export Script
-          </MenuItem>
-          <div className="my-1 h-px bg-edge" role="separator" />
-          <MenuItem icon={<Save size={16} aria-hidden />} onClick={() => run(onSave)}>
-            Save locally
-          </MenuItem>
-          <MenuItem icon={<FolderOpen size={16} aria-hidden />} onClick={() => run(onLoad)}>
-            Load local save
           </MenuItem>
           {cloudEnabled ? (
             <>

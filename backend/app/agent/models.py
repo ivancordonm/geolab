@@ -126,6 +126,51 @@ class VectorPolygonConstructionInput(GeometryModel):
     offsets: list[dict[str, float]]
 
 
+class SourceLineConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    source: str
+    line: str
+
+
+class SourcePointConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    source: str
+    center: str
+
+
+class TranslationConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    source: str
+    from_point: str
+    to_point: str
+
+
+class RotationConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    source: str
+    center: str
+    degrees: float
+
+
+class HomothetyConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    center: str
+    point: str
+    ratio: float
+
+
+class InversionConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    point: str
+    circle: str
+
+
 class ValidateConstructionInput(GeometryModel):
     document: GeometryDocument | None = None
 

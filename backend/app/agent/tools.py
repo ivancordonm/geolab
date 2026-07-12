@@ -17,12 +17,18 @@ from app.agent.models import (
     GetGraphToolOutput,
     GraphObjectView,
     GraphView,
+    HomothetyConstructionInput,
+    InversionConstructionInput,
     LineLineIntersectionInput,
     MutationToolOutput,
     PointLineConstructionInput,
     PolygonConstructionInput,
     RegularPolygonConstructionInput,
+    RotationConstructionInput,
+    SourceLineConstructionInput,
+    SourcePointConstructionInput,
     ThreePointConstructionInput,
+    TranslationConstructionInput,
     TwoPointConstructionInput,
     ValidateConstructionInput,
     ValidationToolOutput,
@@ -31,37 +37,49 @@ from app.agent.models import (
 from app.agent.registry import ToolDefinition, ToolExecutionError, ToolRegistry
 from app.geometry.engine import GeometryGraph
 from app.geometry.models import (
+    AngleBisectorDefinition,
+    AngleBisectorLine,
     Circle,
     CircleByCenterPointDefinition,
+    CircumscribedCircle,
+    CircumscribedDefinition,
     Coordinate,
     GeometryDocument,
     GeometryObject,
+    HomothetyScalar,
+    HomothetyScalarDefinition,
     IntersectionCC,
     IntersectionCCDefinition,
     IntersectionLC,
     IntersectionLCDefinition,
     IntersectionLL,
     IntersectionLLDefinition,
+    InversionInCircle,
+    InversionInCircleDefinition,
     Line,
     LineThroughPointsDefinition,
     Midpoint,
     MidpointDefinition,
     ParallelLine,
     ParallelLineDefinition,
-    PerpendicularLine,
-    PerpendicularLineDefinition,
     PerpendicularBisectorDefinition,
     PerpendicularBisectorLine,
-    AngleBisectorDefinition,
-    AngleBisectorLine,
-    CircumscribedCircle,
-    CircumscribedDefinition,
+    PerpendicularLine,
+    PerpendicularLineDefinition,
     Point,
     Polygon,
     PolygonDefinition,
+    ReflectionOverLine,
+    ReflectionOverLineDefinition,
+    ReflectionOverPoint,
+    ReflectionOverPointDefinition,
     RegularPolygonDefinition,
+    RotatedObject,
+    RotationDefinition,
     Segment,
     SegmentBetweenPointsDefinition,
+    TranslatedObject,
+    TranslationDefinition,
     VectorPolygonDefinition,
 )
 from app.geometry.script import ConstructionScriptError, evaluate_script
@@ -248,6 +266,66 @@ def create_geometry_tool_registry(workspace: GeometryWorkspace) -> ToolRegistry:
             MutationToolOutput,
             True,
             lambda model: _create_vector_polygon(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_reflection_over_line",
+            "Reflect an existing point/line/segment/circle/polygon over an existing line.",
+            SourceLineConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_reflection_over_line(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_reflection_over_point",
+            "Reflect an existing point/line/segment/circle/polygon over an existing point.",
+            SourcePointConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_reflection_over_point(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_translation",
+            "Translate an existing object by the vector from one point to another.",
+            TranslationConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_translation(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_rotation",
+            "Rotate an existing object around a center point by an angle in degrees.",
+            RotationConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_rotation(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_homothety",
+            "Scale an existing point from a center by a numeric ratio (homothety).",
+            HomothetyConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_homothety(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_inversion",
+            "Invert an existing point in an existing circle.",
+            InversionConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_inversion(workspace, model),
         )
     )
     registry.register(
@@ -607,6 +685,107 @@ def _create_vector_polygon(
     return _commit_defined(workspace, obj)
 
 
+def _create_reflection_over_line(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = SourceLineConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    source = _resolve_transformable(access, input_model.source)
+    line = _resolve_kind(access, input_model.line, "line")
+    obj = ReflectionOverLine(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        kind=source.object.kind,
+        definition=ReflectionOverLineDefinition(object_id=source.object.id, line=line.object.id),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_reflection_over_point(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = SourcePointConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    source = _resolve_transformable(access, input_model.source)
+    center = _resolve_kind(access, input_model.center, "point")
+    obj = ReflectionOverPoint(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        kind=source.object.kind,
+        definition=ReflectionOverPointDefinition(object_id=source.object.id, center=center.object.id),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_translation(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = TranslationConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    source = _resolve_transformable(access, input_model.source)
+    from_point = _resolve_kind(access, input_model.from_point, "point")
+    to_point = _resolve_kind(access, input_model.to_point, "point")
+    obj = TranslatedObject(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        kind=source.object.kind,
+        definition=TranslationDefinition(
+            object_id=source.object.id,
+            from_=from_point.object.id,
+            to=to_point.object.id,
+        ),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_rotation(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = RotationConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    source = _resolve_transformable(access, input_model.source)
+    center = _resolve_kind(access, input_model.center, "point")
+    obj = RotatedObject(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        kind=source.object.kind,
+        definition=RotationDefinition(
+            object_id=source.object.id,
+            center=center.object.id,
+            degrees=input_model.degrees,
+        ),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_homothety(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = HomothetyConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    center = _resolve_kind(access, input_model.center, "point")
+    point = _resolve_kind(access, input_model.point, "point")
+    obj = HomothetyScalar(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=HomothetyScalarDefinition(
+            center=center.object.id,
+            point=point.object.id,
+            ratio=input_model.ratio,
+        ),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_inversion(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = InversionConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    point = _resolve_kind(access, input_model.point, "point")
+    circle = _resolve_kind(access, input_model.circle, "circle")
+    obj = InversionInCircle(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=InversionInCircleDefinition(point=point.object.id, circle=circle.object.id),
+    )
+    return _commit_defined(workspace, obj)
+
+
 def _commit(workspace: GeometryWorkspace, obj: GeometryObject) -> MutationToolOutput:
     access = workspace.add_object(obj)
     return MutationToolOutput(
@@ -647,6 +826,22 @@ def _resolve_kind(access: GraphAccessMap, identifier: str, expected_kind: str) -
         raise ToolExecutionError(
             f"Geometry object '{identifier}' must be a {expected_kind}, "
             f"but it is a {node.object.kind}"
+        )
+    return node
+
+
+_TRANSFORMABLE_KINDS = ("point", "line", "segment", "circle", "polygon")
+
+
+def _resolve_transformable(access: GraphAccessMap, identifier: str) -> GraphObjectAccess:
+    try:
+        node = access.resolve(identifier)
+    except ValueError as error:
+        raise ToolExecutionError(str(error)) from error
+    if node.object.kind not in _TRANSFORMABLE_KINDS:
+        raise ToolExecutionError(
+            f"Geometry object '{identifier}' must be a point, line, segment, circle, "
+            f"or polygon, but it is a {node.object.kind}"
         )
     return node
 

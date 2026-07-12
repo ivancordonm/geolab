@@ -24,6 +24,12 @@ EXPECTED_TOOLS = {
     "create_polygon",
     "create_regular_polygon",
     "create_vector_polygon",
+    "create_reflection_over_line",
+    "create_reflection_over_point",
+    "create_translation",
+    "create_rotation",
+    "create_homothety",
+    "create_inversion",
     "validate_construction",
     "evaluate_script",
     "get_current_graph",
@@ -178,3 +184,54 @@ def test_directional_intersection_tool_is_atomic_on_ambiguity() -> None:
 
     assert workspace.revision == 4
     assert "C" not in workspace.graph_access_map().by_id
+
+
+def test_transformation_tools_create_defined_objects() -> None:
+    workspace = GeometryWorkspace()
+    registry = create_geometry_tool_registry(workspace)
+    execute(registry, "create_point", {"objectId": "A", "x": 1, "y": 1})
+    execute(registry, "create_point", {"objectId": "B", "x": 0, "y": 0})
+    execute(registry, "create_point", {"objectId": "C", "x": 0, "y": 2})
+    execute(registry, "create_point", {"objectId": "D", "x": 2, "y": -1})
+    execute(registry, "create_point", {"objectId": "P", "x": 2, "y": 0})
+    execute(registry, "create_point", {"objectId": "U", "x": 1, "y": 0})
+    execute(registry, "create_line", {"objectId": "axis", "pointA": "B", "pointB": "C"})
+    execute(registry, "create_circle", {"objectId": "c1", "center": "B", "point": "U"})
+
+    def point_value(output: object, object_id: str) -> tuple[float, float]:
+        graph = output.graph  # type: ignore[attr-defined]
+        value = graph.objects[graph.id_map[object_id]].value
+        assert value.type == "point"
+        return value.x, value.y
+
+    reflected = execute(registry, "create_reflection_over_line", {"objectId": "R", "source": "A", "line": "axis"})
+    assert point_value(reflected, "R") == pytest.approx((-1.0, 1.0))
+
+    mirrored = execute(registry, "create_reflection_over_point", {"objectId": "RP", "source": "A", "center": "B"})
+    assert point_value(mirrored, "RP") == pytest.approx((-1.0, -1.0))
+
+    translated = execute(registry, "create_translation", {"objectId": "T", "source": "A", "fromPoint": "B", "toPoint": "D"})
+    assert point_value(translated, "T") == pytest.approx((3.0, 0.0))
+
+    rotated = execute(registry, "create_rotation", {"objectId": "G", "source": "A", "center": "B", "degrees": 90})
+    assert point_value(rotated, "G") == pytest.approx((-1.0, 1.0))
+
+    scaled = execute(registry, "create_homothety", {"objectId": "H", "center": "B", "point": "P", "ratio": 2})
+    assert point_value(scaled, "H") == pytest.approx((4.0, 0.0))
+
+    inverted = execute(registry, "create_inversion", {"objectId": "Inv", "point": "P", "circle": "c1"})
+    assert point_value(inverted, "Inv") == pytest.approx((0.5, 0.0))
+
+
+@pytest.mark.skip(reason="create_arc arrives in Task 7")
+def test_transformation_source_must_be_transformable() -> None:
+    workspace = GeometryWorkspace()
+    registry = create_geometry_tool_registry(workspace)
+    execute(registry, "create_point", {"objectId": "A", "x": 0, "y": 0})
+    execute(registry, "create_point", {"objectId": "B", "x": 4, "y": 0})
+    execute(registry, "create_point", {"objectId": "C", "x": 2, "y": 3})
+    execute(registry, "create_arc", {"objectId": "arc1", "pointA": "A", "pointB": "C", "pointC": "B"})
+    execute(registry, "create_line", {"objectId": "l1", "pointA": "A", "pointB": "B"})
+
+    with pytest.raises(ToolExecutionError, match="must be a point, line, segment, circle, or polygon"):
+        execute(registry, "create_reflection_over_line", {"objectId": "R", "source": "arc1", "line": "l1"})

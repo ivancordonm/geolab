@@ -171,6 +171,19 @@ class InversionConstructionInput(GeometryModel):
     circle: str
 
 
+class FunctionConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    expression: str
+
+
+class PolygonVertexConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    polygon: str
+    index: int
+
+
 class ValidateConstructionInput(GeometryModel):
     document: GeometryDocument | None = None
 

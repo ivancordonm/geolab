@@ -30,6 +30,9 @@ EXPECTED_TOOLS = {
     "create_rotation",
     "create_homothety",
     "create_inversion",
+    "create_arc",
+    "create_function",
+    "create_polygon_vertex",
     "validate_construction",
     "evaluate_script",
     "get_current_graph",
@@ -223,7 +226,6 @@ def test_transformation_tools_create_defined_objects() -> None:
     assert point_value(inverted, "Inv") == pytest.approx((0.5, 0.0))
 
 
-@pytest.mark.skip(reason="create_arc arrives in Task 7")
 def test_transformation_source_must_be_transformable() -> None:
     workspace = GeometryWorkspace()
     registry = create_geometry_tool_registry(workspace)
@@ -235,3 +237,34 @@ def test_transformation_source_must_be_transformable() -> None:
 
     with pytest.raises(ToolExecutionError, match="must be a point, line, segment, circle, or polygon"):
         execute(registry, "create_reflection_over_line", {"objectId": "R", "source": "arc1", "line": "l1"})
+
+
+def test_arc_function_and_vertex_tools() -> None:
+    workspace = GeometryWorkspace()
+    registry = create_geometry_tool_registry(workspace)
+    execute(registry, "create_point", {"objectId": "A", "x": 0, "y": 0})
+    execute(registry, "create_point", {"objectId": "B", "x": 4, "y": 0})
+    execute(registry, "create_point", {"objectId": "C", "x": 2, "y": 3})
+    execute(registry, "create_polygon", {"objectId": "poly", "pointIds": ["A", "B", "C"]})
+
+    arc = execute(registry, "create_arc", {"objectId": "arc1", "pointA": "A", "pointB": "C", "pointC": "B"})
+    arc_value = arc.graph.objects[arc.graph.id_map["arc1"]].value
+    assert arc_value.type == "arc"
+
+    fn = execute(registry, "create_function", {"objectId": "f1", "expression": "x^2 + 1"})
+    fn_value = fn.graph.objects[fn.graph.id_map["f1"]].value
+    assert fn_value.type == "function"
+
+    vertex = execute(registry, "create_polygon_vertex", {"objectId": "V", "polygon": "poly", "index": 1})
+    vertex_value = vertex.graph.objects[vertex.graph.id_map["V"]].value
+    assert vertex_value.type == "point"
+    assert (vertex_value.x, vertex_value.y) == pytest.approx((4.0, 0.0))
+
+
+def test_invalid_function_expression_is_rejected_without_mutation() -> None:
+    workspace = GeometryWorkspace()
+    registry = create_geometry_tool_registry(workspace)
+
+    with pytest.raises(ToolExecutionError):
+        execute(registry, "create_function", {"objectId": "f1", "expression": "__import__('os')"})
+    assert workspace.revision == 0

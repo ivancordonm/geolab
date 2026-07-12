@@ -14,6 +14,7 @@ from app.agent.models import (
     EmptyToolInput,
     EvaluateScriptToolInput,
     EvaluateScriptToolOutput,
+    FunctionConstructionInput,
     GetGraphToolOutput,
     GraphObjectView,
     GraphView,
@@ -23,6 +24,7 @@ from app.agent.models import (
     MutationToolOutput,
     PointLineConstructionInput,
     PolygonConstructionInput,
+    PolygonVertexConstructionInput,
     RegularPolygonConstructionInput,
     RotationConstructionInput,
     SourceLineConstructionInput,
@@ -36,14 +38,19 @@ from app.agent.models import (
 )
 from app.agent.registry import ToolDefinition, ToolExecutionError, ToolRegistry
 from app.geometry.engine import GeometryGraph
+from app.geometry.function_expression import normalize_function_expression
 from app.geometry.models import (
     AngleBisectorDefinition,
     AngleBisectorLine,
+    Arc,
+    ArcThroughPointsDefinition,
     Circle,
     CircleByCenterPointDefinition,
     CircumscribedCircle,
     CircumscribedDefinition,
     Coordinate,
+    FunctionExpressionDefinition,
+    FunctionGraph,
     GeometryDocument,
     GeometryObject,
     HomothetyScalar,
@@ -69,6 +76,8 @@ from app.geometry.models import (
     Point,
     Polygon,
     PolygonDefinition,
+    PolygonVertexDefinition,
+    PolygonVertexPoint,
     ReflectionOverLine,
     ReflectionOverLineDefinition,
     ReflectionOverPoint,
@@ -326,6 +335,36 @@ def create_geometry_tool_registry(workspace: GeometryWorkspace) -> ToolRegistry:
             MutationToolOutput,
             True,
             lambda model: _create_inversion(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_arc",
+            "Create a circular arc through three existing points: start, mid, end.",
+            ThreePointConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_arc(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_function",
+            "Create a real-valued function graph y = f(x) from a validated expression.",
+            FunctionConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_function(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_polygon_vertex",
+            "Create a point bound to the i-th vertex (0-based) of an existing polygon.",
+            PolygonVertexConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_polygon_vertex(workspace, model),
         )
     )
     registry.register(
@@ -782,6 +821,51 @@ def _create_inversion(workspace: GeometryWorkspace, raw_input: BaseModel) -> Mut
         id=input_model.object_id,
         label=input_model.label or input_model.object_id,
         definition=InversionInCircleDefinition(point=point.object.id, circle=circle.object.id),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_arc(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = ThreePointConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    start = _resolve_kind(access, input_model.point_a, "point")
+    mid = _resolve_kind(access, input_model.point_b, "point")
+    end = _resolve_kind(access, input_model.point_c, "point")
+    obj = Arc(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=ArcThroughPointsDefinition(
+            point_a=start.object.id,
+            point_mid=mid.object.id,
+            point_b=end.object.id,
+        ),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_function(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = FunctionConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    expression = normalize_function_expression(input_model.expression)
+    obj = FunctionGraph(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=FunctionExpressionDefinition(expression=expression),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_polygon_vertex(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = PolygonVertexConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    polygon = _resolve_kind(access, input_model.polygon, "polygon")
+    obj = PolygonVertexPoint(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=PolygonVertexDefinition(polygon=polygon.object.id, index=input_model.index),
     )
     return _commit_defined(workspace, obj)
 

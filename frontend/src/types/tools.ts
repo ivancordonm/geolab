@@ -1,4 +1,4 @@
-import type { EvaluatedValue, GeometryObject } from "./geometry";
+import type { EvaluatedValue, GeometryDocument, GeometryObject } from "./geometry";
 
 export interface ToolDescriptor {
   name: string;
@@ -11,12 +11,26 @@ export interface ToolDescriptor {
 export interface ExecuteToolRequest {
   toolName: string;
   arguments: Record<string, unknown>;
+  /** Omit (or null) to start from an empty document. */
+  document?: GeometryDocument | null;
 }
 
 export interface ExecuteToolResponse {
   toolName: string;
   mutatesGeometryState: boolean;
   output: Record<string, unknown>;
+  /** The resulting document; thread this into the next stateless call. */
+  document: GeometryDocument;
+}
+
+export interface GraphRequest {
+  /** Omit (or null) to evaluate an empty document. */
+  document?: GeometryDocument | null;
+}
+
+export interface GraphResponse {
+  graph: GraphView;
+  document: GeometryDocument;
 }
 
 export interface GraphObjectView {

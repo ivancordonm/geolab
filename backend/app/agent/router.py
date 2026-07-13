@@ -23,7 +23,7 @@ from app.agent.schemas import (
 from app.agent.tool_calling_planner import ToolCallingPlanner
 from app.agent.tools import create_geometry_tool_registry
 from app.geometry.workspace import GeometryWorkspace
-from app.services import create_planner, tool_registry
+from app.services import create_planner
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
@@ -118,14 +118,23 @@ def plan_construction_stream(request: ToolCallPlanRequest) -> StreamingResponse:
 @router.get("/tools", response_model=list[ToolDescriptor])
 def list_tools() -> tuple[ToolDescriptor, ...]:
     """Return JSON-schema tool descriptors suitable for a future LLM adapter."""
-    return tool_registry.descriptors()
+    return create_geometry_tool_registry(GeometryWorkspace()).descriptors()
 
 
 @router.post("/execute-tool", response_model=ExecuteToolResponse)
 def execute_tool(request: ExecuteToolRequest) -> ExecuteToolResponse:
-    """Validate and execute one deterministic tool call."""
+    """Validate and execute one deterministic tool call.
+
+    Stateless: builds a fresh workspace/registry from *request.document* (or an
+    empty document when omitted) and returns the resulting document for the
+    caller to thread forward into the next call.
+    """
+    workspace = (
+        GeometryWorkspace(request.document) if request.document is not None else GeometryWorkspace()
+    )
+    registry = create_geometry_tool_registry(workspace)
     try:
-        definition, output = tool_registry.execute(request.tool_name, request.arguments)
+        definition, output = registry.execute(request.tool_name, request.arguments)
     except UnknownToolError as error:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -150,4 +159,5 @@ def execute_tool(request: ExecuteToolRequest) -> ExecuteToolResponse:
         tool_name=definition.name,
         mutates_geometry_state=definition.mutates_geometry_state,
         output=output.model_dump(by_alias=True),
+        document=workspace.document_snapshot(),
     )

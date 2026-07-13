@@ -402,11 +402,12 @@ from the input `document` (or an empty document), and the caller must pass the
 returned snapshot into the next tool. MCP therefore does not share construction
 state between sessions.
 
-By contrast, `GET /geometry/graph` and `POST /agent/execute-tool` currently use
-one module-level `GeometryWorkspace` in the API process. That workspace resets
-on restart and is neither authenticated nor user-scoped. It must not be treated
-as private storage or a collaboration boundary. User-owned durable documents
-use the separate authenticated PostgreSQL routes.
+`POST /geometry/graph` and `POST /agent/execute-tool` are likewise stateless:
+each call builds a fresh `GeometryWorkspace` from the request's `document`
+field (or an empty document when omitted) and returns the resulting document
+in the response, exactly the pattern MCP already used. Neither endpoint holds
+any process-global construction state, is authenticated, or is user-scoped.
+User-owned durable documents use the separate authenticated PostgreSQL routes.
 
 ## 8. Symbolic and Python safety
 

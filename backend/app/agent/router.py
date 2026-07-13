@@ -9,7 +9,16 @@ from app.agent.registry import (
     ToolExecutionError,
     UnknownToolError,
 )
-from app.agent.schemas import AgentPlanErrorDetail, AgentPlanRequest, AgentResponse
+from app.agent.schemas import (
+    AgentPlanErrorDetail,
+    AgentPlanRequest,
+    AgentResponse,
+    ToolCallPlanRequest,
+    ToolCallPlanResult,
+)
+from app.agent.tool_calling_planner import ToolCallingPlanner
+from app.agent.tools import create_geometry_tool_registry
+from app.geometry.workspace import GeometryWorkspace
 from app.services import create_planner, tool_registry
 
 router = APIRouter(prefix="/agent", tags=["agent"])
@@ -21,6 +30,41 @@ def plan_construction(request: AgentPlanRequest) -> AgentResponse:
     planner = create_planner(request.config)
     try:
         return planner.generate_plan(request.user_request, request.current_script)
+    except UnsupportedRequestError as error:
+        detail = AgentPlanErrorDetail(code="unsupported_request", message=str(error))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=detail.model_dump(by_alias=True),
+        ) from error
+    except ProviderTimeoutError as error:
+        detail = AgentPlanErrorDetail(code="provider_timeout", message=str(error))
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail=detail.model_dump(by_alias=True),
+        ) from error
+    except PlannerError as error:
+        detail = AgentPlanErrorDetail(code="planning_failed", message=str(error))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=detail.model_dump(by_alias=True),
+        ) from error
+
+
+@router.post("/plan-with-tools", response_model=ToolCallPlanResult)
+def plan_construction_with_tools(request: ToolCallPlanRequest) -> ToolCallPlanResult:
+    """Propose native tool calls for a request without mutating geometry state.
+
+    Builds a fresh per-request workspace/registry so the tools offered to the
+    model always reflect the request's own document; nothing is executed here —
+    the caller applies each proposed call through ``/agent/execute-tool``.
+    """
+    workspace = (
+        GeometryWorkspace(request.document) if request.document is not None else GeometryWorkspace()
+    )
+    registry = create_geometry_tool_registry(workspace)
+    planner = ToolCallingPlanner()
+    try:
+        return planner.plan(request.document, request.user_request, registry.descriptors())
     except UnsupportedRequestError as error:
         detail = AgentPlanErrorDetail(code="unsupported_request", message=str(error))
         raise HTTPException(

@@ -50,6 +50,21 @@ export interface AgentPlanErrorDetail {
   message: string;
 }
 
+export interface ToolCallProposal {
+  toolName: string;
+  arguments: Record<string, unknown>;
+}
+
+export interface ToolCallPlanRequest {
+  userRequest: string;
+  document?: unknown;
+}
+
+export interface ToolCallPlanResult {
+  reasoning: string;
+  toolCalls: ToolCallProposal[];
+}
+
 export interface AssistantMessage {
   id: string;
   role: "user" | "assistant";

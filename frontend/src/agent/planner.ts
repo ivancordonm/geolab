@@ -1,7 +1,17 @@
-import type { AgentPlanErrorDetail, AgentPlanRequest, AgentResponse } from "./types";
+import type {
+  AgentPlanErrorDetail,
+  AgentPlanRequest,
+  AgentResponse,
+  ToolCallPlanRequest,
+  ToolCallPlanResult,
+} from "./types";
 
 export interface PlannerClient {
   generatePlan(request: AgentPlanRequest, signal?: AbortSignal): Promise<AgentResponse>;
+  planWithTools(
+    request: ToolCallPlanRequest,
+    signal?: AbortSignal,
+  ): Promise<ToolCallPlanResult>;
 }
 
 export class AgentPlanningError extends Error {
@@ -18,25 +28,36 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 export class HttpPlannerClient implements PlannerClient {
   async generatePlan(request: AgentPlanRequest, signal?: AbortSignal): Promise<AgentResponse> {
-    const response = await fetch(`${API_BASE}/agent/plan`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request),
-      signal,
-    });
-    if (!response.ok) {
-      const payload = (await readJson(response)) as { detail?: unknown } | null;
-      const detail = isAgentPlanErrorDetail(payload?.detail) ? payload.detail : null;
-      throw new AgentPlanningError(
-        detail?.message ?? `Planning failed with status ${response.status}`,
-        detail,
-      );
-    }
-    return (await response.json()) as AgentResponse;
+    return postPlan<AgentResponse>("/agent/plan", request, signal);
+  }
+
+  async planWithTools(
+    request: ToolCallPlanRequest,
+    signal?: AbortSignal,
+  ): Promise<ToolCallPlanResult> {
+    return postPlan<ToolCallPlanResult>("/agent/plan-with-tools", request, signal);
   }
 }
 
 export const plannerClient: PlannerClient = new HttpPlannerClient();
+
+async function postPlan<T>(path: string, request: unknown, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+    signal,
+  });
+  if (!response.ok) {
+    const payload = (await readJson(response)) as { detail?: unknown } | null;
+    const detail = isAgentPlanErrorDetail(payload?.detail) ? payload.detail : null;
+    throw new AgentPlanningError(
+      detail?.message ?? `Planning failed with status ${response.status}`,
+      detail,
+    );
+  }
+  return (await response.json()) as T;
+}
 
 async function readJson(response: Response): Promise<unknown> {
   try {

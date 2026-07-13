@@ -34,12 +34,23 @@ class ToolDescriptor(GeometryModel):
 class ExecuteToolRequest(GeometryModel):
     tool_name: str
     arguments: dict[str, Any] = Field(default_factory=dict)
+    document: GeometryDocument | None = None
 
 
 class ExecuteToolResponse(GeometryModel):
     tool_name: str
     mutates_geometry_state: bool
     output: dict[str, Any]
+    document: GeometryDocument
+
+
+class GraphRequest(GeometryModel):
+    document: GeometryDocument | None = None
+
+
+class GraphResponse(GeometryModel):
+    graph: GraphView
+    document: GeometryDocument
 
 
 class EmptyToolInput(GeometryModel):
@@ -126,6 +137,35 @@ class VectorPolygonConstructionInput(GeometryModel):
     offsets: list[dict[str, float]]
 
 
+class SliderConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    min: float
+    max: float
+    value: float
+    step: float
+
+
+class AngleConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    point_a: str
+    vertex: str
+    point_b: str
+
+
+class AreaConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    polygon: str
+
+
+class SlopeConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    line: str
+
+
 class SourceLineConstructionInput(GeometryModel):
     object_id: str
     label: str | None = None
@@ -182,8 +222,6 @@ class PolygonVertexConstructionInput(GeometryModel):
     label: str | None = None
     polygon: str
     index: int
-
-
 class ValidateConstructionInput(GeometryModel):
     document: GeometryDocument | None = None
 

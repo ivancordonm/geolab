@@ -67,11 +67,14 @@ export function App() {
     panelOpen: cloudPanelOpen,
     documents: cloudDocuments,
     loading: cloudLoading,
+    loadingMore: cloudLoadingMore,
+    hasMore: cloudHasMore,
     error: cloudError,
     cloudId,
     openPanel: openCloudPanel,
     closePanel: closeCloudPanel,
     detachDocument: detachCloudDocument,
+    loadMore: loadMoreCloudDocuments,
     saveCurrent: saveCurrentCloudDocument,
     saveAsNew: saveAsNewCloudDocument,
     openDocument: openCloudDocument,
@@ -585,9 +588,12 @@ export function App() {
         open={cloudPanelOpen}
         documents={cloudDocuments}
         loading={cloudLoading}
+        loadingMore={cloudLoadingMore}
+        hasMore={cloudHasMore}
         error={cloudError}
         onClose={closeCloudPanel}
         onOpenDocument={handleOpenCloudDocument}
+        onLoadMore={() => void loadMoreCloudDocuments()}
         onRenameDocument={handleRenameCloudDocument}
         onDeleteDocument={(id) => {
           if (id === cloudId) {

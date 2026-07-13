@@ -11,6 +11,8 @@ import {
 import type { DocumentDetail, DocumentSummary } from "../types/documents";
 import type { GeometryDocument } from "../types/geometry";
 
+const PAGE_SIZE = 50;
+
 export type CloudActionResult<T> =
   | { status: "success"; value: T }
   | { status: "error"; error: string }
@@ -24,11 +26,14 @@ export interface UseCloudDocumentsResult {
   panelOpen: boolean;
   documents: DocumentSummary[];
   loading: boolean;
+  loadingMore: boolean;
+  hasMore: boolean;
   error: string | null;
   cloudId: string | null;
   openPanel: () => void;
   closePanel: () => void;
   detachDocument: () => void;
+  loadMore: () => Promise<CloudActionResult<DocumentSummary[]>>;
   saveCurrent: (
     title: string,
     document: GeometryDocument,
@@ -63,12 +68,15 @@ export function useCloudDocuments(onUnauthorized: () => void): UseCloudDocuments
   const [panelOpen, setPanelOpen] = useState(false);
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [associationError, setAssociationError] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [cloudId, setCloudIdState] = useState<string | null>(null);
   const cloudIdRef = useRef<string | null>(null);
   const associationGenerationRef = useRef(0);
   const listGenerationRef = useRef(0);
+  const listOffsetRef = useRef(0);
   const mutationQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   const enqueueMutation = useCallback(<T,>(action: () => Promise<T>): Promise<T> => {
@@ -88,6 +96,7 @@ export function useCloudDocuments(onUnauthorized: () => void): UseCloudDocuments
   const invalidateList = useCallback(() => {
     listGenerationRef.current += 1;
     setLoading(false);
+    setLoadingMore(false);
     setListError(null);
   }, []);
 
@@ -116,7 +125,7 @@ export function useCloudDocuments(onUnauthorized: () => void): UseCloudDocuments
     const generation = ++listGenerationRef.current;
     setLoading(true);
     setListError(null);
-    const result = await requestResult(() => listDocuments());
+    const result = await requestResult(() => listDocuments(PAGE_SIZE, 0));
     if (listGenerationRef.current !== generation) {
       return { status: "superseded" };
     }
@@ -126,8 +135,31 @@ export function useCloudDocuments(onUnauthorized: () => void): UseCloudDocuments
       if (result.unauthorized) onUnauthorized();
       return { status: "error", error: result.error };
     }
-    setDocuments(result.value);
-    return result;
+    setDocuments(result.value.documents);
+    setHasMore(result.value.hasMore);
+    listOffsetRef.current = result.value.documents.length;
+    return { status: "success", value: result.value.documents };
+  }, [onUnauthorized]);
+
+  const loadMore = useCallback(async (): Promise<CloudActionResult<DocumentSummary[]>> => {
+    const generation = listGenerationRef.current;
+    setLoadingMore(true);
+    setListError(null);
+    const result = await requestResult(() => listDocuments(PAGE_SIZE, listOffsetRef.current));
+    if (listGenerationRef.current !== generation) {
+      setLoadingMore(false);
+      return { status: "superseded" };
+    }
+    setLoadingMore(false);
+    if (result.status === "error") {
+      setListError(result.error);
+      if (result.unauthorized) onUnauthorized();
+      return { status: "error", error: result.error };
+    }
+    setDocuments((previous) => [...previous, ...result.value.documents]);
+    setHasMore(result.value.hasMore);
+    listOffsetRef.current += result.value.documents.length;
+    return { status: "success", value: result.value.documents };
   }, [onUnauthorized]);
 
   const openPanel = useCallback(() => {
@@ -274,11 +306,14 @@ export function useCloudDocuments(onUnauthorized: () => void): UseCloudDocuments
     panelOpen,
     documents,
     loading,
+    loadingMore,
+    hasMore,
     error: associationError ?? listError,
     cloudId,
     openPanel,
     closePanel,
     detachDocument,
+    loadMore,
     saveCurrent,
     saveAsNew,
     openDocument,

@@ -1,4 +1,8 @@
-import type { DocumentDetail, DocumentSummary, PublicDocumentDetail } from "../types/documents";
+import type {
+  DocumentDetail,
+  DocumentListResponse,
+  PublicDocumentDetail,
+} from "../types/documents";
 import type { GeometryDocument } from "../types/geometry";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -28,8 +32,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T);
 }
 
-export function listDocuments(): Promise<DocumentSummary[]> {
-  return request<DocumentSummary[]>("/documents");
+export function listDocuments(limit = 50, offset = 0): Promise<DocumentListResponse> {
+  return request<DocumentListResponse>(`/documents?limit=${limit}&offset=${offset}`);
 }
 
 export function getDocument(id: string): Promise<DocumentDetail> {

@@ -311,13 +311,84 @@ def create_vector_polygon(
 
 
 @mcp.tool(annotations=CREATE)
+<<<<<<< HEAD
+def create_slider(
+    object_id: str,
+    min_value: float,
+    max_value: float,
+    value: float,
+    step: float,
+    document: GeometryDocument | None = None,
+    label: str | None = None,
+) -> dict[str, Any]:
+    """Create a slider parameter with min/max bounds and initial value."""
+
+    return _mutate(document, "create_slider", {
+        "objectId": object_id,
+        "label": label,
+        "min": min_value,
+        "max": max_value,
+        "value": value,
+        "step": step,
+    })
+
+
+@mcp.tool(annotations=CREATE)
+def create_distance(
+    object_id: str,
+    point_a: str,
+    point_b: str,
+    document: GeometryDocument | None = None,
+    label: str | None = None,
+) -> dict[str, Any]:
+    """Create a distance measure: the Euclidean distance between two existing points."""
+
+    return _mutate(document, "create_distance", {"objectId": object_id, "label": label, "pointA": point_a, "pointB": point_b})
+
+
+@mcp.tool(annotations=CREATE)
+def create_angle(
+    object_id: str,
+    point_a: str,
+    vertex: str,
+    point_b: str,
+    document: GeometryDocument | None = None,
+    label: str | None = None,
+) -> dict[str, Any]:
+    """Create an angle measure in degrees (range 0-180) at a vertex between two existing points."""
+
+    return _mutate(document, "create_angle", {"objectId": object_id, "label": label, "pointA": point_a, "vertex": vertex, "pointB": point_b})
+
+
+@mcp.tool(annotations=CREATE)
+def create_area(
+    object_id: str,
+    polygon: str,
+    document: GeometryDocument | None = None,
+    label: str | None = None,
+) -> dict[str, Any]:
+    """Create an area measure for an existing polygon (always non-negative)."""
+
+    return _mutate(document, "create_area", {"objectId": object_id, "label": label, "polygon": polygon})
+
+
+@mcp.tool(annotations=CREATE)
+def create_slope(
+    object_id: str,
+=======
 def create_reflection_over_line(
     object_id: str,
     source: str,
+>>>>>>> origin/main
     line: str,
     document: GeometryDocument | None = None,
     label: str | None = None,
 ) -> dict[str, Any]:
+<<<<<<< HEAD
+    """Create a slope measure for an existing line; undefined for vertical lines."""
+
+    return _mutate(document, "create_slope", {"objectId": object_id, "label": label, "line": line})
+=======
     """Reflect an existing point/line/segment/circle/polygon over an existing line."""
 
     return _mutate(document, "create_reflection_over_line", {"objectId": object_id, "label": label, "source": source, "line": line})
@@ -428,6 +499,7 @@ def create_polygon_vertex(
     """Create a point bound to the i-th vertex (0-based) of an existing polygon."""
 
     return _mutate(document, "create_polygon_vertex", {"objectId": object_id, "label": label, "polygon": polygon, "index": index})
+>>>>>>> origin/main
 
 
 @mcp.tool(

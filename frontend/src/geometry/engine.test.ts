@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import fixture from "../../../shared/fixtures/basic-geometry.json";
+import measuresFixture from "../../../shared/fixtures/measures.json";
+import slidersFixture from "../../../shared/fixtures/sliders.json";
 import type { EvaluatedValue, GeometryDocument, Line } from "../types/geometry";
 import {
   GeometryGraph,
@@ -425,5 +427,248 @@ describe("polygon conformance", () => {
     expectNestedClose(v.vertices[0], { x: 3, y: 4 });
     expectNestedClose(v.vertices[1], { x: 4, y: 4 });
     expectNestedClose(v.vertices[2], { x: 3, y: 5 });
+  });
+});
+
+describe("sliders conformance", () => {
+  const slidersDocument = slidersFixture.document as GeometryDocument;
+
+  it("evaluates a circle whose radius comes from a slider's scalar value", () => {
+    const values = plainValues(evaluateGeometryDocument(slidersDocument));
+
+    expect(slidersDocument.objects[2].definition.type).toBe("center_radius");
+    expectNestedClose(values, slidersFixture.initialValues);
+  });
+
+  it("recomputes the circle's center but keeps the slider-derived radius after moving the point", () => {
+    const graph = new GeometryGraph(slidersDocument);
+    const result = graph.moveFreePoint(
+      slidersFixture.move.pointId,
+      slidersFixture.move.x,
+      slidersFixture.move.y,
+    );
+    const values = plainValues(result.values);
+
+    expect(result.recomputedObjectIds).toEqual(slidersFixture.move.expectedRecomputed);
+    for (const [objectId, expected] of Object.entries(slidersFixture.move.expectedValues)) {
+      expectNestedClose(values[objectId], expected);
+    }
+  });
+
+  it("rejects a center_radius circle whose radius parent is not a slider", () => {
+    const invalid: GeometryDocument = {
+      ...slidersDocument,
+      objects: [
+        slidersDocument.objects[0],
+        slidersDocument.objects[1],
+        {
+          id: "c",
+          label: "c",
+          kind: "circle",
+          visible: true,
+          definition: { type: "center_radius", center: "p", radius: "p" },
+        },
+      ],
+    };
+
+    expect(() => new GeometryGraph(invalid)).toThrow(GeometryValidationError);
+  });
+
+  it("rejects a slider with NaN/Infinity parameters", () => {
+    const invalidValue: GeometryDocument = {
+      schemaVersion: 1,
+      id: "invalid-slider-value",
+      title: "Invalid slider",
+      objects: [
+        {
+          id: "s",
+          label: "s",
+          kind: "slider",
+          visible: true,
+          definition: { type: "slider", min: 0, max: 10, value: NaN, step: 1 },
+        },
+      ],
+    };
+
+    expect(() => new GeometryGraph(invalidValue)).toThrow(GeometryValidationError);
+
+    const invalidMin: GeometryDocument = {
+      schemaVersion: 1,
+      id: "invalid-slider-min",
+      title: "Invalid slider",
+      objects: [
+        {
+          id: "s",
+          label: "s",
+          kind: "slider",
+          visible: true,
+          definition: { type: "slider", min: Infinity, max: 10, value: 5, step: 1 },
+        },
+      ],
+    };
+
+    expect(() => new GeometryGraph(invalidMin)).toThrow(GeometryValidationError);
+  });
+});
+
+describe("measures conformance", () => {
+  const measuresDocument = measuresFixture.document as GeometryDocument;
+
+  it("evaluates all four measure variants from the shared fixture", () => {
+    const values = plainValues(evaluateGeometryDocument(measuresDocument));
+    expectNestedClose(values, measuresFixture.initialValues);
+  });
+
+  it("computes distance as Euclidean distance between two points", () => {
+    const doc: GeometryDocument = {
+      schemaVersion: 1,
+      id: "distance-test",
+      title: "Distance",
+      objects: [
+        { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+        { id: "B", label: "B", kind: "point", visible: true, definition: { type: "free", x: 3, y: 4 } },
+        { id: "d", label: "d", kind: "measure", visible: true, definition: { type: "distance", pointA: "A", pointB: "B" } },
+      ],
+    };
+    const values = plainValues(evaluateGeometryDocument(doc));
+    expect(values.d.type).toBe("scalar");
+    expect((values.d as { value: number }).value).toBeCloseTo(5, 12);
+  });
+
+  it("computes a right angle (90 degrees) between two perpendicular rays", () => {
+    const doc: GeometryDocument = {
+      schemaVersion: 1,
+      id: "angle-test",
+      title: "Angle",
+      objects: [
+        { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 1, y: 0 } },
+        { id: "O", label: "O", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+        { id: "B", label: "B", kind: "point", visible: true, definition: { type: "free", x: 0, y: 1 } },
+        { id: "ang", label: "ang", kind: "measure", visible: true, definition: { type: "angle", pointA: "A", vertex: "O", pointB: "B" } },
+      ],
+    };
+    const values = plainValues(evaluateGeometryDocument(doc));
+    expect(values.ang.type).toBe("scalar");
+    expect((values.ang as { value: number }).value).toBeCloseTo(90, 12);
+  });
+
+  it("computes a straight angle (180 degrees) between opposite rays", () => {
+    const doc: GeometryDocument = {
+      schemaVersion: 1,
+      id: "angle-straight-test",
+      title: "Angle straight",
+      objects: [
+        { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 1, y: 0 } },
+        { id: "O", label: "O", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+        { id: "C", label: "C", kind: "point", visible: true, definition: { type: "free", x: -1, y: 0 } },
+        { id: "ang", label: "ang", kind: "measure", visible: true, definition: { type: "angle", pointA: "A", vertex: "O", pointB: "C" } },
+      ],
+    };
+    const values = plainValues(evaluateGeometryDocument(doc));
+    expect(values.ang.type).toBe("scalar");
+    expect((values.ang as { value: number }).value).toBeCloseTo(180, 12);
+  });
+
+  it("marks angle undefined when the vertex coincides with an arm point", () => {
+    const doc: GeometryDocument = {
+      schemaVersion: 1,
+      id: "angle-degenerate-test",
+      title: "Angle degenerate",
+      objects: [
+        { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+        { id: "O", label: "O", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+        { id: "B", label: "B", kind: "point", visible: true, definition: { type: "free", x: 0, y: 1 } },
+        { id: "ang", label: "ang", kind: "measure", visible: true, definition: { type: "angle", pointA: "A", vertex: "O", pointB: "B" } },
+      ],
+    };
+    const values = plainValues(evaluateGeometryDocument(doc));
+    expect(values.ang.type).toBe("undefined");
+    expect((values.ang as { code: string }).code).toBe("coincident_points");
+  });
+
+  it("computes polygon area via the shoelace formula for a right triangle", () => {
+    const doc: GeometryDocument = {
+      schemaVersion: 1,
+      id: "area-test",
+      title: "Area",
+      objects: [
+        { id: "T1", label: "T1", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+        { id: "T2", label: "T2", kind: "point", visible: true, definition: { type: "free", x: 4, y: 0 } },
+        { id: "T3", label: "T3", kind: "point", visible: true, definition: { type: "free", x: 0, y: 3 } },
+        { id: "tri", label: "tri", kind: "polygon", visible: true, definition: { type: "polygon", points: ["T1", "T2", "T3"] } },
+        { id: "area", label: "area", kind: "measure", visible: true, definition: { type: "area", polygon: "tri" } },
+      ],
+    };
+    const values = plainValues(evaluateGeometryDocument(doc));
+    expect(values.area.type).toBe("scalar");
+    expect((values.area as { value: number }).value).toBeCloseTo(6, 12);
+  });
+
+  it("returns a non-negative area regardless of vertex winding order", () => {
+    const doc: GeometryDocument = {
+      schemaVersion: 1,
+      id: "area-winding-test",
+      title: "Area winding",
+      objects: [
+        { id: "T1", label: "T1", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+        { id: "T2", label: "T2", kind: "point", visible: true, definition: { type: "free", x: 0, y: 3 } },
+        { id: "T3", label: "T3", kind: "point", visible: true, definition: { type: "free", x: 4, y: 0 } },
+        { id: "tri", label: "tri", kind: "polygon", visible: true, definition: { type: "polygon", points: ["T1", "T2", "T3"] } },
+        { id: "area", label: "area", kind: "measure", visible: true, definition: { type: "area", polygon: "tri" } },
+      ],
+    };
+    const values = plainValues(evaluateGeometryDocument(doc));
+    const value = (values.area as { value: number }).value;
+    expect(value).toBeCloseTo(6, 12);
+    expect(value).toBeGreaterThan(0);
+  });
+
+  it("computes slope as -a/b from the normalized line", () => {
+    const doc: GeometryDocument = {
+      schemaVersion: 1,
+      id: "slope-test",
+      title: "Slope",
+      objects: [
+        { id: "L1", label: "L1", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+        { id: "L2", label: "L2", kind: "point", visible: true, definition: { type: "free", x: 1, y: 1 } },
+        { id: "ln", label: "ln", kind: "line", visible: true, definition: { type: "through_points", pointA: "L1", pointB: "L2" } },
+        { id: "slope", label: "slope", kind: "measure", visible: true, definition: { type: "slope", line: "ln" } },
+      ],
+    };
+    const values = plainValues(evaluateGeometryDocument(doc));
+    expect(values.slope.type).toBe("scalar");
+    expect((values.slope as { value: number }).value).toBeCloseTo(1, 12);
+  });
+
+  it("marks slope undefined for a vertical line", () => {
+    const doc: GeometryDocument = {
+      schemaVersion: 1,
+      id: "slope-vertical-test",
+      title: "Slope vertical",
+      objects: [
+        { id: "V1", label: "V1", kind: "point", visible: true, definition: { type: "free", x: 2, y: 0 } },
+        { id: "V2", label: "V2", kind: "point", visible: true, definition: { type: "free", x: 2, y: 5 } },
+        { id: "vln", label: "vln", kind: "line", visible: true, definition: { type: "through_points", pointA: "V1", pointB: "V2" } },
+        { id: "slope", label: "slope", kind: "measure", visible: true, definition: { type: "slope", line: "vln" } },
+      ],
+    };
+    const values = plainValues(evaluateGeometryDocument(doc));
+    expect(values.slope.type).toBe("undefined");
+    expect((values.slope as { code: string }).code).toBe("vertical_line");
+  });
+
+  it("rejects a distance measure whose parent is not a point", () => {
+    const invalid: GeometryDocument = {
+      schemaVersion: 1,
+      id: "measure-invalid-parent",
+      title: "Invalid measure parent",
+      objects: [
+        { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+        { id: "B", label: "B", kind: "point", visible: true, definition: { type: "free", x: 1, y: 0 } },
+        { id: "ln", label: "ln", kind: "line", visible: true, definition: { type: "through_points", pointA: "A", pointB: "B" } },
+        { id: "d", label: "d", kind: "measure", visible: true, definition: { type: "distance", pointA: "A", pointB: "ln" } },
+      ],
+    };
+    expect(() => new GeometryGraph(invalid)).toThrow(GeometryValidationError);
   });
 });

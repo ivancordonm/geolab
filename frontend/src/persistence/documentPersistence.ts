@@ -98,7 +98,7 @@ function validateDocument(value: unknown): GeometryDocument {
       !isRecord(object) ||
       typeof object.id !== "string" ||
       typeof object.label !== "string" ||
-      !["point", "line", "segment", "circle", "polygon", "arc", "function"].includes(String(object.kind)) ||
+      !["point", "line", "segment", "circle", "polygon", "arc", "function", "slider", "measure"].includes(String(object.kind)) ||
       typeof object.visible !== "boolean" ||
       !isRecord(object.definition)
     ) {
@@ -169,6 +169,8 @@ function objectToScript(
   switch (object.definition.type) {
     case "free":
       return `${variable} = Point(${formatNumber(object.definition.x)}, ${formatNumber(object.definition.y)})`;
+    case "slider":
+      return `${variable} = Slider(${formatNumber(object.definition.min)}, ${formatNumber(object.definition.max)}, ${formatNumber(object.definition.value)}, ${formatNumber(object.definition.step)})`;
     case "polygon_vertex":
       return `${variable} = Vertex(${reference(object.definition.polygon)}, ${object.definition.index})`;
     case "through_points":
@@ -177,6 +179,8 @@ function objectToScript(
       return `${variable} = Segment(${reference(object.definition.pointA)}, ${reference(object.definition.pointB)})`;
     case "center_through_point":
       return `${variable} = Circle(${reference(object.definition.center)}, ${reference(object.definition.point)})`;
+    case "center_radius":
+      return `${variable} = Circle(${reference(object.definition.center)}, ${reference(object.definition.radius)})`;
     case "midpoint":
       return `${variable} = Midpoint(${reference(object.definition.pointA)}, ${reference(object.definition.pointB)})`;
     case "parallel_through":
@@ -225,6 +229,14 @@ function objectToScript(
       const offsetArgs = object.definition.offsets.map((o) => `(${formatNumber(o.x)}, ${formatNumber(o.y)})`).join(", ");
       return `${variable} = VectorPolygon(${reference(object.definition.anchor)}, ${offsetArgs})`;
     }
+    case "distance":
+      return `${variable} = Distance(${reference(object.definition.pointA)}, ${reference(object.definition.pointB)})`;
+    case "angle":
+      return `${variable} = Angle(${reference(object.definition.pointA)}, ${reference(object.definition.vertex)}, ${reference(object.definition.pointB)})`;
+    case "area":
+      return `${variable} = Area(${reference(object.definition.polygon)})`;
+    case "slope":
+      return `${variable} = Slope(${reference(object.definition.line)})`;
   }
 }
 

@@ -3,19 +3,29 @@
 from fastapi import APIRouter, HTTPException, status
 
 from app.geometry.script import ConstructionScriptError, evaluate_script
-from app.agent.models import GraphView
+from app.agent.models import GraphRequest, GraphResponse
 from app.agent.tools import graph_view_from_access_map
+from app.geometry.workspace import GeometryWorkspace
 from app.schemas import EvaluateScriptRequest, EvaluateScriptResponse, ScriptErrorDetail
-from app.services import geometry_workspace
 
 router = APIRouter(prefix="/geometry", tags=["geometry"])
 
 
-@router.get("/graph", response_model=GraphView)
-def get_current_graph() -> GraphView:
-    """Return a detached read-only snapshot of the current agent workspace."""
+@router.post("/graph", response_model=GraphResponse)
+def get_current_graph(request: GraphRequest) -> GraphResponse:
+    """Evaluate *request.document* and return a read-only graph snapshot.
 
-    return graph_view_from_access_map(geometry_workspace.graph_access_map())
+    Stateless: builds a fresh workspace per request instead of reading or
+    mutating any process-global state.
+    """
+
+    workspace = (
+        GeometryWorkspace(request.document) if request.document is not None else GeometryWorkspace()
+    )
+    return GraphResponse(
+        graph=graph_view_from_access_map(workspace.graph_access_map()),
+        document=workspace.document_snapshot(),
+    )
 
 
 @router.post("/evaluate-script", response_model=EvaluateScriptResponse)

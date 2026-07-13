@@ -3,6 +3,12 @@ import type {
   EvaluateScriptResponse,
   ScriptErrorDetail,
 } from "../types/script";
+import type {
+  ExecuteToolRequest,
+  ExecuteToolResponse,
+  GraphResponse,
+} from "../types/tools";
+import type { GeometryDocument } from "../types/geometry";
 
 export class ScriptEvaluationError extends Error {
   readonly detail: ScriptErrorDetail | null;
@@ -37,6 +43,62 @@ export async function evaluateConstructionScript(
   }
 
   return (await response.json()) as EvaluateScriptResponse;
+}
+
+/**
+ * Fetch a read-only graph snapshot for *document* (or an empty construction
+ * when omitted). Stateless: the backend builds a fresh workspace per call —
+ * no server-held state is read or mutated. Returns both the evaluated graph
+ * and the (unmodified) document, matching `/geometry/graph`'s response shape.
+ *
+ * Typed surface only: no call site wires this into the UI yet. See Task 5 of
+ * the medio-plazo plan — the frontend does not call this endpoint today.
+ */
+export async function getGeometryGraph(
+  document?: GeometryDocument | null,
+  signal?: AbortSignal,
+): Promise<GraphResponse> {
+  const response = await fetch(`${API_BASE}/geometry/graph`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ document: document ?? null }),
+    signal,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch geometry graph with status ${response.status}`);
+  }
+
+  return (await response.json()) as GraphResponse;
+}
+
+/**
+ * Validate and execute one deterministic agent tool call. Stateless: pass the
+ * document returned by the previous call (or omit it to start fresh) and
+ * thread the response's `document` into the next call.
+ *
+ * Typed surface only: no call site wires this into the UI yet. See Task 5 of
+ * the medio-plazo plan — the frontend does not call this endpoint today.
+ */
+export async function executeTool(
+  request: ExecuteToolRequest,
+  signal?: AbortSignal,
+): Promise<ExecuteToolResponse> {
+  const response = await fetch(`${API_BASE}/agent/execute-tool`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+    signal,
+  });
+
+  if (!response.ok) {
+    const detail = (await readJson(response)) as { detail?: unknown } | null;
+    throw new Error(
+      `Tool execution failed with status ${response.status}: ${JSON.stringify(detail?.detail ?? detail)}`,
+    );
+  }
+
+  return (await response.json()) as ExecuteToolResponse;
 }
 
 async function readJson(response: Response): Promise<unknown> {

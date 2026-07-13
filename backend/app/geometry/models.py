@@ -77,6 +77,12 @@ class CircleByCenterPointDefinition(GeometryModel):
     point: str
 
 
+class CircleByCenterRadiusDefinition(GeometryModel):
+    type: Literal["center_radius"] = "center_radius"
+    center: str
+    radius: str
+
+
 class MidpointDefinition(GeometryModel):
     type: Literal["midpoint"] = "midpoint"
     point_a: str
@@ -258,7 +264,7 @@ class Segment(GeometryObjectBase):
 
 class Circle(GeometryObjectBase):
     kind: Literal["circle"] = "circle"
-    definition: CircleByCenterPointDefinition
+    definition: CircleByCenterPointDefinition | CircleByCenterRadiusDefinition
 
 
 class Midpoint(GeometryObjectBase):
@@ -402,6 +408,56 @@ class Polygon(GeometryObjectBase):
     definition: PolygonVariantDefinition
 
 
+# ─── Parameters ─────────────────────────────────────────────────────────────
+
+class SliderDefinition(GeometryModel):
+    type: Literal["slider"] = "slider"
+    min: float
+    max: float
+    value: float
+    step: float
+
+
+class Slider(GeometryObjectBase):
+    kind: Literal["slider"] = "slider"
+    definition: SliderDefinition
+
+
+# ─── Measures ───────────────────────────────────────────────────────────────
+
+class DistanceMeasureDefinition(GeometryModel):
+    type: Literal["distance"] = "distance"
+    point_a: str
+    point_b: str
+
+
+class AngleMeasureDefinition(GeometryModel):
+    type: Literal["angle"] = "angle"
+    point_a: str
+    vertex: str
+    point_b: str
+
+
+class AreaMeasureDefinition(GeometryModel):
+    type: Literal["area"] = "area"
+    polygon: str
+
+
+class SlopeMeasureDefinition(GeometryModel):
+    type: Literal["slope"] = "slope"
+    line: str
+
+
+MeasureVariantDefinition: TypeAlias = (
+    DistanceMeasureDefinition | AngleMeasureDefinition | AreaMeasureDefinition | SlopeMeasureDefinition
+)
+
+
+class Measure(GeometryObjectBase):
+    kind: Literal["measure"] = "measure"
+    definition: MeasureVariantDefinition
+
+
 GeometryObject: TypeAlias = (
     Point
     | Line
@@ -427,6 +483,8 @@ GeometryObject: TypeAlias = (
     | Arc
     | FunctionGraph
     | Polygon
+    | Slider
+    | Measure
 )
 
 
@@ -512,6 +570,11 @@ class FunctionValue(GeometryModel):
     expression: str
 
 
+class ScalarValue(GeometryModel):
+    type: Literal["scalar"] = "scalar"
+    value: float
+
+
 EvaluatedValue: TypeAlias = (
     PointValue
     | LineValue
@@ -520,6 +583,7 @@ EvaluatedValue: TypeAlias = (
     | ArcValue
     | PolygonValue
     | FunctionValue
+    | ScalarValue
     | UndefinedValue
 )
 

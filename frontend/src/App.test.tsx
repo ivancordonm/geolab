@@ -298,11 +298,15 @@ describe("cloud document title flow", () => {
           cloudTitle = JSON.parse(init.body as string).title as string;
           return new Response(JSON.stringify(cloudDetail(cloudTitle)), { status: 201 });
         }
-        if (url === "/documents" && init?.method === undefined) {
+        if (url.startsWith("/documents?") && init?.method === undefined) {
           return new Response(
-            JSON.stringify([
-              { id: "cloud-1", title: cloudTitle, updatedAt: "2026-01-01T00:00:00Z" },
-            ]),
+            JSON.stringify({
+              documents: [
+                { id: "cloud-1", title: cloudTitle, updatedAt: "2026-01-01T00:00:00Z" },
+              ],
+              total: 1,
+              hasMore: false,
+            }),
             { status: 200 },
           );
         }

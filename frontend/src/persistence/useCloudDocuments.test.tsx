@@ -37,9 +37,14 @@ describe("useCloudDocuments", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
-        new Response(JSON.stringify([{ id: "1", title: "A", updatedAt: "2026-01-01T00:00:00Z" }]), {
-          status: 200,
-        }),
+        new Response(
+          JSON.stringify({
+            documents: [{ id: "1", title: "A", updatedAt: "2026-01-01T00:00:00Z" }],
+            total: 1,
+            hasMore: false,
+          }),
+          { status: 200 },
+        ),
       ),
     );
 
@@ -49,6 +54,106 @@ describe("useCloudDocuments", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.documents).toHaveLength(1);
     expect(result.current.panelOpen).toBe(true);
+    expect(result.current.hasMore).toBe(false);
+  });
+
+  it("exposes hasMore and appends the next page via loadMore", async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          documents: [{ id: "1", title: "A", updatedAt: "2026-01-01T00:00:00Z" }],
+          total: 2,
+          hasMore: true,
+        }),
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useCloudDocuments(vi.fn()));
+    act(() => result.current.openPanel());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.hasMore).toBe(true);
+    expect(result.current.documents).toHaveLength(1);
+
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          documents: [{ id: "2", title: "B", updatedAt: "2026-01-02T00:00:00Z" }],
+          total: 2,
+          hasMore: false,
+        }),
+        { status: 200 },
+      ),
+    );
+
+    await act(async () => {
+      await result.current.loadMore();
+    });
+
+    expect(result.current.documents.map((document) => document.id)).toEqual(["1", "2"]);
+    expect(result.current.hasMore).toBe(false);
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      expect.stringContaining("offset=1"),
+      expect.anything(),
+    );
+  });
+
+  it("discards a stale loadMore response superseded by a newer refreshList", async () => {
+    const initialList = new Response(
+      JSON.stringify({
+        documents: [{ id: "1", title: "A", updatedAt: "2026-01-01T00:00:00Z" }],
+        total: 2,
+        hasMore: true,
+      }),
+      { status: 200 },
+    );
+    const loadMoreDeferred = deferred<Response>();
+    const secondRefresh = new Response(
+      JSON.stringify({
+        documents: [{ id: "1", title: "A", updatedAt: "2026-01-01T00:00:00Z" }],
+        total: 2,
+        hasMore: true,
+      }),
+      { status: 200 },
+    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(initialList)
+      .mockReturnValueOnce(loadMoreDeferred.promise)
+      .mockResolvedValueOnce(secondRefresh);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useCloudDocuments(vi.fn()));
+    act(() => result.current.openPanel());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let loadMoreResult!: CloudActionResult<unknown>;
+    act(() => {
+      void result.current.loadMore().then((value) => {
+        loadMoreResult = value;
+      });
+    });
+
+    // A newer refresh starts (e.g. panel reopened) before loadMore resolves.
+    act(() => result.current.openPanel());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      loadMoreDeferred.resolve(
+        new Response(
+          JSON.stringify({
+            documents: [{ id: "2", title: "B", updatedAt: "2026-01-02T00:00:00Z" }],
+            total: 2,
+            hasMore: false,
+          }),
+          { status: 200 },
+        ),
+      );
+    });
+
+    await waitFor(() => expect(loadMoreResult).toEqual({ status: "superseded" }));
+    expect(result.current.documents.map((document) => document.id)).toEqual(["1"]);
   });
 
   it("saveAsNew stores the returned id and returns the canonical detail", async () => {
@@ -217,7 +322,11 @@ describe("useCloudDocuments", () => {
     await act(async () => {
       secondList.resolve(
         new Response(
-          JSON.stringify([{ id: "B", title: "B", updatedAt: "2026-01-01T00:00:00Z" }]),
+          JSON.stringify({
+            documents: [{ id: "B", title: "B", updatedAt: "2026-01-01T00:00:00Z" }],
+            total: 1,
+            hasMore: false,
+          }),
           { status: 200 },
         ),
       );
@@ -227,7 +336,11 @@ describe("useCloudDocuments", () => {
     await act(async () => {
       firstList.resolve(
         new Response(
-          JSON.stringify([{ id: "A", title: "A", updatedAt: "2026-01-01T00:00:00Z" }]),
+          JSON.stringify({
+            documents: [{ id: "A", title: "A", updatedAt: "2026-01-01T00:00:00Z" }],
+            total: 1,
+            hasMore: false,
+          }),
           { status: 200 },
         ),
       );
@@ -264,7 +377,9 @@ describe("useCloudDocuments", () => {
       .fn()
       .mockResolvedValueOnce(new Response(JSON.stringify(detail("1", "Triangle")), { status: 201 }))
       .mockResolvedValueOnce(new Response(null, { status: 204 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify([]), { status: 200 }));
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ documents: [], total: 0, hasMore: false }), { status: 200 }),
+      );
     vi.stubGlobal("fetch", fetchMock);
 
     const { result } = renderHook(() => useCloudDocuments(vi.fn()));

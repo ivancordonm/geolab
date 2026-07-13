@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 from collections import deque
-from math import cos, hypot, isfinite, pi, sin, sqrt
+from math import atan2, cos, degrees, hypot, isfinite, pi, sin, sqrt
 
 from app.geometry.models import (
     AngleBisectorDefinition,
+    AngleMeasureDefinition,
     ArcThroughPointsDefinition,
     ArcValue,
+    AreaMeasureDefinition,
     CircleByCenterPointDefinition,
+    CircleByCenterRadiusDefinition,
     CircleValue,
     CircumscribedDefinition,
     Coordinate,
+    DistanceMeasureDefinition,
     EvaluatedValue,
     FunctionExpressionDefinition,
     FunctionValue,
@@ -40,8 +44,11 @@ from app.geometry.models import (
     ReflectionOverPointDefinition,
     RegularPolygonDefinition,
     RotationDefinition,
+    ScalarValue,
     SegmentBetweenPointsDefinition,
     SegmentValue,
+    SliderDefinition,
+    SlopeMeasureDefinition,
     TranslationDefinition,
     UndefinedValue,
     VectorPolygonDefinition,
@@ -73,7 +80,7 @@ def get_parent_ids(obj: GeometryObject) -> list[str]:
     """Return construction parent IDs in deterministic argument order."""
 
     definition = obj.definition
-    if isinstance(definition, FreePointDefinition):
+    if isinstance(definition, (FreePointDefinition, SliderDefinition)):
         return []
     if isinstance(definition, PolygonVertexDefinition):
         return [definition.polygon]
@@ -81,6 +88,8 @@ def get_parent_ids(obj: GeometryObject) -> list[str]:
         return [definition.point_a, definition.point_b]
     if isinstance(definition, CircleByCenterPointDefinition):
         return [definition.center, definition.point]
+    if isinstance(definition, CircleByCenterRadiusDefinition):
+        return [definition.center, definition.radius]
     if isinstance(definition, (ParallelLineDefinition, PerpendicularLineDefinition)):
         return [definition.point, definition.line]
     if isinstance(definition, IntersectionLLDefinition):
@@ -118,6 +127,15 @@ def get_parent_ids(obj: GeometryObject) -> list[str]:
         return [definition.point_a, definition.point_b]
     if isinstance(definition, VectorPolygonDefinition):
         return [definition.anchor]
+    # ─── Measures ────────────────────────────────────────────────────────────
+    if isinstance(definition, DistanceMeasureDefinition):
+        return [definition.point_a, definition.point_b]
+    if isinstance(definition, AngleMeasureDefinition):
+        return [definition.point_a, definition.vertex, definition.point_b]
+    if isinstance(definition, AreaMeasureDefinition):
+        return [definition.polygon]
+    if isinstance(definition, SlopeMeasureDefinition):
+        return [definition.line]
     raise GeometryValidationError(f"Unsupported definition for object '{obj.id}'")
 
 
@@ -197,6 +215,9 @@ class GeometryGraph:
         if isinstance(definition, FreePointDefinition):
             if not isfinite(definition.x) or not isfinite(definition.y):
                 raise GeometryValidationError(f"Point '{obj.id}' coordinates must be finite")
+        elif isinstance(definition, SliderDefinition):
+            if not isfinite(definition.min) or not isfinite(definition.max) or not isfinite(definition.value) or not isfinite(definition.step):
+                raise GeometryValidationError(f"Slider '{obj.id}' parameters must be finite")
         elif isinstance(definition, PolygonVertexDefinition):
             require_kind(definition.polygon, "polygon")
         elif isinstance(definition, (LineThroughPointsDefinition, SegmentBetweenPointsDefinition, MidpointDefinition, PerpendicularBisectorDefinition)):
@@ -205,6 +226,17 @@ class GeometryGraph:
         elif isinstance(definition, CircleByCenterPointDefinition):
             require_kind(definition.center, "point")
             require_kind(definition.point, "point")
+        elif isinstance(definition, CircleByCenterRadiusDefinition):
+            require_kind(definition.center, "point")
+            # Deliberately slider-only: Measures also produce scalars, but no script/tool
+            # path can construct a measure-driven radius today, so widening this is left
+            # for whoever builds that construction, not a forgotten follow-up.
+            scalar_kinds = {"slider"}
+            actual = self._objects_by_id[definition.radius].kind
+            if actual not in scalar_kinds:
+                raise GeometryValidationError(
+                    f"Object '{obj.id}' requires parent '{definition.radius}' to produce a scalar value"
+                )
         elif isinstance(definition, (ParallelLineDefinition, PerpendicularLineDefinition)):
             require_kind(definition.point, "point")
             require_kind(definition.line, "line")
@@ -305,6 +337,18 @@ class GeometryGraph:
             if len(definition.offsets) < 2:
                 raise GeometryValidationError(f"VectorPolygon '{obj.id}' requires at least 2 offsets")
             require_kind(definition.anchor, "point")
+        # ─── Measures ─────────────────────────────────────────────────────────
+        elif isinstance(definition, DistanceMeasureDefinition):
+            require_kind(definition.point_a, "point")
+            require_kind(definition.point_b, "point")
+        elif isinstance(definition, AngleMeasureDefinition):
+            require_kind(definition.point_a, "point")
+            require_kind(definition.vertex, "point")
+            require_kind(definition.point_b, "point")
+        elif isinstance(definition, AreaMeasureDefinition):
+            require_kind(definition.polygon, "polygon")
+        elif isinstance(definition, SlopeMeasureDefinition):
+            require_kind(definition.line, "line")
 
     def _build_topological_order(self) -> list[str]:
         states: dict[str, str] = {}
@@ -353,6 +397,9 @@ class GeometryGraph:
         if isinstance(definition, FreePointDefinition):
             return PointValue(x=definition.x, y=definition.y)
 
+        if isinstance(definition, SliderDefinition):
+            return ScalarValue(value=definition.value)
+
         if isinstance(definition, PolygonVertexDefinition):
             polygon = self._require_value(obj.id, definition.polygon, "polygon")
             if isinstance(polygon, UndefinedValue):
@@ -387,6 +434,19 @@ class GeometryGraph:
             if isinstance(points, UndefinedValue):
                 return points
             return CircleValue(center=Coordinate(x=points[0].x, y=points[0].y), radius=hypot(points[1].x - points[0].x, points[1].y - points[0].y))
+
+        if isinstance(definition, CircleByCenterRadiusDefinition):
+            center = self._require_value(obj.id, definition.center, "point")
+            if isinstance(center, UndefinedValue):
+                return center
+            radius = self._require_value(obj.id, definition.radius, "scalar")
+            if isinstance(radius, UndefinedValue):
+                return radius
+            assert isinstance(center, PointValue)
+            assert isinstance(radius, ScalarValue)
+            if radius.value < 0:
+                return UndefinedValue(code="negative_radius", message=f"Circle '{obj.id}' radius must be non-negative")
+            return CircleValue(center=Coordinate(x=center.x, y=center.y), radius=radius.value)
 
         if isinstance(definition, (ParallelLineDefinition, PerpendicularLineDefinition)):
             point = self._require_value(obj.id, definition.point, "point")
@@ -629,6 +689,49 @@ class GeometryGraph:
             for offset in definition.offsets:
                 vertices.append(Coordinate(x=_clean_zero(ax + offset.x), y=_clean_zero(ay + offset.y)))
             return PolygonValue(vertices=vertices)
+
+        # ─── Measures ───────────────────────────────────────────────────────
+
+        if isinstance(definition, DistanceMeasureDefinition):
+            points = self._require_points(obj.id, definition.point_a, definition.point_b)
+            if isinstance(points, UndefinedValue):
+                return points
+            pt_a, pt_b = points
+            return ScalarValue(value=hypot(pt_b.x - pt_a.x, pt_b.y - pt_a.y))
+
+        if isinstance(definition, AngleMeasureDefinition):
+            pt_a = self._require_value(obj.id, definition.point_a, "point")
+            if isinstance(pt_a, UndefinedValue):
+                return pt_a
+            vertex = self._require_value(obj.id, definition.vertex, "point")
+            if isinstance(vertex, UndefinedValue):
+                return vertex
+            pt_b = self._require_value(obj.id, definition.point_b, "point")
+            if isinstance(pt_b, UndefinedValue):
+                return pt_b
+            assert isinstance(pt_a, PointValue)
+            assert isinstance(vertex, PointValue)
+            assert isinstance(pt_b, PointValue)
+            return _angle_measure(pt_a, vertex, pt_b)
+
+        if isinstance(definition, AreaMeasureDefinition):
+            polygon = self._require_value(obj.id, definition.polygon, "polygon")
+            if isinstance(polygon, UndefinedValue):
+                return polygon
+            assert isinstance(polygon, PolygonValue)
+            return ScalarValue(value=_polygon_area(polygon))
+
+        if isinstance(definition, SlopeMeasureDefinition):
+            line = self._require_value(obj.id, definition.line, "line")
+            if isinstance(line, UndefinedValue):
+                return line
+            assert isinstance(line, LineValue)
+            if abs(line.b) <= GEOMETRY_EPSILON:
+                return UndefinedValue(
+                    code="vertical_line",
+                    message=f"Slope '{obj.id}' is undefined for a vertical line",
+                )
+            return ScalarValue(value=-line.a / line.b)
 
         raise GeometryValidationError(f"Unsupported definition for object '{obj.id}'")
 
@@ -1000,6 +1103,37 @@ def _regular_polygon_vertices(pA: PointValue, pB: PointValue, n: int) -> Evaluat
         cur_y = _clean_zero(cur_y + vy)
         vertices.append(Coordinate(x=cur_x, y=cur_y))
     return PolygonValue(vertices=vertices)
+
+
+def _angle_measure(pt_a: PointValue, vertex: PointValue, pt_b: PointValue) -> EvaluatedValue:
+    """Unsigned angle at `vertex` between rays to `pt_a` and `pt_b`, in degrees, range [0, 180].
+
+    Uses atan2(|cross|, dot) of the two arm vectors, which is numerically stable
+    near 0 and 180 degrees and always non-negative (no directional/signed angle).
+    """
+
+    vax = pt_a.x - vertex.x
+    vay = pt_a.y - vertex.y
+    vbx = pt_b.x - vertex.x
+    vby = pt_b.y - vertex.y
+    if hypot(vax, vay) <= GEOMETRY_EPSILON or hypot(vbx, vby) <= GEOMETRY_EPSILON:
+        return UndefinedValue(code="coincident_points", message="Angle requires distinct vertex and arm points")
+    cross = vax * vby - vay * vbx
+    dot = vax * vbx + vay * vby
+    angle_rad = atan2(abs(cross), dot)
+    return ScalarValue(value=degrees(angle_rad))
+
+
+def _polygon_area(polygon: PolygonValue) -> float:
+    """Shoelace formula; always non-negative regardless of vertex winding order."""
+
+    vertices = polygon.vertices
+    n = len(vertices)
+    total = 0.0
+    for i in range(n):
+        j = (i + 1) % n
+        total += vertices[i].x * vertices[j].y - vertices[j].x * vertices[i].y
+    return abs(total) / 2.0
 
 
 def _clean_zero(value: float) -> float:

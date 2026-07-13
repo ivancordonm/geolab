@@ -41,6 +41,12 @@ class DocumentSummary(GeometryModel):
     updated_at: datetime
 
 
+class DocumentListResponse(GeometryModel):
+    documents: list[DocumentSummary]
+    total: int
+    has_more: bool
+
+
 class DocumentDetail(GeometryModel):
     id: str
     title: str

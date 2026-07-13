@@ -1,0 +1,64 @@
+{
+  "document": {
+    "schemaVersion": 1,
+    "id": "doc_sliders",
+    "title": "Sliders as parameter objects",
+    "objects": [
+      {
+        "id": "s1",
+        "label": "s1",
+        "kind": "slider",
+        "visible": true,
+        "definition": {
+          "type": "slider",
+          "min": 0,
+          "max": 10,
+          "value": 5,
+          "step": 0.5
+        }
+      },
+      {
+        "id": "p",
+        "label": "p",
+        "kind": "point",
+        "visible": true,
+        "definition": { "type": "free", "x": 0, "y": 0 }
+      },
+      {
+        "id": "c",
+        "label": "c",
+        "kind": "circle",
+        "visible": true,
+        "definition": {
+          "type": "center_radius",
+          "center": "p",
+          "radius": "s1"
+        }
+      }
+    ],
+    "viewport": { "centerX": 0, "centerY": 0, "scale": 50 }
+  },
+  "initialValues": {
+    "s1": { "type": "scalar", "value": 5 },
+    "p": { "type": "point", "x": 0, "y": 0 },
+    "c": {
+      "type": "circle",
+      "center": { "x": 0, "y": 0 },
+      "radius": 5
+    }
+  },
+  "move": {
+    "pointId": "p",
+    "x": 3,
+    "y": 4,
+    "expectedRecomputed": ["p", "c"],
+    "expectedValues": {
+      "p": { "type": "point", "x": 3, "y": 4 },
+      "c": {
+        "type": "circle",
+        "center": { "x": 3, "y": 4 },
+        "radius": 5
+      }
+    }
+  }
+}

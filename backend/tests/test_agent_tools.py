@@ -26,6 +26,13 @@ EXPECTED_TOOLS = {
     "create_polygon",
     "create_regular_polygon",
     "create_vector_polygon",
+<<<<<<< HEAD
+    "create_slider",
+    "create_distance",
+    "create_angle",
+    "create_area",
+    "create_slope",
+=======
     "create_reflection_over_line",
     "create_reflection_over_point",
     "create_translation",
@@ -35,6 +42,7 @@ EXPECTED_TOOLS = {
     "create_arc",
     "create_function",
     "create_polygon_vertex",
+>>>>>>> origin/main
     "validate_construction",
     "evaluate_script",
     "get_current_graph",
@@ -194,6 +202,65 @@ def test_directional_intersection_tool_is_atomic_on_ambiguity() -> None:
     assert "C" not in workspace.graph_access_map().by_id
 
 
+<<<<<<< HEAD
+def test_measure_tools_create_distance_angle_area_and_slope() -> None:
+    workspace = GeometryWorkspace()
+    registry = create_geometry_tool_registry(workspace)
+
+    execute(registry, "create_point", {"objectId": "A", "x": 0, "y": 0})
+    execute(registry, "create_point", {"objectId": "B", "x": 3, "y": 4})
+    execute(registry, "create_point", {"objectId": "O", "x": 0, "y": 0})
+    execute(registry, "create_point", {"objectId": "P1", "x": 1, "y": 0})
+    execute(registry, "create_point", {"objectId": "P2", "x": 0, "y": 1})
+    execute(registry, "create_point", {"objectId": "T1", "x": 0, "y": 0})
+    execute(registry, "create_point", {"objectId": "T2", "x": 4, "y": 0})
+    execute(registry, "create_point", {"objectId": "T3", "x": 0, "y": 3})
+    execute(registry, "create_polygon", {"objectId": "tri", "pointIds": ["T1", "T2", "T3"]})
+    execute(registry, "create_line", {"objectId": "ln", "pointA": "A", "pointB": "B"})
+
+    distance_output = execute(registry, "create_distance", {"objectId": "d", "pointA": "A", "pointB": "B"})
+    angle_output = execute(registry, "create_angle", {"objectId": "ang", "pointA": "P1", "vertex": "O", "pointB": "P2"})
+    area_output = execute(registry, "create_area", {"objectId": "area", "polygon": "tri"})
+    slope_output = execute(registry, "create_slope", {"objectId": "slope", "line": "ln"})
+
+    assert distance_output.created_object.definition.type == "distance"  # type: ignore[attr-defined]
+    access = workspace.graph_access_map()
+    assert access.by_id["d"].value.type == "scalar"
+    assert access.by_id["d"].value.value == pytest.approx(5.0)  # type: ignore[union-attr]
+
+    assert angle_output.created_object.definition.type == "angle"  # type: ignore[attr-defined]
+    assert access.by_id["ang"].value.value == pytest.approx(90.0)  # type: ignore[union-attr]
+
+    assert area_output.created_object.definition.type == "area"  # type: ignore[attr-defined]
+    assert access.by_id["area"].value.value == pytest.approx(6.0)  # type: ignore[union-attr]
+
+    assert slope_output.created_object.definition.type == "slope"  # type: ignore[attr-defined]
+    assert access.by_id["slope"].value.value == pytest.approx(4.0 / 3.0)  # type: ignore[union-attr]
+
+
+def test_create_slope_tool_rejects_vertical_line_atomically() -> None:
+    workspace = GeometryWorkspace()
+    registry = create_geometry_tool_registry(workspace)
+    execute(registry, "create_point", {"objectId": "V1", "x": 2, "y": 0})
+    execute(registry, "create_point", {"objectId": "V2", "x": 2, "y": 5})
+    execute(registry, "create_line", {"objectId": "vln", "pointA": "V1", "pointB": "V2"})
+
+    with pytest.raises(ToolExecutionError, match="vertical_line"):
+        execute(registry, "create_slope", {"objectId": "slope", "line": "vln"})
+
+    assert "slope" not in workspace.graph_access_map().by_id
+
+
+def test_create_distance_tool_rejects_non_point_parent() -> None:
+    workspace = GeometryWorkspace()
+    registry = create_geometry_tool_registry(workspace)
+    execute(registry, "create_point", {"objectId": "A", "x": 0, "y": 0})
+    execute(registry, "create_point", {"objectId": "B", "x": 1, "y": 0})
+    execute(registry, "create_line", {"objectId": "ln", "pointA": "A", "pointB": "B"})
+
+    with pytest.raises(ToolExecutionError, match="must be a point"):
+        execute(registry, "create_distance", {"objectId": "d", "pointA": "A", "pointB": "ln"})
+=======
 def test_transformation_tools_create_defined_objects() -> None:
     workspace = GeometryWorkspace()
     registry = create_geometry_tool_registry(workspace)
@@ -294,3 +361,4 @@ def test_export_tools_return_svg_png_and_json() -> None:
     assert descriptors["export_svg"].mutates_geometry_state is False
     assert descriptors["export_png"].mutates_geometry_state is False
     assert descriptors["export_json"].mutates_geometry_state is False
+>>>>>>> origin/main

@@ -14,13 +14,17 @@ from app.geometry.function_expression import (
 from app.geometry.models import (
     AngleBisectorLine,
     AngleBisectorDefinition,
+    AngleMeasureDefinition,
     Arc,
     ArcThroughPointsDefinition,
+    AreaMeasureDefinition,
     Circle,
     CircleByCenterPointDefinition,
+    CircleByCenterRadiusDefinition,
     CircumscribedCircle,
     CircumscribedDefinition,
     Coordinate,
+    DistanceMeasureDefinition,
     EvaluatedValue,
     FunctionExpressionDefinition,
     FunctionGraph,
@@ -41,6 +45,7 @@ from app.geometry.models import (
     InversionInCircleDefinition,
     Line,
     LineThroughPointsDefinition,
+    Measure,
     Midpoint,
     MidpointDefinition,
     ParallelLine,
@@ -63,6 +68,9 @@ from app.geometry.models import (
     RotationDefinition,
     Segment,
     SegmentBetweenPointsDefinition,
+    Slider,
+    SliderDefinition,
+    SlopeMeasureDefinition,
     TranslatedObject,
     TranslationDefinition,
     VectorPolygonDefinition,
@@ -70,6 +78,7 @@ from app.geometry.models import (
 
 CommandName = Literal[
     "Point",
+    "Slider",
     "Line",
     "Segment",
     "Circle",
@@ -93,11 +102,16 @@ CommandName = Literal[
     "Function",
     "Polygon",
     "VectorPolygon",
+    "Distance",
+    "Angle",
+    "Area",
+    "Slope",
 ]
 
 SUPPORTED_COMMANDS: frozenset[str] = frozenset(
     {
         "Point",
+        "Slider",
         "Line",
         "Segment",
         "Circle",
@@ -121,6 +135,10 @@ SUPPORTED_COMMANDS: frozenset[str] = frozenset(
         "Function",
         "Polygon",
         "VectorPolygon",
+        "Distance",
+        "Angle",
+        "Area",
+        "Slope",
     }
 )
 
@@ -359,7 +377,35 @@ def _build_object(
         y = _parse_number(arguments[1], statement, argument_position=2)
         return [Point(id=statement.target, label=statement.target, definition={"type": "free", "x": x, "y": y})]
 
-    if command in ("Line", "Segment", "Circle", "Midpoint"):
+    if command == "Slider":
+        _require_arity(statement, 4)
+        min_ = _parse_number(arguments[0], statement, argument_position=1)
+        max_ = _parse_number(arguments[1], statement, argument_position=2)
+        value = _parse_number(arguments[2], statement, argument_position=3)
+        step = _parse_number(arguments[3], statement, argument_position=4)
+        return [Slider(id=statement.target, label=statement.target, definition=SliderDefinition(min=min_, max=max_, value=value, step=step))]
+
+    if command == "Circle":
+        _require_arity(statement, 2)
+        center = _resolve_point_argument(arguments[0], statement, symbols, objects, argument_position=1)
+        second_token = arguments[1]
+        if _COORDINATE_PATTERN.fullmatch(second_token) is not None:
+            point = _resolve_point_argument(second_token, statement, symbols, objects, argument_position=2)
+            return [Circle(id=statement.target, label=statement.target, definition=CircleByCenterPointDefinition(center=center.id, point=point.id))]
+        second_obj = _resolve_reference(second_token, statement, symbols, argument_position=2)
+        if second_obj.kind == "point":
+            return [Circle(id=statement.target, label=statement.target, definition=CircleByCenterPointDefinition(center=center.id, point=second_obj.id))]
+        if second_obj.kind == "slider":
+            return [Circle(id=statement.target, label=statement.target, definition=CircleByCenterRadiusDefinition(center=center.id, radius=second_obj.id))]
+        _raise(
+            "invalid_reference_type",
+            f"Argument 2 of Circle must reference a point or slider, but '{second_obj.id}' is a {second_obj.kind}",
+            statement.line,
+            statement.source_line,
+            second_obj.id,
+        )
+
+    if command in ("Line", "Segment", "Midpoint"):
         _require_arity(statement, 2)
         first = _resolve_point_argument(arguments[0], statement, symbols, objects, argument_position=1)
         second = _resolve_point_argument(arguments[1], statement, symbols, objects, argument_position=2)
@@ -367,8 +413,6 @@ def _build_object(
             return [Line(id=statement.target, label=statement.target, definition=LineThroughPointsDefinition(point_a=first.id, point_b=second.id))]
         if command == "Segment":
             return [Segment(id=statement.target, label=statement.target, definition=SegmentBetweenPointsDefinition(point_a=first.id, point_b=second.id))]
-        if command == "Circle":
-            return [Circle(id=statement.target, label=statement.target, definition=CircleByCenterPointDefinition(center=first.id, point=second.id))]
         if command == "Midpoint":
             return [Midpoint(id=statement.target, label=statement.target, definition=MidpointDefinition(point_a=first.id, point_b=second.id))]
 
@@ -661,6 +705,33 @@ def _build_object(
             label=statement.target,
             definition=VectorPolygonDefinition(anchor=anchor.id, offsets=offsets),
         )]
+
+    # ─── New: measures ──────────────────────────────────────────────────────
+
+    if command == "Distance":
+        _require_arity(statement, 2)
+        a = _resolve_point_argument(arguments[0], statement, symbols, objects, argument_position=1)
+        b = _resolve_point_argument(arguments[1], statement, symbols, objects, argument_position=2)
+        return [Measure(id=statement.target, label=statement.target, definition=DistanceMeasureDefinition(point_a=a.id, point_b=b.id))]
+
+    if command == "Angle":
+        _require_arity(statement, 3)
+        a = _resolve_point_argument(arguments[0], statement, symbols, objects, argument_position=1)
+        vertex = _resolve_point_argument(arguments[1], statement, symbols, objects, argument_position=2)
+        b = _resolve_point_argument(arguments[2], statement, symbols, objects, argument_position=3)
+        return [Measure(id=statement.target, label=statement.target, definition=AngleMeasureDefinition(point_a=a.id, vertex=vertex.id, point_b=b.id))]
+
+    if command == "Area":
+        _require_arity(statement, 1)
+        polygon = _resolve_reference(arguments[0], statement, symbols, argument_position=1)
+        _require_kind(polygon, "polygon", statement, 1)
+        return [Measure(id=statement.target, label=statement.target, definition=AreaMeasureDefinition(polygon=polygon.id))]
+
+    if command == "Slope":
+        _require_arity(statement, 1)
+        line = _resolve_reference(arguments[0], statement, symbols, argument_position=1)
+        _require_kind(line, "line", statement, 1)
+        return [Measure(id=statement.target, label=statement.target, definition=SlopeMeasureDefinition(line=line.id))]
 
     _raise("unknown_command", f"Unknown command '{command}'", statement.line, statement.source_line)
 

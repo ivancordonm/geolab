@@ -6,7 +6,6 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.mcp_widget import GEOMETRY_WIDGET_MIME_TYPE, GEOMETRY_WIDGET_URI
-from app.services import geometry_workspace
 
 MCP_HEADERS = {
     "Accept": "application/json, text/event-stream",
@@ -18,11 +17,6 @@ MCP_HEADERS = {
 def mcp_client() -> Iterator[TestClient]:
     with TestClient(app) as client:
         yield client
-
-
-@pytest.fixture(autouse=True)
-def reset_workspace() -> None:
-    geometry_workspace.reset()
 
 
 def rpc(client: TestClient, method: str, params: dict[str, Any], request_id: int = 1):
@@ -56,9 +50,13 @@ def test_mcp_lists_registered_tools_with_safety_annotations(mcp_client: TestClie
 
     assert response.status_code == 200
     tools = {tool["name"]: tool for tool in response.json()["result"]["tools"]}
+<<<<<<< HEAD
+    assert len(tools) == 27
+=======
     assert len(tools) == 31
     assert "create_rotation" in tools
     assert "create_function" in tools
+>>>>>>> origin/main
     assert "get_current_graph" not in tools
     assert tools["render_current_graph"]["annotations"]["readOnlyHint"] is True
     assert "Always use this tool" in tools["render_current_graph"]["description"]
@@ -94,7 +92,7 @@ def call_tool(
     return result
 
 
-def test_mcp_tools_chain_documents_without_touching_global_workspace(
+def test_mcp_tools_chain_documents_across_calls(
     mcp_client: TestClient,
 ) -> None:
     first = call_tool(
@@ -104,6 +102,16 @@ def test_mcp_tools_chain_documents_without_touching_global_workspace(
         3,
     )
     document = first["structuredContent"]["document"]
+    # A fresh call with no `document` starts from an empty construction, proving
+    # each tool call is independently stateless rather than reading shared state.
+    isolated = call_tool(
+        mcp_client,
+        "create_point",
+        {"object_id": "Z", "x": 9, "y": 9},
+        99,
+    )
+    assert [item["id"] for item in isolated["structuredContent"]["document"]["objects"]] == ["Z"]
+
     second = call_tool(
         mcp_client,
         "create_point",
@@ -114,7 +122,6 @@ def test_mcp_tools_chain_documents_without_touching_global_workspace(
         "A",
         "B",
     ]
-    assert geometry_workspace.document_snapshot().objects == []
 
 
 def test_mcp_constructs_validates_and_renders_equilateral_triangle(

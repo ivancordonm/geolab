@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import secrets
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user
 from app.db import get_db
 from app.documents.schemas import (
     DocumentDetail,
+    DocumentListResponse,
     DocumentSummary,
     PublicDocument,
     SaveDocumentRequest,
@@ -53,18 +54,21 @@ def _get_owned_document(session: Session, user: User, document_id: str) -> Docum
     return document
 
 
-@router.get("", response_model=list[DocumentSummary])
+@router.get("", response_model=DocumentListResponse)
 def list_documents(
+    limit: int = Query(50, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
     user: User = Depends(get_current_user),
     session: Session = Depends(get_db),
-) -> list[DocumentSummary]:
-    documents = (
-        session.query(Document)
-        .filter_by(user_id=user.id)
-        .order_by(Document.updated_at.desc())
-        .all()
+) -> DocumentListResponse:
+    base_query = session.query(Document).filter_by(user_id=user.id)
+    total = base_query.count()
+    documents = base_query.order_by(Document.updated_at.desc()).offset(offset).limit(limit).all()
+    return DocumentListResponse(
+        documents=[_summary(document) for document in documents],
+        total=total,
+        has_more=offset + len(documents) < total,
     )
-    return [_summary(document) for document in documents]
 
 
 @router.post("", response_model=DocumentDetail, status_code=status.HTTP_201_CREATED)

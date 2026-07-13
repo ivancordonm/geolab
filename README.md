@@ -158,8 +158,9 @@ Verify after deploy: DevTools → Network shows `/auth/me` going to
 
 Important REST routes:
 
-- `POST /geometry/evaluate-script`, `GET /geometry/graph`
+- `POST /geometry/evaluate-script`, `POST /geometry/graph`
 - `POST /agent/plan`, `GET /agent/tools`, `POST /agent/execute-tool`
+- `POST /agent/plan-with-tools` (Claude native tool-calling planner), `POST /agent/plan-stream` (SSE streaming variant)
 - `POST /auth/google`, `POST /auth/logout`, `GET /auth/me`
 - authenticated CRUD under `/documents`
 - `GET /health`
@@ -186,10 +187,12 @@ cd ../backend
 
 ## Important limitations
 
-- `GET /geometry/graph` and `POST /agent/execute-tool` use one process-global,
-  in-memory REST workspace. It is not user-scoped, durable, or safe as a
-  collaboration boundary. Authenticated cloud documents are separate and live
-  in PostgreSQL. MCP construction calls do not use this global workspace.
+- `POST /geometry/graph` and `POST /agent/execute-tool` are stateless: each
+  call builds a fresh in-memory workspace from the `document` in the request
+  body and returns the resulting `document` for the caller to thread into the
+  next call, mirroring the MCP tools. Neither endpoint holds server-side
+  construction state or is user-scoped; authenticated cloud documents are
+  separate and live in PostgreSQL.
 - There is no multi-user realtime collaboration, pagination for cloud document
   lists, formal theorem prover, arbitrary Python execution, or 3D engine.
 - The TypeScript and Python geometry engines intentionally duplicate domain

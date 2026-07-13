@@ -51,7 +51,10 @@ def test_create_list_get_update_delete_round_trip(client, monkeypatch) -> None:
 
     list_response = client.get("/documents")
     assert list_response.status_code == 200
-    assert [item["id"] for item in list_response.json()] == [document_id]
+    list_body = list_response.json()
+    assert [item["id"] for item in list_body["documents"]] == [document_id]
+    assert list_body["total"] == 1
+    assert list_body["hasMore"] is False
 
     get_response = client.get(f"/documents/{document_id}")
     assert get_response.status_code == 200
@@ -76,6 +79,43 @@ def test_create_list_get_update_delete_round_trip(client, monkeypatch) -> None:
 
     missing_response = client.get(f"/documents/{document_id}")
     assert missing_response.status_code == 404
+
+
+def test_document_list_pagination(client, monkeypatch) -> None:
+    _login(client, monkeypatch, sub="user-a", email="a@example.com")
+
+    for index in range(120):
+        response = client.post(
+            "/documents",
+            json={"title": f"Doc {index}", "document": _sample_document(doc_id=f"doc-{index}")},
+        )
+        assert response.status_code == 201
+
+    first_page = client.get("/documents", params={"limit": 50, "offset": 0})
+    assert first_page.status_code == 200
+    first_body = first_page.json()
+    assert len(first_body["documents"]) == 50
+    assert first_body["total"] == 120
+    assert first_body["hasMore"] is True
+
+    second_page = client.get("/documents", params={"limit": 50, "offset": 100})
+    assert second_page.status_code == 200
+    second_body = second_page.json()
+    assert len(second_body["documents"]) == 20
+    assert second_body["total"] == 120
+    assert second_body["hasMore"] is False
+
+    default_page = client.get("/documents")
+    assert default_page.status_code == 200
+    default_body = default_page.json()
+    assert len(default_body["documents"]) == 50
+    assert default_body["total"] == 120
+    assert default_body["hasMore"] is True
+
+    # Pages are non-overlapping and ordered by most-recently-updated first.
+    first_ids = [item["id"] for item in first_body["documents"]]
+    second_ids = [item["id"] for item in second_body["documents"]]
+    assert set(first_ids).isdisjoint(second_ids)
 
 
 def test_get_unknown_document_returns_404(client, monkeypatch) -> None:

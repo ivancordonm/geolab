@@ -298,7 +298,11 @@ export function ObjectList({
                         undefinedValue ? "text-danger-fg" : "text-success-fg"
                       }`}
                     >
-                      {undefinedValue ? "undefined" : object.kind}
+                      {undefinedValue
+                        ? "undefined"
+                        : object.kind === "measure" && value?.type === "scalar"
+                          ? formatMeasureValue(object, value.value)
+                          : object.kind}
                     </span>
                   </button>
                 )}
@@ -675,6 +679,7 @@ function describeObject(object: GeometryObject): string {
     between_points: "Segment between points",
     midpoint: "Midpoint",
     center_through_point: "Circle",
+    center_radius: "Circle (radius from slider)",
     parallel_through: "Parallel line",
     perpendicular_through: "Perpendicular line",
     intersection_ll: "Intersection (line∩line)",
@@ -695,6 +700,17 @@ function describeObject(object: GeometryObject): string {
     polygon: "Polygon",
     regular_polygon: "Regular polygon",
     vector_polygon: "Vector polygon",
+    slider: "Slider",
+    distance: "Distance",
+    angle: "Angle",
+    area: "Area",
+    slope: "Slope",
   };
   return descriptions[object.definition.type as Exclude<GeometryObject["definition"]["type"], "function_expression">];
+}
+
+/** Formats a measure's scalar value for the object list badge (e.g. "5.00" or "90.00°"). */
+function formatMeasureValue(object: GeometryObject, value: number): string {
+  const rounded = value.toFixed(2);
+  return object.kind === "measure" && object.definition.type === "angle" ? `${rounded}°` : rounded;
 }

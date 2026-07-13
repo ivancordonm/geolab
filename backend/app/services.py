@@ -7,8 +7,6 @@ from app.agent.ollama_planner import OllamaPlanner
 from app.agent.openai_planner import OpenAICompatiblePlanner
 from app.agent.planner import Planner, RuleBasedPlanner
 from app.agent.schemas import ProviderConfig
-from app.agent.tools import create_geometry_tool_registry
-from app.geometry.workspace import GeometryWorkspace
 
 
 def create_planner(config: ProviderConfig | None = None) -> Planner:
@@ -32,7 +30,3 @@ def create_planner(config: ProviderConfig | None = None) -> Planner:
     if provider == "rules":
         return RuleBasedPlanner()
     return OllamaPlanner()
-
-
-geometry_workspace = GeometryWorkspace()
-tool_registry = create_geometry_tool_registry(geometry_workspace)

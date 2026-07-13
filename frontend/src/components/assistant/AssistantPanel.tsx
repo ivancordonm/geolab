@@ -2,10 +2,14 @@ import { useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Sparkles, Trash2 } from "lucide-react";
 
-import { AgentPlanningError, plannerClient } from "../../agent/planner";
+import { AgentPlanningError, planStream, plannerClient } from "../../agent/planner";
 import { scriptGenerator } from "../../agent/scriptGenerator";
 import { useAssistantConfig } from "../../agent/useAssistantConfig";
-import type { AgentResponse, AssistantMessage } from "../../agent/types";
+import type {
+  AgentResponse,
+  AssistantMessage,
+  ToolCallProposal,
+} from "../../agent/types";
 import type { GeometryDocument } from "../../types/geometry";
 import { ConfigPopover } from "./ConfigPopover";
 
@@ -31,7 +35,11 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
   const [applying, setApplying] = useState(false);
   const [response, setResponse] = useState<AgentResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [streaming, setStreaming] = useState(false);
+  const [streamThinking, setStreamThinking] = useState("");
+  const [streamProposals, setStreamProposals] = useState<ToolCallProposal[] | null>(null);
   const requestControllerRef = useRef<AbortController | null>(null);
+  const streamControllerRef = useRef<AbortController | null>(null);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -83,6 +91,53 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
       });
   };
 
+  const handleStreamPreview = (): void => {
+    const request = input.trim();
+    if (!request || streaming) {
+      return;
+    }
+    setError(null);
+    setStreamThinking("");
+    setStreamProposals(null);
+    setStreaming(true);
+    const controller = new AbortController();
+    streamControllerRef.current = controller;
+
+    void (async () => {
+      try {
+        for await (const event of planStream(
+          { userRequest: request, document },
+          controller.signal,
+        )) {
+          if (controller.signal.aborted) return;
+          if (event.event === "thinking") {
+            setStreamThinking((current) => current + event.data.delta);
+          } else if (event.event === "tools_selected") {
+            // Surface the proposal as inert data. Actual sequential execution,
+            // with per-call user approval, is deferred (see report).
+            setStreamProposals(event.data.tool_calls);
+          } else if (event.event === "done") {
+            setStreamProposals(event.data.toolCalls);
+          } else if (event.event === "error") {
+            setError(event.data.message);
+          }
+        }
+      } catch (streamError: unknown) {
+        if (controller.signal.aborted) return;
+        setError(
+          streamError instanceof AgentPlanningError
+            ? streamError.message
+            : "The streaming planner could not process this request.",
+        );
+      } finally {
+        if (streamControllerRef.current === controller) {
+          streamControllerRef.current = null;
+          setStreaming(false);
+        }
+      }
+    })();
+  };
+
   const handleCancel = (): void => {
     requestControllerRef.current?.abort();
     requestControllerRef.current = null;
@@ -92,9 +147,14 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
   const handleClearConversation = (): void => {
     requestControllerRef.current?.abort();
     requestControllerRef.current = null;
+    streamControllerRef.current?.abort();
+    streamControllerRef.current = null;
     setMessages([INITIAL_MESSAGE]);
     setInput("");
     setLoading(false);
+    setStreaming(false);
+    setStreamThinking("");
+    setStreamProposals(null);
     setResponse(null);
     setError(null);
   };
@@ -215,6 +275,15 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
             Send
           </button>
         )}
+        <button
+          type="button"
+          onClick={handleStreamPreview}
+          disabled={!input.trim() || streaming || loading}
+          title="Preview the tool-calling planner's reasoning as it streams (Claude)"
+          className="rounded-lg border border-edge bg-surface-muted px-4 py-2 text-xs font-semibold text-muted transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-55"
+        >
+          {streaming ? "Streaming…" : "Preview streaming plan (beta)"}
+        </button>
       </form>
 
       {error ? (
@@ -224,6 +293,39 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
         >
           {error}
         </div>
+      ) : null}
+
+      {streaming || streamThinking || streamProposals ? (
+        <section
+          className="mt-4 border-t border-edge pt-3"
+          aria-label="Streaming planner preview"
+          aria-live="polite"
+        >
+          <h3 className="m-0 mb-1.5 text-sm font-semibold text-content">
+            Streaming planner {streaming ? "(thinking…)" : "(proposal)"}
+          </h3>
+          {streamThinking ? (
+            <p className="m-0 whitespace-pre-wrap rounded-lg bg-surface-muted p-2.5 text-sm leading-snug text-muted">
+              {streamThinking}
+            </p>
+          ) : null}
+          {streamProposals ? (
+            <ol className="mt-2 mb-0 list-decimal pl-5 text-sm leading-relaxed text-muted">
+              {streamProposals.map((proposal, index) => (
+                <li key={`${proposal.toolName}-${index}`}>
+                  <code className="font-mono text-[0.78rem]">{proposal.toolName}</code>
+                  {" "}
+                  {JSON.stringify(proposal.arguments)}
+                </li>
+              ))}
+            </ol>
+          ) : null}
+          {streamProposals ? (
+            <p className="mt-2 mb-0 text-[0.7rem] italic text-muted">
+              Preview only — proposed tool calls are not applied automatically.
+            </p>
+          ) : null}
+        </section>
       ) : null}
 
       {response ? (

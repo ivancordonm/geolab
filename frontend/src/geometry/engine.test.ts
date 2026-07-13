@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import fixture from "../../../shared/fixtures/basic-geometry.json";
+import slidersFixture from "../../../shared/fixtures/sliders.json";
 import type { EvaluatedValue, GeometryDocument, Line } from "../types/geometry";
 import {
   GeometryGraph,
@@ -425,5 +426,50 @@ describe("polygon conformance", () => {
     expectNestedClose(v.vertices[0], { x: 3, y: 4 });
     expectNestedClose(v.vertices[1], { x: 4, y: 4 });
     expectNestedClose(v.vertices[2], { x: 3, y: 5 });
+  });
+});
+
+describe("sliders conformance", () => {
+  const slidersDocument = slidersFixture.document as GeometryDocument;
+
+  it("evaluates a circle whose radius comes from a slider's scalar value", () => {
+    const values = plainValues(evaluateGeometryDocument(slidersDocument));
+
+    expect(slidersDocument.objects[2].definition.type).toBe("center_radius");
+    expectNestedClose(values, slidersFixture.initialValues);
+  });
+
+  it("recomputes the circle's center but keeps the slider-derived radius after moving the point", () => {
+    const graph = new GeometryGraph(slidersDocument);
+    const result = graph.moveFreePoint(
+      slidersFixture.move.pointId,
+      slidersFixture.move.x,
+      slidersFixture.move.y,
+    );
+    const values = plainValues(result.values);
+
+    expect(result.recomputedObjectIds).toEqual(slidersFixture.move.expectedRecomputed);
+    for (const [objectId, expected] of Object.entries(slidersFixture.move.expectedValues)) {
+      expectNestedClose(values[objectId], expected);
+    }
+  });
+
+  it("rejects a center_radius circle whose radius parent is not a slider", () => {
+    const invalid: GeometryDocument = {
+      ...slidersDocument,
+      objects: [
+        slidersDocument.objects[0],
+        slidersDocument.objects[1],
+        {
+          id: "c",
+          label: "c",
+          kind: "circle",
+          visible: true,
+          definition: { type: "center_radius", center: "p", radius: "p" },
+        },
+      ],
+    };
+
+    expect(() => new GeometryGraph(invalid)).toThrow(GeometryValidationError);
   });
 });

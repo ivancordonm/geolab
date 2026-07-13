@@ -675,6 +675,7 @@ function describeObject(object: GeometryObject): string {
     between_points: "Segment between points",
     midpoint: "Midpoint",
     center_through_point: "Circle",
+    center_radius: "Circle (radius from slider)",
     parallel_through: "Parallel line",
     perpendicular_through: "Perpendicular line",
     intersection_ll: "Intersection (line∩line)",

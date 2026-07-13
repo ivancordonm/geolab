@@ -77,6 +77,12 @@ class CircleByCenterPointDefinition(GeometryModel):
     point: str
 
 
+class CircleByCenterRadiusDefinition(GeometryModel):
+    type: Literal["center_radius"] = "center_radius"
+    center: str
+    radius: str
+
+
 class MidpointDefinition(GeometryModel):
     type: Literal["midpoint"] = "midpoint"
     point_a: str
@@ -258,7 +264,7 @@ class Segment(GeometryObjectBase):
 
 class Circle(GeometryObjectBase):
     kind: Literal["circle"] = "circle"
-    definition: CircleByCenterPointDefinition
+    definition: CircleByCenterPointDefinition | CircleByCenterRadiusDefinition
 
 
 class Midpoint(GeometryObjectBase):

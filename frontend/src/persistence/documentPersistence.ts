@@ -98,7 +98,7 @@ function validateDocument(value: unknown): GeometryDocument {
       !isRecord(object) ||
       typeof object.id !== "string" ||
       typeof object.label !== "string" ||
-      !["point", "line", "segment", "circle", "polygon", "arc", "function"].includes(String(object.kind)) ||
+      !["point", "line", "segment", "circle", "polygon", "arc", "function", "slider"].includes(String(object.kind)) ||
       typeof object.visible !== "boolean" ||
       !isRecord(object.definition)
     ) {
@@ -179,6 +179,8 @@ function objectToScript(
       return `${variable} = Segment(${reference(object.definition.pointA)}, ${reference(object.definition.pointB)})`;
     case "center_through_point":
       return `${variable} = Circle(${reference(object.definition.center)}, ${reference(object.definition.point)})`;
+    case "center_radius":
+      return `${variable} = Circle(${reference(object.definition.center)}, ${reference(object.definition.radius)})`;
     case "midpoint":
       return `${variable} = Midpoint(${reference(object.definition.pointA)}, ${reference(object.definition.pointB)})`;
     case "parallel_through":

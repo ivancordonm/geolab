@@ -10,6 +10,7 @@ from app.geometry.models import (
     ArcThroughPointsDefinition,
     ArcValue,
     CircleByCenterPointDefinition,
+    CircleByCenterRadiusDefinition,
     CircleValue,
     CircumscribedDefinition,
     Coordinate,
@@ -83,6 +84,8 @@ def get_parent_ids(obj: GeometryObject) -> list[str]:
         return [definition.point_a, definition.point_b]
     if isinstance(definition, CircleByCenterPointDefinition):
         return [definition.center, definition.point]
+    if isinstance(definition, CircleByCenterRadiusDefinition):
+        return [definition.center, definition.radius]
     if isinstance(definition, (ParallelLineDefinition, PerpendicularLineDefinition)):
         return [definition.point, definition.line]
     if isinstance(definition, IntersectionLLDefinition):
@@ -210,6 +213,14 @@ class GeometryGraph:
         elif isinstance(definition, CircleByCenterPointDefinition):
             require_kind(definition.center, "point")
             require_kind(definition.point, "point")
+        elif isinstance(definition, CircleByCenterRadiusDefinition):
+            require_kind(definition.center, "point")
+            scalar_kinds = {"slider"}  # extend when Measures (Task 2) also produce scalars
+            actual = self._objects_by_id[definition.radius].kind
+            if actual not in scalar_kinds:
+                raise GeometryValidationError(
+                    f"Object '{obj.id}' requires parent '{definition.radius}' to produce a scalar value"
+                )
         elif isinstance(definition, (ParallelLineDefinition, PerpendicularLineDefinition)):
             require_kind(definition.point, "point")
             require_kind(definition.line, "line")
@@ -395,6 +406,19 @@ class GeometryGraph:
             if isinstance(points, UndefinedValue):
                 return points
             return CircleValue(center=Coordinate(x=points[0].x, y=points[0].y), radius=hypot(points[1].x - points[0].x, points[1].y - points[0].y))
+
+        if isinstance(definition, CircleByCenterRadiusDefinition):
+            center = self._require_value(obj.id, definition.center, "point")
+            if isinstance(center, UndefinedValue):
+                return center
+            radius = self._require_value(obj.id, definition.radius, "scalar")
+            if isinstance(radius, UndefinedValue):
+                return radius
+            assert isinstance(center, PointValue)
+            assert isinstance(radius, ScalarValue)
+            if radius.value < 0:
+                return UndefinedValue(code="negative_radius", message=f"Circle '{obj.id}' radius must be non-negative")
+            return CircleValue(center=Coordinate(x=center.x, y=center.y), radius=radius.value)
 
         if isinstance(definition, (ParallelLineDefinition, PerpendicularLineDefinition)):
             point = self._require_value(obj.id, definition.point, "point")

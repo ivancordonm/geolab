@@ -39,7 +39,9 @@ export interface Segment extends GeometryObjectBase {
 
 export interface Circle extends GeometryObjectBase {
   kind: "circle";
-  definition: { type: "center_through_point"; center: GeometryObjectId; point: GeometryObjectId };
+  definition:
+    | { type: "center_through_point"; center: GeometryObjectId; point: GeometryObjectId }
+    | { type: "center_radius"; center: GeometryObjectId; radius: GeometryObjectId };
 }
 
 export interface Midpoint extends GeometryObjectBase {

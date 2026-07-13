@@ -30,9 +30,9 @@
         "kind": "circle",
         "visible": true,
         "definition": {
-          "type": "center_through_point",
+          "type": "center_radius",
           "center": "p",
-          "point": "p"
+          "radius": "s1"
         }
       }
     ],
@@ -44,7 +44,7 @@
     "c": {
       "type": "circle",
       "center": { "x": 0, "y": 0 },
-      "radius": 0
+      "radius": 5
     }
   },
   "move": {
@@ -57,7 +57,7 @@
       "c": {
         "type": "circle",
         "center": { "x": 3, "y": 4 },
-        "radius": 0
+        "radius": 5
       }
     }
   }

@@ -44,6 +44,8 @@ export function getParentIds(object: GeometryObject): GeometryObjectId[] {
       return [object.definition.pointA, object.definition.pointB];
     case "center_through_point":
       return [object.definition.center, object.definition.point];
+    case "center_radius":
+      return [object.definition.center, object.definition.radius];
     case "parallel_through":
     case "perpendicular_through":
       return [object.definition.point, object.definition.line];
@@ -216,6 +218,14 @@ export class GeometryGraph {
       case "center_through_point":
         requireKind(def.center, "point");
         requireKind(def.point, "point");
+        return;
+      case "center_radius":
+        requireKind(def.center, "point");
+        if (this.objectsById.get(def.radius)?.kind !== "slider") {
+          throw new GeometryValidationError(
+            `Object '${object.id}' requires parent '${def.radius}' to produce a scalar value`,
+          );
+        }
         return;
       case "parallel_through":
       case "perpendicular_through":
@@ -470,6 +480,17 @@ export class GeometryGraph {
         return isUndefined(pts)
           ? pts
           : { type: "point", x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+      }
+
+      case "center_radius": {
+        const center = this.requireValue<PointValue>(object.id, def.center, "point");
+        if (isUndefined(center)) return center;
+        const radius = this.requireValue<ScalarValue>(object.id, def.radius, "scalar");
+        if (isUndefined(radius)) return radius;
+        if (radius.value < 0) {
+          return { type: "undefined", code: "negative_radius", message: `Circle '${object.id}' radius must be non-negative` };
+        }
+        return { type: "circle", center: { x: center.x, y: center.y }, radius: radius.value };
       }
 
       case "center_through_point": {

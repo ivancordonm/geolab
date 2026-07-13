@@ -161,6 +161,45 @@ describe("document persistence", () => {
     expect(script.indexOf("A = Point")).toBeLessThan(script.indexOf("arc = Arc"));
   });
 
+  it("exports a slider followed by a scalar-radius circle as a backend-parseable script", () => {
+    // Regression test (Finding 2): documentToScript's switch is exhaustive over
+    // every definition type, so any document containing a slider emits a
+    // `Slider(...)` statement. Before the fix, the backend script parser did not
+    // recognize the `Slider` command, so re-submitting this exact script text
+    // (as happens whenever the object command bar round-trips through the
+    // backend) failed with "Unknown command 'Slider'". This test pins down the
+    // exact script text so a backend conformance test (test_sliders.py) can
+    // replay it and prove the backend now accepts it end-to-end.
+    const document: GeometryDocument = {
+      schemaVersion: 1,
+      id: "slider-circle-export",
+      title: "Slider circle export",
+      objects: [
+        {
+          id: "s1",
+          label: "s1",
+          kind: "slider",
+          visible: true,
+          definition: { type: "slider", min: 0, max: 10, value: 5, step: 0.5 },
+        },
+        { id: "p", label: "p", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+        {
+          id: "c",
+          label: "c",
+          kind: "circle",
+          visible: true,
+          definition: { type: "center_radius", center: "p", radius: "s1" },
+        },
+      ],
+    };
+
+    const script = documentToScript(document);
+
+    expect(script).toBe(
+      "s1 = Slider(0, 10, 5, 0.5)\n" + "p = Point(0, 0)\n" + "c = Circle(p, s1)\n",
+    );
+  });
+
   it("saves and restores every polygon variant", () => {
     const document: GeometryDocument = {
       schemaVersion: 1,

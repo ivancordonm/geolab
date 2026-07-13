@@ -1016,7 +1016,7 @@ function ensureCircleCenterPoint(
   getDocument: () => GeometryDocument,
   push: (object: GeometryObject) => void,
 ): string {
-  if (circle.definition.type === "center_through_point") {
+  if (circle.definition.type === "center_through_point" || circle.definition.type === "center_radius") {
     return circle.definition.center;
   }
 
@@ -1188,6 +1188,11 @@ function pointOnSegment(
 function getCircleRadiusPointId(circle: SourceCircleObject): string {
   if (circle.definition.type === "center_through_point") {
     return circle.definition.point;
+  }
+  if (circle.definition.type === "center_radius") {
+    throw new Error(
+      "This construction requires a circle defined by a point on its circumference, not a scalar radius",
+    );
   }
   return circle.definition.pointA;
 }

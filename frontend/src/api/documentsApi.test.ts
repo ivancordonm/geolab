@@ -24,10 +24,14 @@ const sampleDocument = {
 };
 
 describe("documentsApi", () => {
-  it("lists documents with credentials included", async () => {
+  it("lists documents with credentials included and default pagination", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(
-        JSON.stringify([{ id: "1", title: "A", updatedAt: "2026-01-01T00:00:00Z" }]),
+        JSON.stringify({
+          documents: [{ id: "1", title: "A", updatedAt: "2026-01-01T00:00:00Z" }],
+          total: 1,
+          hasMore: false,
+        }),
         { status: 200 },
       ),
     );
@@ -36,10 +40,28 @@ describe("documentsApi", () => {
     const result = await listDocuments();
 
     expect(fetchMock).toHaveBeenCalledWith(
-      "/documents",
+      "/documents?limit=50&offset=0",
       expect.objectContaining({ credentials: "include" }),
     );
-    expect(result).toEqual([{ id: "1", title: "A", updatedAt: "2026-01-01T00:00:00Z" }]);
+    expect(result).toEqual({
+      documents: [{ id: "1", title: "A", updatedAt: "2026-01-01T00:00:00Z" }],
+      total: 1,
+      hasMore: false,
+    });
+  });
+
+  it("lists documents with a custom limit and offset", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ documents: [], total: 0, hasMore: false }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await listDocuments(25, 50);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/documents?limit=25&offset=50",
+      expect.objectContaining({ credentials: "include" }),
+    );
   });
 
   it("creates a document with the given title and payload", async () => {

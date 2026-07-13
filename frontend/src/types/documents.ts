@@ -6,6 +6,12 @@ export interface DocumentSummary {
   updatedAt: string;
 }
 
+export interface DocumentListResponse {
+  documents: DocumentSummary[];
+  total: number;
+  hasMore: boolean;
+}
+
 export interface DocumentDetail {
   id: string;
   title: string;

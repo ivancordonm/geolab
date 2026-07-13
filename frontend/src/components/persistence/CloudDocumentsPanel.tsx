@@ -8,22 +8,28 @@ interface CloudDocumentsPanelProps {
   open: boolean;
   documents: DocumentSummary[];
   loading: boolean;
+  loadingMore?: boolean;
+  hasMore?: boolean;
   error: string | null;
   onClose: () => void;
   onOpenDocument: (id: string) => void;
   onRenameDocument: (id: string, title: string) => void;
   onDeleteDocument: (id: string) => void;
+  onLoadMore?: () => void;
 }
 
 export function CloudDocumentsPanel({
   open,
   documents,
   loading,
+  loadingMore = false,
+  hasMore = false,
   error,
   onClose,
   onOpenDocument,
   onRenameDocument,
   onDeleteDocument,
+  onLoadMore,
 }: CloudDocumentsPanelProps) {
   if (!open) {
     return null;
@@ -61,17 +67,32 @@ export function CloudDocumentsPanel({
           ) : documents.length === 0 ? (
             <p className="px-2 py-4 text-sm text-muted">No saved documents yet.</p>
           ) : (
-            <ul role="list" className="flex flex-col gap-1">
-              {documents.map((document) => (
-                <DocumentRow
-                  key={document.id}
-                  document={document}
-                  onOpen={() => onOpenDocument(document.id)}
-                  onRename={(title) => onRenameDocument(document.id, title)}
-                  onDelete={() => onDeleteDocument(document.id)}
-                />
-              ))}
-            </ul>
+            <>
+              <ul role="list" className="flex flex-col gap-1">
+                {documents.map((document) => (
+                  <DocumentRow
+                    key={document.id}
+                    document={document}
+                    onOpen={() => onOpenDocument(document.id)}
+                    onRename={(title) => onRenameDocument(document.id, title)}
+                    onDelete={() => onDeleteDocument(document.id)}
+                  />
+                ))}
+              </ul>
+              {hasMore ? (
+                <div className="flex justify-center py-2">
+                  <button
+                    type="button"
+                    onClick={onLoadMore}
+                    disabled={loading || loadingMore}
+                    className="flex items-center gap-2 rounded-md border border-edge px-3 py-1.5 text-xs font-medium text-content hover:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {loadingMore ? <Loader2 size={14} className="animate-spin" aria-hidden /> : null}
+                    Load more
+                  </button>
+                </div>
+              ) : null}
+            </>
           )}
         </div>
       </div>

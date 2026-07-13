@@ -1,34 +1,19 @@
-import type {
-  Arc,
-  AngleBisectorLine,
-  Circle,
-  CircleValue,
-  CircumscribedCircle,
-  EvaluationMap,
-  GeometryDocument,
-  GeometryObject,
-  HomothetyPoint,
-  IntersectionCC,
-  IntersectionLC,
-  IntersectionLL,
-  InversionInCircle,
-  Line,
-  LineValue,
-  Midpoint,
-  ParallelLine,
-  PerpendicularBisectorLine,
-  PerpendicularLine,
-  PointValue,
-  Point,
-  Polygon,
-  ReflectionOverLine,
-  ReflectionOverPoint,
-  RotatedObject,
-  Segment,
-  TranslatedObject,
-} from "../types/geometry";
+import type { GeometryDocument, GeometryObject, Point } from "../types/geometry";
 import type { Coordinate } from "./viewport";
-import { GEOMETRY_EPSILON, GeometryGraph } from "./engine";
+import { createSegment, createLine, createParallel, createPerpendicular, createPerpendicularBisector, createAngleBisector } from "./tools/lines";
+import { createCircle, createCircumcircle } from "./tools/circles";
+import { createMidpoint } from "./tools/points";
+import { createIntersection } from "./tools/intersections";
+import { createPolygon, createRegularPolygon, createVectorPolygon } from "./tools/polygons";
+import {
+  createReflectionOverLine,
+  createReflectionOverPoint,
+  createHomothety,
+  createTranslation,
+  createRotation,
+} from "./tools/transformations";
+import { createInversionConstruction } from "./tools/inversion";
+import { nextPointLabel } from "./tools/shared";
 
 export type ConstructionTool =
   | "select"
@@ -52,17 +37,6 @@ export type ConstructionTool =
   | "polygon"
   | "regular_polygon"
   | "vector_polygon";
-
-type LineObject = Extract<GeometryObject, { kind: "line" }>;
-type CircleObject = Extract<GeometryObject, { kind: "circle" }>;
-type SegmentObject = Extract<GeometryObject, { kind: "segment" }>;
-type PolygonObject = Extract<GeometryObject, { kind: "polygon" }>;
-type ReflectableObject = Extract<GeometryObject, { kind: "point" | "line" | "segment" | "circle" | "polygon" }>;
-type ReflectionObject = ReflectionOverLine | ReflectionOverPoint;
-type SourceLineObject = Exclude<LineObject, ReflectionObject | RotatedObject | TranslatedObject>;
-type SourceCircleObject = Exclude<CircleObject, ReflectionObject | RotatedObject | TranslatedObject>;
-type SourceSegmentObject = Exclude<SegmentObject, ReflectionObject | RotatedObject | TranslatedObject>;
-type SourcePolygonObject = Exclude<PolygonObject, ReflectionObject | RotatedObject | TranslatedObject>;
 
 export interface ConstructionToolState {
   activeTool: ConstructionTool;
@@ -414,6 +388,12 @@ export class ConstructionToolController {
   }
 }
 
+/**
+ * Slim dispatcher for the interactive construction tools. Each case
+ * delegates to the corresponding family function under `./tools/*`; see
+ * that directory for the actual construction logic (previously one ~800
+ * line switch here).
+ */
 function createConstruction(
   tool: ConstructionTool,
   selected: readonly string[],
@@ -424,797 +404,53 @@ function createConstruction(
   const [first, second, third] = selected;
 
   switch (tool) {
-    case "segment": {
-      const id = nextObjectId(document, "s");
-      const obj: Segment = { id, label: id, kind: "segment", visible: true, definition: { type: "between_points", pointA: first, pointB: second } };
-      return [obj];
-    }
-    case "line": {
-      const id = nextObjectId(document, "l");
-      const obj: Line = { id, label: id, kind: "line", visible: true, definition: { type: "through_points", pointA: first, pointB: second } };
-      return [obj];
-    }
-    case "circle": {
-      const id = nextObjectId(document, "c");
-      const obj: Circle = { id, label: id, kind: "circle", visible: true, definition: { type: "center_through_point", center: first, point: second } };
-      return [obj];
-    }
-    case "midpoint": {
-      const id = nextObjectId(document, "M");
-      const obj: Midpoint = { id, label: id, kind: "point", visible: true, definition: { type: "midpoint", pointA: first, pointB: second } };
-      return [obj];
-    }
-    case "parallel": {
-      const id = nextObjectId(document, "p");
-      const obj: ParallelLine = { id, label: id, kind: "line", visible: true, definition: { type: "parallel_through", point: first, line: second } };
-      return [obj];
-    }
-    case "perpendicular": {
-      const id = nextObjectId(document, "h");
-      const obj: PerpendicularLine = { id, label: id, kind: "line", visible: true, definition: { type: "perpendicular_through", point: first, line: second } };
-      return [obj];
-    }
+    case "segment":
+      return createSegment(first, second, document);
+    case "line":
+      return createLine(first, second, document);
+    case "circle":
+      return createCircle(first, second, document);
+    case "midpoint":
+      return createMidpoint(first, second, document);
+    case "parallel":
+      return createParallel(first, second, document);
+    case "perpendicular":
+      return createPerpendicular(first, second, document);
 
-    // ─── New: intersections ─────────────────────────────────────────────
+    case "intersection":
+      return createIntersection(first, second, document);
 
-    case "intersection": {
-      const objA = document.objects.find((o) => o.id === first);
-      const objB = document.objects.find((o) => o.id === second);
-      if (objA === undefined || objB === undefined) {
-        throw new Error("Intersection: parent objects not found in document");
-      }
-      if (objA.kind === "line" && objB.kind === "line") {
-        const id = nextObjectId(document, "Q");
-        const pt: IntersectionLL = { id, label: id, kind: "point", visible: true, definition: { type: "intersection_ll", lineA: first, lineB: second } };
-        return [pt];
-      }
-      // Two-solution case (LC or CC): allocate two IDs
-      const id1 = nextObjectId(document, "Q");
-      const fakeDoc: GeometryDocument = { ...document, objects: [...document.objects, { id: id1, label: id1 } as unknown as GeometryObject] };
-      const id2 = nextObjectId(fakeDoc, "Q");
-      if (objA.kind !== "circle" || objB.kind !== "circle") {
-        const [lineId, circleId] = objA.kind === "line" ? [first, second] : [second, first];
-        const p1: IntersectionLC = { id: id1, label: id1, kind: "point", visible: true, definition: { type: "intersection_lc", line: lineId, circle: circleId, index: 1 } };
-        const p2: IntersectionLC = { id: id2, label: id2, kind: "point", visible: true, definition: { type: "intersection_lc", line: lineId, circle: circleId, index: 2 } };
-        return [p1, p2];
-      }
-      const p1: IntersectionCC = { id: id1, label: id1, kind: "point", visible: true, definition: { type: "intersection_cc", circleA: first, circleB: second, index: 1 } };
-      const p2: IntersectionCC = { id: id2, label: id2, kind: "point", visible: true, definition: { type: "intersection_cc", circleA: first, circleB: second, index: 2 } };
-      return [p1, p2];
-    }
+    case "perp_bisector":
+      return createPerpendicularBisector(first, second, document);
+    case "angle_bisector":
+      return createAngleBisector(first, second, third, document);
+    case "circumcircle":
+      return createCircumcircle(first, second, third, document);
 
-    // ─── New: bisectors / circumcircle ──────────────────────────────────
+    case "reflect_line":
+      return createReflectionOverLine(first, second, document);
+    case "reflect_point":
+      return createReflectionOverPoint(first, second, document);
 
-    case "perp_bisector": {
-      const id = nextObjectId(document, "pb");
-      const obj: PerpendicularBisectorLine = { id, label: id, kind: "line", visible: true, definition: { type: "perpendicular_bisector", pointA: first, pointB: second } };
-      return [obj];
-    }
-    case "angle_bisector": {
-      const id = nextObjectId(document, "ab");
-      const obj: AngleBisectorLine = { id, label: id, kind: "line", visible: true, definition: { type: "angle_bisector", armA: first, vertex: second, armB: third } };
-      return [obj];
-    }
-    case "circumcircle": {
-      const id = nextObjectId(document, "cc");
-      const obj: CircumscribedCircle = { id, label: id, kind: "circle", visible: true, definition: { type: "circumscribed", pointA: first, pointB: second, pointC: third } };
-      return [obj];
-    }
-
-    // ─── New: reflections ───────────────────────────────────────────────
-
-    case "reflect_line": {
-      const id = nextObjectId(document, "rf");
-      const source = requireObject(document, first);
-      if (!isReflectableObject(source)) {
-        throw new Error("Reflection requires a point, line, segment, circle, or polygon");
-      }
-      return [makeReflectionOverLine(id, first, second, source.kind)];
-    }
-    case "reflect_point": {
-      const id = nextObjectId(document, "rp");
-      const source = requireObject(document, first);
-      if (!isReflectableObject(source)) {
-        throw new Error("Reflection requires a point, line, segment, circle, or polygon");
-      }
-      return [makeReflectionOverPoint(id, first, second, source.kind)];
-    }
-
-    // ─── New: other transformations ─────────────────────────────────────
-
-    case "homothety": {
-      const id = nextObjectId(document, "ht");
-      const obj: HomothetyPoint = { id, label: id, kind: "point", visible: true, definition: { type: "homothety_point", center: first, point: second, ratioPoint: third } };
-      return [obj];
-    }
-    case "inversion": {
+    case "homothety":
+      return createHomothety(first, second, third, document);
+    case "inversion":
       return createInversionConstruction(document, first, second);
-    }
-    case "translation": {
-      const id = nextObjectId(document, "tr");
-      const source = requireObject(document, first);
-      if (!isReflectableObject(source)) {
-        throw new Error("Translation requires a point, line, segment, circle, or polygon");
-      }
-      const obj: TranslatedObject = {
-        id,
-        label: id,
-        kind: source.kind,
-        visible: true,
-        definition: { type: "translation", object: first, from: second, to: third },
-      };
-      return [obj as GeometryObject];
-    }
-    case "rotation": {
-      const id = nextObjectId(document, "rot");
-      const source = requireObject(document, first);
-      if (!isReflectableObject(source)) {
-        throw new Error("Rotation requires a point, line, segment, circle, or polygon");
-      }
-      const obj: RotatedObject = {
-        id,
-        label: id,
-        kind: source.kind,
-        visible: true,
-        definition: { type: "rotation", object: first, center: second, degrees: rotationAngle },
-      };
-      return [obj as GeometryObject];
-    }
+    case "translation":
+      return createTranslation(first, second, third, document);
+    case "rotation":
+      return createRotation(first, second, document, rotationAngle);
 
-    // ─── Polygons ──────────────────────────────────────────────────────────
-    case "polygon": {
-      const id = nextObjectId(document, "poly");
-      const obj: Polygon = {
-        id,
-        label: id,
-        kind: "polygon",
-        visible: true,
-        definition: { type: "polygon", points: [...selected] },
-      };
-      return [obj];
-    }
-    case "regular_polygon": {
-      const id = nextObjectId(document, "poly");
-      const obj: Polygon = {
-        id,
-        label: id,
-        kind: "polygon",
-        visible: true,
-        definition: { type: "regular_polygon", pointA: first, pointB: second, sides: regularPolygonSides },
-      };
-      return [obj];
-    }
-    case "vector_polygon": {
-      // The first selected point is the anchor. We don't know its coords
-      // (they live in the document values), so we store a basic polygon here;
-      // the evaluation engine converts it to a PolygonValue with relative offsets
-      // computed from the document. For the interactive tool we model it as a
-      // basic polygon whose anchor is the first clicked point.
-      const id = nextObjectId(document, "vpoly");
-      // Compute offsets relative to the first (anchor) point using world coords.
-      // This requires looking up the point definitions; for free points we can do it directly.
-      const anchorObj = document.objects.find((o) => o.id === first);
-      if (anchorObj?.kind === "point" && anchorObj.definition.type === "free") {
-        const ax = anchorObj.definition.x;
-        const ay = anchorObj.definition.y;
-        const offsets = selected.slice(1).map((pid) => {
-          const pObj = document.objects.find((o) => o.id === pid);
-          if (pObj?.kind === "point" && pObj.definition.type === "free") {
-            return { x: pObj.definition.x - ax, y: pObj.definition.y - ay };
-          }
-          return { x: 0, y: 0 };
-        });
-        const obj: Polygon = { id, label: id, kind: "polygon", visible: true, definition: { type: "vector_polygon", anchor: first, offsets } };
-        return [obj];
-      }
-      // Fallback: basic polygon
-      const obj: Polygon = { id, label: id, kind: "polygon", visible: true, definition: { type: "polygon", points: [...selected] } };
-      return [obj];
-    }
+    case "polygon":
+      return createPolygon(selected, document);
+    case "regular_polygon":
+      return createRegularPolygon(first, second, document, regularPolygonSides);
+    case "vector_polygon":
+      return createVectorPolygon(selected, document);
 
     default:
       throw new Error(`Tool '${tool}' does not create a multi-step construction`);
   }
-}
-
-function createInversionConstruction(
-  document: GeometryDocument,
-  sourceId: string,
-  inversionCircleId: string,
-): readonly GeometryObject[] {
-  const graph = new GeometryGraph(document);
-  const source = requireObject(document, sourceId);
-  const inversionCircle = requireObject(document, inversionCircleId);
-  if (!isSourceCircleObject(inversionCircle)) {
-    throw new Error("Inversion requires a circle as the second object");
-  }
-
-  const created: GeometryObject[] = [];
-  let workingDocument: GeometryDocument = { ...document, objects: [...document.objects] };
-  const values = graph.values;
-  const inversionCenterId = ensureCircleCenterPoint(
-    inversionCircle,
-    inversionCircleId,
-    values,
-    () => workingDocument,
-    (object) => pushCreatedObject(object, created, () => workingDocument, (next) => { workingDocument = next; }),
-  );
-  const currentValues = new GeometryGraph(workingDocument).values;
-
-  switch (source.kind) {
-    case "point":
-      return [createInversionPoint(workingDocument, sourceId, inversionCircleId)];
-    case "line":
-      if (!isSourceLineObject(source)) {
-        throw new Error("Inversion of reflected lines is not supported by the construction tool");
-      }
-      return createLineInversion(
-        source,
-        sourceId,
-        inversionCircleId,
-        inversionCenterId,
-        currentValues,
-        created,
-        () => workingDocument,
-        (object) => pushCreatedObject(object, created, () => workingDocument, (next) => { workingDocument = next; }),
-      );
-    case "circle":
-      if (!isSourceCircleObject(source)) {
-        throw new Error("Inversion of reflected circles is not supported by the construction tool");
-      }
-      return createCircleInversion(
-        source,
-        sourceId,
-        inversionCircleId,
-        inversionCenterId,
-        currentValues,
-        created,
-        () => workingDocument,
-        (object) => pushCreatedObject(object, created, () => workingDocument, (next) => { workingDocument = next; }),
-      );
-    case "segment":
-      if (!isSourceSegmentObject(source)) {
-        throw new Error("Inversion of reflected segments is not supported by the construction tool");
-      }
-      return createSegmentInversion(source, inversionCircleId, created, currentValues, () => workingDocument, (object) =>
-        pushCreatedObject(object, created, () => workingDocument, (next) => { workingDocument = next; }),
-      );
-    case "polygon":
-      if (!isSourcePolygonObject(source)) {
-        throw new Error("Inversion of reflected polygons is not supported by the construction tool");
-      }
-      return createPolygonInversion(source, inversionCircleId, created, currentValues, () => workingDocument, (object) =>
-        pushCreatedObject(object, created, () => workingDocument, (next) => { workingDocument = next; }),
-      );
-  }
-  throw new Error("Unsupported inversion source");
-}
-
-function createLineInversion(
-  source: SourceLineObject,
-  sourceId: string,
-  inversionCircleId: string,
-  inversionCenterId: string,
-  values: EvaluationMap,
-  created: GeometryObject[],
-  getDocument: () => GeometryDocument,
-  push: (object: GeometryObject) => void,
-): readonly GeometryObject[] {
-  const center = requirePointValue(values, inversionCenterId);
-  const line = requireLineValue(values, sourceId);
-  if (Math.abs(line.a * center.x + line.b * center.y + line.c) <= GEOMETRY_EPSILON) {
-    const result: ParallelLine = {
-      id: nextObjectId(getDocument(), "ivl"),
-      label: nextObjectId(getDocument(), "ivl"),
-      kind: "line",
-      visible: true,
-      definition: { type: "parallel_through", point: inversionCenterId, line: sourceId },
-    };
-    push(result);
-    return created;
-  }
-
-  const perpendicular: PerpendicularLine = {
-    id: nextObjectId(getDocument(), "ivh"),
-    label: nextObjectId(getDocument(), "ivh"),
-    kind: "line",
-    visible: false,
-    definition: { type: "perpendicular_through", point: inversionCenterId, line: sourceId },
-  };
-  push(perpendicular);
-  const foot: IntersectionLL = {
-    id: nextObjectId(getDocument(), "ivp"),
-    label: nextObjectId(getDocument(), "ivp"),
-    kind: "point",
-    visible: false,
-    definition: { type: "intersection_ll", lineA: sourceId, lineB: perpendicular.id },
-  };
-  push(foot);
-  const invertedFoot = createInversionPoint(getDocument(), foot.id, inversionCircleId, false, "ivp");
-  push(invertedFoot);
-  const midpoint: Midpoint = {
-    id: nextObjectId(getDocument(), "ivm"),
-    label: nextObjectId(getDocument(), "ivm"),
-    kind: "point",
-    visible: false,
-    definition: { type: "midpoint", pointA: inversionCenterId, pointB: invertedFoot.id },
-  };
-  push(midpoint);
-  const result: Circle = {
-    id: nextObjectId(getDocument(), "ivc"),
-    label: nextObjectId(getDocument(), "ivc"),
-    kind: "circle",
-    visible: true,
-    definition: { type: "center_through_point", center: midpoint.id, point: inversionCenterId },
-  };
-  push(result);
-  return created;
-}
-
-function createCircleInversion(
-  source: SourceCircleObject,
-  sourceId: string,
-  inversionCircleId: string,
-  inversionCenterId: string,
-  values: EvaluationMap,
-  created: GeometryObject[],
-  getDocument: () => GeometryDocument,
-  push: (object: GeometryObject) => void,
-): readonly GeometryObject[] {
-  const sourceCenterId = ensureCircleCenterPoint(
-    source,
-    sourceId,
-    values,
-    getDocument,
-    push,
-  );
-  const o = requirePointValue(values, inversionCenterId);
-  const c = requirePointValue(new GeometryGraph(getDocument()).values, sourceCenterId);
-  const circleValue = requireCircleValue(values, sourceId);
-  const centerDistance = Math.hypot(c.x - o.x, c.y - o.y);
-
-  if (centerDistance <= GEOMETRY_EPSILON) {
-    const radiusPointId = getCircleRadiusPointId(source);
-    const invertedRadiusPoint = createInversionPoint(getDocument(), radiusPointId, inversionCircleId, false, "ivp");
-    push(invertedRadiusPoint);
-    const result: Circle = {
-      id: nextObjectId(getDocument(), "ivc"),
-      label: nextObjectId(getDocument(), "ivc"),
-      kind: "circle",
-      visible: true,
-      definition: { type: "center_through_point", center: inversionCenterId, point: invertedRadiusPoint.id },
-    };
-    push(result);
-    return created;
-  }
-
-  if (Math.abs(centerDistance - circleValue.radius) <= GEOMETRY_EPSILON) {
-    const invertedCenter = createInversionPoint(getDocument(), sourceCenterId, inversionCircleId, false, "ivp");
-    push(invertedCenter);
-    const midpoint: Midpoint = {
-      id: nextObjectId(getDocument(), "ivm"),
-      label: nextObjectId(getDocument(), "ivm"),
-      kind: "point",
-      visible: false,
-      definition: { type: "midpoint", pointA: inversionCenterId, pointB: invertedCenter.id },
-    };
-    push(midpoint);
-    const centerLine: Line = {
-      id: nextObjectId(getDocument(), "ivl"),
-      label: nextObjectId(getDocument(), "ivl"),
-      kind: "line",
-      visible: false,
-      definition: { type: "through_points", pointA: inversionCenterId, pointB: sourceCenterId },
-    };
-    push(centerLine);
-    const result: PerpendicularLine = {
-      id: nextObjectId(getDocument(), "ivh"),
-      label: nextObjectId(getDocument(), "ivh"),
-      kind: "line",
-      visible: true,
-      definition: { type: "perpendicular_through", point: midpoint.id, line: centerLine.id },
-    };
-    push(result);
-    return created;
-  }
-
-  const centerLine: Line = {
-    id: nextObjectId(getDocument(), "ivl"),
-    label: nextObjectId(getDocument(), "ivl"),
-    kind: "line",
-    visible: false,
-    definition: { type: "through_points", pointA: inversionCenterId, pointB: sourceCenterId },
-  };
-  push(centerLine);
-  const intersection1: IntersectionLC = {
-    id: nextObjectId(getDocument(), "ivp"),
-    label: nextObjectId(getDocument(), "ivp"),
-    kind: "point",
-    visible: false,
-    definition: { type: "intersection_lc", line: centerLine.id, circle: sourceId, index: 1 },
-  };
-  push(intersection1);
-  const intersection2: IntersectionLC = {
-    id: nextObjectId(getDocument(), "ivp"),
-    label: nextObjectId(getDocument(), "ivp"),
-    kind: "point",
-    visible: false,
-    definition: { type: "intersection_lc", line: centerLine.id, circle: sourceId, index: 2 },
-  };
-  push(intersection2);
-  const inverted1 = createInversionPoint(getDocument(), intersection1.id, inversionCircleId, false, "ivp");
-  push(inverted1);
-  const inverted2 = createInversionPoint(getDocument(), intersection2.id, inversionCircleId, false, "ivp");
-  push(inverted2);
-  const midpoint: Midpoint = {
-    id: nextObjectId(getDocument(), "ivm"),
-    label: nextObjectId(getDocument(), "ivm"),
-    kind: "point",
-    visible: false,
-    definition: { type: "midpoint", pointA: inverted1.id, pointB: inverted2.id },
-  };
-  push(midpoint);
-  const result: Circle = {
-    id: nextObjectId(getDocument(), "ivc"),
-    label: nextObjectId(getDocument(), "ivc"),
-    kind: "circle",
-    visible: true,
-    definition: { type: "center_through_point", center: midpoint.id, point: inverted1.id },
-  };
-  push(result);
-  return created;
-}
-
-function createSegmentInversion(
-  source: SourceSegmentObject,
-  inversionCircleId: string,
-  created: GeometryObject[],
-  values: EvaluationMap,
-  getDocument: () => GeometryDocument,
-  push: (object: GeometryObject) => void,
-): readonly GeometryObject[] {
-  return createEdgeInversion(
-    source.definition.pointA,
-    source.definition.pointB,
-    inversionCircleId,
-    created,
-    values,
-    getDocument,
-    push,
-  );
-}
-
-function createPolygonInversion(
-  source: SourcePolygonObject,
-  inversionCircleId: string,
-  created: GeometryObject[],
-  values: EvaluationMap,
-  getDocument: () => GeometryDocument,
-  push: (object: GeometryObject) => void,
-): readonly GeometryObject[] {
-  const vertexIds = getPolygonVertexPointIds(source, values, getDocument, push);
-  for (let index = 0; index < vertexIds.length; index += 1) {
-    const startId = vertexIds[index];
-    const endId = vertexIds[(index + 1) % vertexIds.length];
-    createEdgeInversion(startId, endId, inversionCircleId, created, new GeometryGraph(getDocument()).values, getDocument, push);
-  }
-  return created;
-}
-
-function createEdgeInversion(
-  startPointId: string,
-  endPointId: string,
-  inversionCircleId: string,
-  created: GeometryObject[],
-  values: EvaluationMap,
-  getDocument: () => GeometryDocument,
-  push: (object: GeometryObject) => void,
-): readonly GeometryObject[] {
-  const inversionCircle = requireCircleValue(values, inversionCircleId);
-  const startValue = requirePointValue(values, startPointId);
-  const endValue = requirePointValue(values, endPointId);
-  const center = inversionCircle.center;
-  const startIsCenter = isSamePoint(startValue, center);
-  const endIsCenter = isSamePoint(endValue, center);
-
-  if (startIsCenter || endIsCenter) {
-    throw new Error("Inversion of an edge touching the inversion center requires ray support");
-  }
-
-  const start = createInversionPoint(getDocument(), startPointId, inversionCircleId, false, "ivp");
-  push(start);
-  const end = createInversionPoint(getDocument(), endPointId, inversionCircleId, false, "ivp");
-  push(end);
-
-  if (isCollinearWithCenter(startValue, endValue, center)) {
-    if (pointOnSegment(center, startValue, endValue)) {
-      throw new Error("Inversion of an edge crossing the inversion center requires disconnected-curve support");
-    }
-    const segment: Segment = {
-      id: nextObjectId(getDocument(), "ivs"),
-      label: nextObjectId(getDocument(), "ivs"),
-      kind: "segment",
-      visible: true,
-      definition: { type: "between_points", pointA: start.id, pointB: end.id },
-    };
-    push(segment);
-    return created;
-  }
-
-  const midpoint: Midpoint = {
-    id: nextObjectId(getDocument(), "ivm"),
-    label: nextObjectId(getDocument(), "ivm"),
-    kind: "point",
-    visible: false,
-    definition: { type: "midpoint", pointA: startPointId, pointB: endPointId },
-  };
-  push(midpoint);
-  const mid = createInversionPoint(getDocument(), midpoint.id, inversionCircleId, false, "ivp");
-  push(mid);
-  const arc: Arc = {
-    id: nextObjectId(getDocument(), "iva"),
-    label: nextObjectId(getDocument(), "iva"),
-    kind: "arc",
-    visible: true,
-    definition: { type: "arc_through_points", pointA: start.id, pointMid: mid.id, pointB: end.id },
-  };
-  push(arc);
-  return created;
-}
-
-function getPolygonVertexPointIds(
-  source: SourcePolygonObject,
-  values: EvaluationMap,
-  getDocument: () => GeometryDocument,
-  push: (object: GeometryObject) => void,
-): string[] {
-  if (source.definition.type === "polygon") {
-    return [...source.definition.points];
-  }
-
-  const polygonValue = values.get(source.id);
-  if (polygonValue?.type !== "polygon") {
-    throw new Error("Unable to evaluate polygon vertices");
-  }
-
-  const vertexIds: string[] = [];
-  for (let index = 0; index < polygonValue.vertices.length; index += 1) {
-    const object: GeometryObject = {
-      id: nextObjectId(getDocument(), "ivv"),
-      label: nextObjectId(getDocument(), "ivv"),
-      kind: "point",
-      visible: false,
-      definition: { type: "polygon_vertex", polygon: source.id, index },
-    };
-    push(object);
-    vertexIds.push(object.id);
-  }
-  return vertexIds;
-}
-
-function createInversionPoint(
-  document: GeometryDocument,
-  pointId: string,
-  circleId: string,
-  visible = true,
-  prefix = "iv",
-): InversionInCircle {
-  const id = nextObjectId(document, prefix);
-  return {
-    id,
-    label: id,
-    kind: "point",
-    visible,
-    definition: { type: "inversion_in_circle", point: pointId, circle: circleId },
-  };
-}
-
-function ensureCircleCenterPoint(
-  circle: SourceCircleObject,
-  circleId: string,
-  values: EvaluationMap,
-  getDocument: () => GeometryDocument,
-  push: (object: GeometryObject) => void,
-): string {
-  if (circle.definition.type === "center_through_point" || circle.definition.type === "center_radius") {
-    return circle.definition.center;
-  }
-
-  const line1: PerpendicularBisectorLine = {
-    id: nextObjectId(getDocument(), "ivpb"),
-    label: nextObjectId(getDocument(), "ivpb"),
-    kind: "line",
-    visible: false,
-    definition: {
-      type: "perpendicular_bisector",
-      pointA: circle.definition.pointA,
-      pointB: circle.definition.pointB,
-    },
-  };
-  push(line1);
-  const line2: PerpendicularBisectorLine = {
-    id: nextObjectId(getDocument(), "ivpb"),
-    label: nextObjectId(getDocument(), "ivpb"),
-    kind: "line",
-    visible: false,
-    definition: {
-      type: "perpendicular_bisector",
-      pointA: circle.definition.pointB,
-      pointB: circle.definition.pointC,
-    },
-  };
-  push(line2);
-  const center: IntersectionLL = {
-    id: nextObjectId(getDocument(), "ivctr"),
-    label: nextObjectId(getDocument(), "ivctr"),
-    kind: "point",
-    visible: false,
-    definition: { type: "intersection_ll", lineA: line1.id, lineB: line2.id },
-  };
-  push(center);
-  const centerValue = new GeometryGraph(getDocument()).values.get(center.id);
-  if (centerValue?.type !== "point") {
-    throw new Error(`Unable to compute center for circle '${circleId}'`);
-  }
-  return center.id;
-}
-
-function requireObject(document: GeometryDocument, objectId: string): GeometryObject {
-  const object = document.objects.find((candidate) => candidate.id === objectId);
-  if (object === undefined) {
-    throw new Error(`Unknown object '${objectId}'`);
-  }
-  return object;
-}
-
-function isReflectableObject(object: GeometryObject): object is ReflectableObject {
-  return object.kind === "point" || object.kind === "line" || object.kind === "segment" || object.kind === "circle" || object.kind === "polygon";
-}
-
-function isSourceLineObject(object: GeometryObject): object is SourceLineObject {
-  return object.kind === "line" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point" && object.definition.type !== "rotation";
-}
-
-function isSourceCircleObject(object: GeometryObject): object is SourceCircleObject {
-  return object.kind === "circle" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point" && object.definition.type !== "rotation";
-}
-
-function isSourceSegmentObject(object: GeometryObject): object is SourceSegmentObject {
-  return object.kind === "segment" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point" && object.definition.type !== "rotation";
-}
-
-function isSourcePolygonObject(object: GeometryObject): object is SourcePolygonObject {
-  return object.kind === "polygon" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point" && object.definition.type !== "rotation";
-}
-
-function makeReflectionOverLine<K extends ReflectableObject["kind"]>(
-  id: string,
-  objectId: string,
-  lineId: string,
-  kind: K,
-): Extract<GeometryObject, { definition: { type: "reflection_over_line" }; kind: K }> {
-  return {
-    id,
-    label: id,
-    kind,
-    visible: true,
-    definition: { type: "reflection_over_line", object: objectId, line: lineId },
-  } as Extract<GeometryObject, { definition: { type: "reflection_over_line" }; kind: K }>;
-}
-
-function makeReflectionOverPoint<K extends ReflectableObject["kind"]>(
-  id: string,
-  objectId: string,
-  centerId: string,
-  kind: K,
-): Extract<GeometryObject, { definition: { type: "reflection_over_point" }; kind: K }> {
-  return {
-    id,
-    label: id,
-    kind,
-    visible: true,
-    definition: { type: "reflection_over_point", object: objectId, center: centerId },
-  } as Extract<GeometryObject, { definition: { type: "reflection_over_point" }; kind: K }>;
-}
-
-function pushCreatedObject(
-  object: GeometryObject,
-  created: GeometryObject[],
-  getDocument: () => GeometryDocument,
-  setDocument: (document: GeometryDocument) => void,
-): void {
-  created.push(object);
-  setDocument({
-    ...getDocument(),
-    objects: [...getDocument().objects, object],
-  });
-}
-
-function requirePointValue(values: EvaluationMap, pointId: string): PointValue {
-  const value = values.get(pointId);
-  if (value?.type !== "point") {
-    throw new Error(`Expected '${pointId}' to evaluate as a point`);
-  }
-  return value;
-}
-
-function requireLineValue(values: EvaluationMap, lineId: string): LineValue {
-  const value = values.get(lineId);
-  if (value?.type !== "line") {
-    throw new Error(`Expected '${lineId}' to evaluate as a line`);
-  }
-  return value;
-}
-
-function requireCircleValue(values: EvaluationMap, circleId: string): CircleValue {
-  const value = values.get(circleId);
-  if (value?.type !== "circle") {
-    throw new Error(`Expected '${circleId}' to evaluate as a circle`);
-  }
-  return value;
-}
-
-function isSamePoint(
-  a: { x: number; y: number },
-  b: { x: number; y: number },
-): boolean {
-  return Math.hypot(a.x - b.x, a.y - b.y) <= GEOMETRY_EPSILON;
-}
-
-function isCollinearWithCenter(
-  start: { x: number; y: number },
-  end: { x: number; y: number },
-  center: { x: number; y: number },
-): boolean {
-  const cross =
-    (start.x - center.x) * (end.y - center.y) -
-    (start.y - center.y) * (end.x - center.x);
-  return Math.abs(cross) <= GEOMETRY_EPSILON;
-}
-
-function pointOnSegment(
-  point: { x: number; y: number },
-  start: { x: number; y: number },
-  end: { x: number; y: number },
-): boolean {
-  return (
-    point.x >= Math.min(start.x, end.x) - GEOMETRY_EPSILON &&
-    point.x <= Math.max(start.x, end.x) + GEOMETRY_EPSILON &&
-    point.y >= Math.min(start.y, end.y) - GEOMETRY_EPSILON &&
-    point.y <= Math.max(start.y, end.y) + GEOMETRY_EPSILON
-  );
-}
-
-function getCircleRadiusPointId(circle: SourceCircleObject): string {
-  if (circle.definition.type === "center_through_point") {
-    return circle.definition.point;
-  }
-  if (circle.definition.type === "center_radius") {
-    throw new Error(
-      "This construction requires a circle defined by a point on its circumference, not a scalar radius",
-    );
-  }
-  return circle.definition.pointA;
-}
-
-function nextPointLabel(document: GeometryDocument): string {
-  const occupied = new Set(document.objects.flatMap((object) => [object.id, object.label]));
-  for (let code = 65; code <= 90; code += 1) {
-    const label = String.fromCharCode(code);
-    if (!occupied.has(label)) {
-      return label;
-    }
-  }
-  return nextObjectId(document, "P");
-}
-
-function nextObjectId(document: GeometryDocument, prefix: string): string {
-  const occupied = new Set(document.objects.flatMap((object) => [object.id, object.label]));
-  let index = 1;
-  while (occupied.has(`${prefix}${index}`)) {
-    index += 1;
-  }
-  return `${prefix}${index}`;
 }
 
 function cloneState(state: ConstructionToolState): ConstructionToolState {

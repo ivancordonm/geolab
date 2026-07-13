@@ -1,28 +1,23 @@
 import type {
-  CircleValue,
   EvaluatedValue,
   EvaluationMap,
-  FunctionValue,
   GeometryDocument,
   GeometryObject,
   GeometryObjectId,
-  LineValue,
   Point,
-  PolygonValue,
-  PointValue,
-  ScalarValue,
-  UndefinedValue,
 } from "../types/geometry";
 import { normalizeFunctionExpression } from "./functionExpression";
+import { GEOMETRY_EPSILON, GeometryValidationError } from "./evaluators/shared";
+import { evaluatePointFamily } from "./evaluators/points";
+import { evaluateLineFamily } from "./evaluators/lines";
+import { evaluateCircleFamily } from "./evaluators/circles";
+import { evaluateTransformationFamily } from "./evaluators/transformations";
+import { evaluatePolygonFamily } from "./evaluators/polygons";
+import { evaluateMeasureFamily } from "./evaluators/measures";
 
-export const GEOMETRY_EPSILON = 1e-9;
-
-export class GeometryValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "GeometryValidationError";
-  }
-}
+// Re-exported so existing frontend imports of `GEOMETRY_EPSILON` and
+// `GeometryValidationError` from "./engine" keep working unchanged.
+export { GEOMETRY_EPSILON, GeometryValidationError };
 
 export interface RecomputeResult {
   document: GeometryDocument;
@@ -476,354 +471,64 @@ export class GeometryGraph {
     return recomputed;
   }
 
+  /**
+   * Slim dispatcher delegating to the per-family evaluator functions in
+   * `./evaluators/*`. Each family function reads `this.evaluatedValues`
+   * (passed explicitly, since those functions are plain, class-free
+   * functions) instead of reaching back into `this`.
+   */
   private evaluateObject(object: GeometryObject): EvaluatedValue {
-    const def = object.definition;
-    switch (def.type) {
+    switch (object.definition.type) {
+      // ─── Points (free, slider, polygon vertex, midpoint) ────────────────
       case "free":
-        return { type: "point", x: def.x, y: def.y };
-
       case "slider":
-        return { type: "scalar", value: def.value };
+      case "polygon_vertex":
+      case "midpoint":
+        return evaluatePointFamily(object, this.evaluatedValues);
 
-      case "polygon_vertex": {
-        const polygon = this.requireValue<PolygonValue>(object.id, def.polygon, "polygon");
-        if (isUndefined(polygon)) return polygon;
-        const vertex = polygon.vertices[def.index];
-        if (vertex === undefined) {
-          return { type: "undefined", code: "vertex_out_of_range", message: `Polygon vertex ${def.index} is out of range` };
-        }
-        return { type: "point", x: cleanZero(vertex.x), y: cleanZero(vertex.y) };
-      }
+      // ─── Lines, segments, intersections of lines ────────────────────────
+      case "through_points":
+      case "between_points":
+      case "parallel_through":
+      case "perpendicular_through":
+      case "intersection_ll":
+      case "perpendicular_bisector":
+      case "angle_bisector":
+        return evaluateLineFamily(object, this.evaluatedValues);
 
-      case "through_points": {
-        const pts = this.requirePointValues(object.id, [def.pointA, def.pointB]);
-        return isUndefined(pts) ? pts : lineThroughPoints(pts[0], pts[1]);
-      }
+      // ─── Circles and their intersections ────────────────────────────────
+      case "center_radius":
+      case "center_through_point":
+      case "intersection_lc":
+      case "intersection_cc":
+      case "circumscribed":
+        return evaluateCircleFamily(object, this.evaluatedValues);
 
-      case "between_points": {
-        const pts = this.requirePointValues(object.id, [def.pointA, def.pointB]);
-        return isUndefined(pts)
-          ? pts
-          : { type: "segment", start: { x: pts[0].x, y: pts[0].y }, end: { x: pts[1].x, y: pts[1].y } };
-      }
+      // ─── Transformations ─────────────────────────────────────────────────
+      case "reflection_over_line":
+      case "reflection_over_point":
+      case "homothety_scalar":
+      case "homothety_point":
+      case "inversion_in_circle":
+      case "translation":
+      case "rotation":
+        return evaluateTransformationFamily(object, this.evaluatedValues);
 
-      case "midpoint": {
-        const pts = this.requirePointValues(object.id, [def.pointA, def.pointB]);
-        return isUndefined(pts)
-          ? pts
-          : { type: "point", x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
-      }
-
-      case "center_radius": {
-        const center = this.requireValue<PointValue>(object.id, def.center, "point");
-        if (isUndefined(center)) return center;
-        const radius = this.requireValue<ScalarValue>(object.id, def.radius, "scalar");
-        if (isUndefined(radius)) return radius;
-        if (radius.value < 0) {
-          return { type: "undefined", code: "negative_radius", message: `Circle '${object.id}' radius must be non-negative` };
-        }
-        return { type: "circle", center: { x: center.x, y: center.y }, radius: radius.value };
-      }
-
-      case "center_through_point": {
-        const pts = this.requirePointValues(object.id, [def.center, def.point]);
-        if (isUndefined(pts)) return pts;
-        return {
-          type: "circle",
-          center: { x: pts[0].x, y: pts[0].y },
-          radius: Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y),
-        };
-      }
-
-      case "parallel_through": {
-        const pt = this.requireValue<PointValue>(object.id, def.point, "point");
-        if (isUndefined(pt)) return pt;
-        const ln = this.requireValue<LineValue>(object.id, def.line, "line");
-        return isUndefined(ln) ? ln : canonicalLine(ln.a, ln.b, -(ln.a * pt.x + ln.b * pt.y));
-      }
-
-      case "perpendicular_through": {
-        const pt = this.requireValue<PointValue>(object.id, def.point, "point");
-        if (isUndefined(pt)) return pt;
-        const ln = this.requireValue<LineValue>(object.id, def.line, "line");
-        return isUndefined(ln) ? ln : canonicalLine(-ln.b, ln.a, ln.b * pt.x - ln.a * pt.y);
-      }
-
-      // ─── New: intersections ────────────────────────────────────────────
-
-      case "intersection_ll": {
-        const lA = this.requireValue<LineValue>(object.id, def.lineA, "line");
-        if (isUndefined(lA)) return lA;
-        const lB = this.requireValue<LineValue>(object.id, def.lineB, "line");
-        if (isUndefined(lB)) return lB;
-        return intersectLines(lA, lB);
-      }
-
-      case "intersection_lc": {
-        const ln = this.requireValue<LineValue>(object.id, def.line, "line");
-        if (isUndefined(ln)) return ln;
-        const cr = this.requireValue<CircleValue>(object.id, def.circle, "circle");
-        if (isUndefined(cr)) return cr;
-        return intersectLineCircle(ln, cr, def.index, def.selector);
-      }
-
-      case "intersection_cc": {
-        const cA = this.requireValue<CircleValue>(object.id, def.circleA, "circle");
-        if (isUndefined(cA)) return cA;
-        const cB = this.requireValue<CircleValue>(object.id, def.circleB, "circle");
-        if (isUndefined(cB)) return cB;
-        return intersectCircleCircle(cA, cB, def.index, def.selector);
-      }
-
-      // ─── New: bisectors / circumcircle ────────────────────────────────
-
-      case "perpendicular_bisector": {
-        const pts = this.requirePointValues(object.id, [def.pointA, def.pointB]);
-        if (isUndefined(pts)) return pts;
-        return perpendicularBisector(pts[0], pts[1]);
-      }
-
-      case "angle_bisector": {
-        const armA = this.requireValue<PointValue>(object.id, def.armA, "point");
-        if (isUndefined(armA)) return armA;
-        const vertex = this.requireValue<PointValue>(object.id, def.vertex, "point");
-        if (isUndefined(vertex)) return vertex;
-        const armB = this.requireValue<PointValue>(object.id, def.armB, "point");
-        if (isUndefined(armB)) return armB;
-        return angleBisector(armA, vertex, armB);
-      }
-
-      case "circumscribed": {
-        const pA = this.requireValue<PointValue>(object.id, def.pointA, "point");
-        if (isUndefined(pA)) return pA;
-        const pB = this.requireValue<PointValue>(object.id, def.pointB, "point");
-        if (isUndefined(pB)) return pB;
-        const pC = this.requireValue<PointValue>(object.id, def.pointC, "point");
-        if (isUndefined(pC)) return pC;
-        return circumscribedCircle(pA, pB, pC);
-      }
-
-      // ─── New: transformations ──────────────────────────────────────────
-
-      case "reflection_over_line": {
-        const ln = this.requireValue<LineValue>(object.id, def.line, "line");
-        if (isUndefined(ln)) return ln;
-        const sourceId = def.object ?? def.point!;
-        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind as Exclude<typeof object.kind, "slider" | "measure">);
-        if (isUndefined(source)) return source;
-        return reflectValueOverLine(source, ln);
-      }
-
-      case "reflection_over_point": {
-        const ctr = this.requireValue<PointValue>(object.id, def.center, "point");
-        if (isUndefined(ctr)) return ctr;
-        const sourceId = def.object ?? def.point!;
-        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind as Exclude<typeof object.kind, "slider" | "measure">);
-        if (isUndefined(source)) return source;
-        return reflectValueOverPoint(source, ctr);
-      }
-
-      case "homothety_scalar": {
-        const ctr = this.requireValue<PointValue>(object.id, def.center, "point");
-        if (isUndefined(ctr)) return ctr;
-        const pt = this.requireValue<PointValue>(object.id, def.point, "point");
-        if (isUndefined(pt)) return pt;
-        const k = def.ratio;
-        return {
-          type: "point",
-          x: cleanZero(ctr.x + k * (pt.x - ctr.x)),
-          y: cleanZero(ctr.y + k * (pt.y - ctr.y)),
-        };
-      }
-
-      case "homothety_point": {
-        const ctr = this.requireValue<PointValue>(object.id, def.center, "point");
-        if (isUndefined(ctr)) return ctr;
-        const pt = this.requireValue<PointValue>(object.id, def.point, "point");
-        if (isUndefined(pt)) return pt;
-        const rp = this.requireValue<PointValue>(object.id, def.ratioPoint, "point");
-        if (isUndefined(rp)) return rp;
-        const dop = Math.hypot(pt.x - ctr.x, pt.y - ctr.y);
-        const dor = Math.hypot(rp.x - ctr.x, rp.y - ctr.y);
-        if (dop <= GEOMETRY_EPSILON) {
-          return { type: "undefined", code: "coincident_points", message: "Center and source point coincide" };
-        }
-        const k = dor / dop;
-        return {
-          type: "point",
-          x: cleanZero(ctr.x + k * (pt.x - ctr.x)),
-          y: cleanZero(ctr.y + k * (pt.y - ctr.y)),
-        };
-      }
-
-      case "inversion_in_circle": {
-        const pt = this.requireValue<PointValue>(object.id, def.point, "point");
-        if (isUndefined(pt)) return pt;
-        const cr = this.requireValue<CircleValue>(object.id, def.circle, "circle");
-        if (isUndefined(cr)) return cr;
-        const dx = pt.x - cr.center.x;
-        const dy = pt.y - cr.center.y;
-        const d2 = dx * dx + dy * dy;
-        if (d2 <= GEOMETRY_EPSILON * GEOMETRY_EPSILON) {
-          return { type: "undefined", code: "point_at_center", message: "Inversion is undefined at the center of the circle" };
-        }
-        const r2 = cr.radius * cr.radius;
-        return {
-          type: "point",
-          x: cleanZero(cr.center.x + r2 * dx / d2),
-          y: cleanZero(cr.center.y + r2 * dy / d2),
-        };
-      }
-
-      case "translation": {
-        const sourceId = def.object ?? def.point!;
-        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind as Exclude<typeof object.kind, "slider" | "measure">);
-        if (isUndefined(source)) return source;
-        const from = this.requireValue<PointValue>(object.id, def.from, "point");
-        if (isUndefined(from)) return from;
-        const to = this.requireValue<PointValue>(object.id, def.to, "point");
-        if (isUndefined(to)) return to;
-        return translateValue(source, to.x - from.x, to.y - from.y);
-      }
-
-      case "rotation": {
-        const ctr = this.requireValue<PointValue>(object.id, def.center, "point");
-        if (isUndefined(ctr)) return ctr;
-        const sourceId = def.object ?? def.point!;
-        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind as Exclude<typeof object.kind, "slider" | "measure">);
-        if (isUndefined(source)) return source;
-        return rotateValue(source, ctr, def.degrees);
-      }
-
-      case "arc_through_points": {
-        const pA = this.requireValue<PointValue>(object.id, def.pointA, "point");
-        if (isUndefined(pA)) return pA;
-        const pM = this.requireValue<PointValue>(object.id, def.pointMid, "point");
-        if (isUndefined(pM)) return pM;
-        const pB = this.requireValue<PointValue>(object.id, def.pointB, "point");
-        if (isUndefined(pB)) return pB;
-        const circle = circleFromThreePoints(pA, pM, pB);
-        if (isUndefined(circle)) return circle;
-        return {
-          type: "arc",
-          center: circle.center,
-          radius: circle.radius,
-          start: { x: cleanZero(pA.x), y: cleanZero(pA.y) },
-          mid: { x: cleanZero(pM.x), y: cleanZero(pM.y) },
-          end: { x: cleanZero(pB.x), y: cleanZero(pB.y) },
-        };
-      }
-
+      // ─── Polygons, arcs, functions ───────────────────────────────────────
+      case "arc_through_points":
       case "function_expression":
-        return {
-          type: "function",
-          expression: normalizeFunctionExpression(def.expression),
-        } satisfies FunctionValue;
+      case "polygon":
+      case "regular_polygon":
+      case "vector_polygon":
+        return evaluatePolygonFamily(object, this.evaluatedValues);
 
-      // ─── Polygons ─────────────────────────────────────────────────────────
-
-      case "polygon": {
-        const vertices: { x: number; y: number }[] = [];
-        for (const pid of def.points) {
-          const pv = this.requireValue<PointValue>(object.id, pid, "point");
-          if (isUndefined(pv)) return pv;
-          vertices.push({ x: pv.x, y: pv.y });
-        }
-        return { type: "polygon", vertices } satisfies PolygonValue;
-      }
-
-      case "regular_polygon": {
-        const pA = this.requireValue<PointValue>(object.id, def.pointA, "point");
-        if (isUndefined(pA)) return pA;
-        const pB = this.requireValue<PointValue>(object.id, def.pointB, "point");
-        if (isUndefined(pB)) return pB;
-        return regularPolygonVertices(pA, pB, def.sides);
-      }
-
-      case "vector_polygon": {
-        const anchor = this.requireValue<PointValue>(object.id, def.anchor, "point");
-        if (isUndefined(anchor)) return anchor;
-        const ax = anchor.x;
-        const ay = anchor.y;
-        const vertices: { x: number; y: number }[] = [{ x: ax, y: ay }];
-        for (const offset of def.offsets) {
-          vertices.push({ x: cleanZero(ax + offset.x), y: cleanZero(ay + offset.y) });
-        }
-        return { type: "polygon", vertices } satisfies PolygonValue;
-      }
-
-      // ─── Measures ───────────────────────────────────────────────────────
-
-      case "distance": {
-        const pts = this.requirePointValues(object.id, [def.pointA, def.pointB]);
-        if (isUndefined(pts)) return pts;
-        return { type: "scalar", value: Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y) };
-      }
-
-      case "angle": {
-        const pA = this.requireValue<PointValue>(object.id, def.pointA, "point");
-        if (isUndefined(pA)) return pA;
-        const vertex = this.requireValue<PointValue>(object.id, def.vertex, "point");
-        if (isUndefined(vertex)) return vertex;
-        const pB = this.requireValue<PointValue>(object.id, def.pointB, "point");
-        if (isUndefined(pB)) return pB;
-        return angleMeasure(pA, vertex, pB);
-      }
-
-      case "area": {
-        const polygon = this.requireValue<PolygonValue>(object.id, def.polygon, "polygon");
-        if (isUndefined(polygon)) return polygon;
-        return { type: "scalar", value: polygonArea(polygon) };
-      }
-
-      case "slope": {
-        const line = this.requireValue<LineValue>(object.id, def.line, "line");
-        if (isUndefined(line)) return line;
-        if (Math.abs(line.b) <= GEOMETRY_EPSILON) {
-          return {
-            type: "undefined",
-            code: "vertical_line",
-            message: `Slope '${object.id}' is undefined for a vertical line`,
-          };
-        }
-        return { type: "scalar", value: -line.a / line.b };
-      }
+      // ─── Measures ────────────────────────────────────────────────────────
+      case "distance":
+      case "angle":
+      case "area":
+      case "slope":
+        return evaluateMeasureFamily(object, this.evaluatedValues);
     }
-  }
-
-  private requirePointValues(
-    objectId: string,
-    parentIds: [string, string],
-  ): [PointValue, PointValue] | UndefinedValue {
-    const first = this.requireValue<PointValue>(objectId, parentIds[0], "point");
-    if (isUndefined(first)) {
-      return first;
-    }
-    const second = this.requireValue<PointValue>(objectId, parentIds[1], "point");
-    return isUndefined(second) ? second : [first, second];
-  }
-
-  private requireValue<T extends EvaluatedValue>(
-    objectId: string,
-    parentId: string,
-    expectedType: T["type"],
-  ): T | UndefinedValue {
-    const value = this.evaluatedValues.get(parentId);
-    if (value === undefined || value.type === "undefined") {
-      return {
-        type: "undefined",
-        code: "parent_undefined",
-        message: `Object '${objectId}' depends on undefined parent '${parentId}'`,
-      };
-    }
-    if (value.type !== expectedType) {
-      return {
-        type: "undefined",
-        code: "parent_type_mismatch",
-        message: `Object '${objectId}' expected '${parentId}' to evaluate as ${expectedType}`,
-      };
-    }
-    return value as T;
   }
 }
 
@@ -838,428 +543,6 @@ export function moveFreePoint(
   y: number,
 ): RecomputeResult {
   return new GeometryGraph(document).moveFreePoint(pointId, x, y);
-}
-
-// ─── Geometry helpers ──────────────────────────────────────────────────────
-
-function lineThroughPoints(first: PointValue, second: PointValue): EvaluatedValue {
-  const a = first.y - second.y;
-  const b = second.x - first.x;
-  const c = first.x * second.y - second.x * first.y;
-  if (Math.hypot(a, b) <= GEOMETRY_EPSILON) {
-    return { type: "undefined", code: "coincident_points", message: "A line requires two distinct points" };
-  }
-  return canonicalLine(a, b, c);
-}
-
-function canonicalLine(a: number, b: number, c: number): LineValue {
-  const norm = Math.hypot(a, b);
-  let na = a / norm;
-  let nb = b / norm;
-  let nc = c / norm;
-  if (na < -GEOMETRY_EPSILON || (Math.abs(na) <= GEOMETRY_EPSILON && nb < 0)) {
-    na *= -1; nb *= -1; nc *= -1;
-  }
-  return { type: "line", a: cleanZero(na), b: cleanZero(nb), c: cleanZero(nc) };
-}
-
-function intersectLines(lA: LineValue, lB: LineValue): EvaluatedValue {
-  const det = lA.a * lB.b - lA.b * lB.a;
-  if (Math.abs(det) <= GEOMETRY_EPSILON) {
-    return { type: "undefined", code: "parallel_lines", message: "Lines are parallel or coincident" };
-  }
-  return {
-    type: "point",
-    x: cleanZero((lA.b * lB.c - lB.b * lA.c) / det),
-    y: cleanZero((lB.a * lA.c - lA.a * lB.c) / det),
-  };
-}
-
-function reflectPointOverLine(point: PointValue, line: LineValue): PointValue {
-  const distance = line.a * point.x + line.b * point.y + line.c;
-  return {
-    type: "point",
-    x: cleanZero(point.x - 2 * line.a * distance),
-    y: cleanZero(point.y - 2 * line.b * distance),
-  };
-}
-
-function reflectPointOverPoint(point: PointValue, center: PointValue): PointValue {
-  return {
-    type: "point",
-    x: cleanZero(2 * center.x - point.x),
-    y: cleanZero(2 * center.y - point.y),
-  };
-}
-
-function samplePointsFromLine(line: LineValue): [PointValue, PointValue] {
-  const base: PointValue = { type: "point", x: cleanZero(-line.a * line.c), y: cleanZero(-line.b * line.c) };
-  const direction: PointValue = {
-    type: "point",
-    x: cleanZero(base.x - line.b),
-    y: cleanZero(base.y + line.a),
-  };
-  return [base, direction];
-}
-
-function reflectValueOverLine(value: EvaluatedValue, mirror: LineValue): EvaluatedValue {
-  switch (value.type) {
-    case "point":
-      return reflectPointOverLine(value, mirror);
-    case "line": {
-      const [first, second] = samplePointsFromLine(value);
-      return lineThroughPoints(reflectPointOverLine(first, mirror), reflectPointOverLine(second, mirror));
-    }
-    case "segment": {
-      const start = reflectPointOverLine({ type: "point", ...value.start }, mirror);
-      const end = reflectPointOverLine({ type: "point", ...value.end }, mirror);
-      return { type: "segment", start: { x: start.x, y: start.y }, end: { x: end.x, y: end.y } };
-    }
-    case "circle": {
-      const center = reflectPointOverLine({ type: "point", ...value.center }, mirror);
-      return { type: "circle", center: { x: center.x, y: center.y }, radius: value.radius };
-    }
-    case "polygon":
-      return {
-        type: "polygon",
-        vertices: value.vertices.map((vertex) => {
-          const reflected = reflectPointOverLine({ type: "point", ...vertex }, mirror);
-          return { x: reflected.x, y: reflected.y };
-        }),
-      };
-    default:
-      throw new GeometryValidationError(`Reflection over line is unsupported for evaluated type '${value.type}'`);
-  }
-}
-
-function reflectValueOverPoint(value: EvaluatedValue, center: PointValue): EvaluatedValue {
-  switch (value.type) {
-    case "point":
-      return reflectPointOverPoint(value, center);
-    case "line": {
-      const [first, second] = samplePointsFromLine(value);
-      return lineThroughPoints(reflectPointOverPoint(first, center), reflectPointOverPoint(second, center));
-    }
-    case "segment": {
-      const start = reflectPointOverPoint({ type: "point", ...value.start }, center);
-      const end = reflectPointOverPoint({ type: "point", ...value.end }, center);
-      return { type: "segment", start: { x: start.x, y: start.y }, end: { x: end.x, y: end.y } };
-    }
-    case "circle": {
-      const reflectedCenter = reflectPointOverPoint({ type: "point", ...value.center }, center);
-      return { type: "circle", center: { x: reflectedCenter.x, y: reflectedCenter.y }, radius: value.radius };
-    }
-    case "polygon":
-      return {
-        type: "polygon",
-        vertices: value.vertices.map((vertex) => {
-          const reflected = reflectPointOverPoint({ type: "point", ...vertex }, center);
-          return { x: reflected.x, y: reflected.y };
-        }),
-      };
-    default:
-      throw new GeometryValidationError(`Reflection over point is unsupported for evaluated type '${value.type}'`);
-  }
-}
-
-function rotatePoint(pt: PointValue, ctr: PointValue, degrees: number): PointValue {
-  const theta = (degrees * Math.PI) / 180;
-  const cos = Math.cos(theta);
-  const sin = Math.sin(theta);
-  const dx = pt.x - ctr.x;
-  const dy = pt.y - ctr.y;
-  return {
-    type: "point",
-    x: cleanZero(ctr.x + dx * cos - dy * sin),
-    y: cleanZero(ctr.y + dx * sin + dy * cos),
-  };
-}
-
-function translateValue(value: EvaluatedValue, dx: number, dy: number): EvaluatedValue {
-  switch (value.type) {
-    case "point":
-      return { type: "point", x: cleanZero(value.x + dx), y: cleanZero(value.y + dy) };
-    case "line": {
-      const [first, second] = samplePointsFromLine(value);
-      return lineThroughPoints(
-        { type: "point", x: cleanZero(first.x + dx), y: cleanZero(first.y + dy) },
-        { type: "point", x: cleanZero(second.x + dx), y: cleanZero(second.y + dy) },
-      );
-    }
-    case "segment":
-      return {
-        type: "segment",
-        start: { x: cleanZero(value.start.x + dx), y: cleanZero(value.start.y + dy) },
-        end: { x: cleanZero(value.end.x + dx), y: cleanZero(value.end.y + dy) },
-      };
-    case "circle":
-      return {
-        type: "circle",
-        center: { x: cleanZero(value.center.x + dx), y: cleanZero(value.center.y + dy) },
-        radius: value.radius,
-      };
-    case "polygon":
-      return {
-        type: "polygon",
-        vertices: value.vertices.map((vertex) => ({
-          x: cleanZero(vertex.x + dx),
-          y: cleanZero(vertex.y + dy),
-        })),
-      };
-    default:
-      throw new GeometryValidationError(`Translation is unsupported for evaluated type '${value.type}'`);
-  }
-}
-
-function rotateValue(value: EvaluatedValue, center: PointValue, degrees: number): EvaluatedValue {
-  switch (value.type) {
-    case "point":
-      return rotatePoint(value, center, degrees);
-    case "line": {
-      const [first, second] = samplePointsFromLine(value);
-      return lineThroughPoints(rotatePoint(first, center, degrees), rotatePoint(second, center, degrees));
-    }
-    case "segment": {
-      const start = rotatePoint({ type: "point", ...value.start }, center, degrees);
-      const end = rotatePoint({ type: "point", ...value.end }, center, degrees);
-      return { type: "segment", start: { x: start.x, y: start.y }, end: { x: end.x, y: end.y } };
-    }
-    case "circle": {
-      const rotatedCenter = rotatePoint({ type: "point", ...value.center }, center, degrees);
-      return { type: "circle", center: { x: rotatedCenter.x, y: rotatedCenter.y }, radius: value.radius };
-    }
-    case "polygon":
-      return {
-        type: "polygon",
-        vertices: value.vertices.map((vertex) => {
-          const rotated = rotatePoint({ type: "point", ...vertex }, center, degrees);
-          return { x: rotated.x, y: rotated.y };
-        }),
-      };
-    default:
-      throw new GeometryValidationError(`Rotation is unsupported for evaluated type '${value.type}'`);
-  }
-}
-
-function intersectLineCircle(
-  ln: LineValue,
-  cr: CircleValue,
-  index?: 1 | 2 | null,
-  selector?: "first" | "second" | "left" | "right" | null,
-): EvaluatedValue {
-  // ln is normalized (a²+b²=1). signed distance from center to line:
-  const dSigned = ln.a * cr.center.x + ln.b * cr.center.y + ln.c;
-  const d2 = dSigned * dSigned;
-  const r2 = cr.radius * cr.radius;
-  const h2 = r2 - d2;
-  if (h2 < -GEOMETRY_EPSILON) {
-    return { type: "undefined", code: "no_intersection", message: "Line and circle do not intersect" };
-  }
-  const h = Math.sqrt(Math.max(0, h2));
-  const fx = cr.center.x - ln.a * dSigned;
-  const fy = cr.center.y - ln.b * dSigned;
-  // Two candidate points: foot ± h * tangent direction (-b, a)
-  const p1 = { x: fx - ln.b * h, y: fy + ln.a * h };
-  const p2 = { x: fx + ln.b * h, y: fy - ln.a * h };
-  const pt = selectIntersection(p1, p2, index, selector);
-  if ("type" in pt) return pt;
-  return { type: "point", x: cleanZero(pt.x), y: cleanZero(pt.y) };
-}
-
-function intersectCircleCircle(
-  cA: CircleValue,
-  cB: CircleValue,
-  index?: 1 | 2 | null,
-  selector?: "upper" | "lower" | "left" | "right" | null,
-): EvaluatedValue {
-  const dx = cB.center.x - cA.center.x;
-  const dy = cB.center.y - cA.center.y;
-  const d = Math.hypot(dx, dy);
-  if (d <= GEOMETRY_EPSILON) {
-    return { type: "undefined", code: "concentric_circles", message: "Circles are concentric" };
-  }
-  if (d > cA.radius + cB.radius + GEOMETRY_EPSILON || d < Math.abs(cA.radius - cB.radius) - GEOMETRY_EPSILON) {
-    return { type: "undefined", code: "no_intersection", message: "Circles do not intersect" };
-  }
-  const a = (cA.radius * cA.radius - cB.radius * cB.radius + d * d) / (2 * d);
-  const h2 = cA.radius * cA.radius - a * a;
-  const h = Math.sqrt(Math.max(0, h2));
-  const ex = dx / d;
-  const ey = dy / d;
-  const fx = cA.center.x + a * ex;
-  const fy = cA.center.y + a * ey;
-  const p1 = { x: fx - h * ey, y: fy + h * ex };
-  const p2 = { x: fx + h * ey, y: fy - h * ex };
-  const pt = selectIntersection(p1, p2, index, selector);
-  if ("type" in pt) return pt;
-  return { type: "point", x: cleanZero(pt.x), y: cleanZero(pt.y) };
-}
-
-function perpendicularBisector(a: PointValue, b: PointValue): EvaluatedValue {
-  const da = b.x - a.x;
-  const db = b.y - a.y;
-  if (Math.hypot(da, db) <= GEOMETRY_EPSILON) {
-    return { type: "undefined", code: "coincident_points", message: "Perpendicular bisector requires two distinct points" };
-  }
-  const mx = (a.x + b.x) / 2;
-  const my = (a.y + b.y) / 2;
-  // Normal direction = AB direction; line passes through midpoint
-  return canonicalLine(da, db, -(da * mx + db * my));
-}
-
-function angleBisector(armA: PointValue, vertex: PointValue, armB: PointValue): EvaluatedValue {
-  const dax = armA.x - vertex.x;
-  const day = armA.y - vertex.y;
-  const dbx = armB.x - vertex.x;
-  const dby = armB.y - vertex.y;
-  const na = Math.hypot(dax, day);
-  const nb = Math.hypot(dbx, dby);
-  if (na <= GEOMETRY_EPSILON || nb <= GEOMETRY_EPSILON) {
-    return { type: "undefined", code: "coincident_points", message: "Angle bisector requires distinct arm endpoints" };
-  }
-  let dirX = dax / na + dbx / nb;
-  let dirY = day / na + dby / nb;
-  if (Math.hypot(dirX, dirY) <= GEOMETRY_EPSILON) {
-    // Supplementary angle: bisector is perpendicular to arms
-    dirX = -day / na;
-    dirY = dax / na;
-  }
-  // Line through vertex with direction (dirX, dirY): normal = (-dirY, dirX)
-  return canonicalLine(-dirY, dirX, dirY * vertex.x - dirX * vertex.y);
-}
-
-function circumscribedCircle(a: PointValue, b: PointValue, c: PointValue): EvaluatedValue {
-  return circleFromThreePoints(a, b, c);
-}
-
-function circleFromThreePoints(
-  a: PointValue,
-  b: PointValue,
-  c: PointValue,
-): CircleValue | UndefinedValue {
-  // Intersect perpendicular bisectors of AB and BC
-  const a1 = b.x - a.x;
-  const b1 = b.y - a.y;
-  const c1 = -(a1 * (a.x + b.x) / 2 + b1 * (a.y + b.y) / 2);
-  const a2 = c.x - b.x;
-  const b2 = c.y - b.y;
-  const c2 = -(a2 * (b.x + c.x) / 2 + b2 * (b.y + c.y) / 2);
-  const det = a1 * b2 - a2 * b1;
-  if (Math.abs(det) <= GEOMETRY_EPSILON) {
-    return { type: "undefined", code: "collinear_points", message: "Circumscribed circle requires three non-collinear points" };
-  }
-  const cx = (b1 * c2 - b2 * c1) / det;
-  const cy = (a2 * c1 - a1 * c2) / det;
-  return {
-    type: "circle",
-    center: { x: cleanZero(cx), y: cleanZero(cy) },
-    radius: cleanZero(Math.hypot(a.x - cx, a.y - cy)),
-  };
-}
-
-/** Sort two points: index 0 = higher y, tie → smaller x (canonical for two intersection solutions). */
-function sortedPair(
-  p: { x: number; y: number },
-  q: { x: number; y: number },
-): [{ x: number; y: number }, { x: number; y: number }] {
-  const pFirst =
-    p.y > q.y + GEOMETRY_EPSILON ||
-    (Math.abs(p.y - q.y) <= GEOMETRY_EPSILON && p.x <= q.x);
-  return pFirst ? [p, q] : [q, p];
-}
-
-function selectIntersection(
-  p: { x: number; y: number },
-  q: { x: number; y: number },
-  index?: 1 | 2 | null,
-  selector?: string | null,
-): { x: number; y: number } | Extract<EvaluatedValue, { type: "undefined" }> {
-  if (Math.hypot(p.x - q.x, p.y - q.y) <= GEOMETRY_EPSILON) return p;
-  const [first, second] = sortedPair(p, q);
-  if (index != null) return index === 1 ? first : second;
-  if (selector === "first") return first;
-  if (selector === "second") return second;
-  if (selector === "upper" || selector === "lower") {
-    if (Math.abs(p.y - q.y) <= GEOMETRY_EPSILON) {
-      return { type: "undefined", code: "ambiguous_selector", message: `Selector '${selector}' cannot distinguish intersections with equal y` };
-    }
-    return selector === "upper" ? (p.y > q.y ? p : q) : (p.y < q.y ? p : q);
-  }
-  if (selector === "left" || selector === "right") {
-    if (Math.abs(p.x - q.x) <= GEOMETRY_EPSILON) {
-      return { type: "undefined", code: "ambiguous_selector", message: `Selector '${selector}' cannot distinguish intersections with equal x` };
-    }
-    return selector === "left" ? (p.x < q.x ? p : q) : (p.x > q.x ? p : q);
-  }
-  return { type: "undefined", code: "invalid_selector", message: "Intersection selector is invalid" };
-}
-
-function cleanZero(value: number): number {
-  return Math.abs(value) <= GEOMETRY_EPSILON ? 0 : value;
-}
-
-/**
- * Compute vertices of a regular n-gon whose first edge is A→B.
- * Vertices are generated counter-clockwise (exterior angle 2π/n),
- * matching the Python backend and GeoGebra's convention.
- */
-function regularPolygonVertices(pA: PointValue, pB: PointValue, n: number): EvaluatedValue {
-  if (n < 3) {
-    return { type: "undefined", code: "invalid_sides", message: "Regular polygon requires at least 3 sides" };
-  }
-  const angle = (2 * Math.PI) / n;
-  const cosA = Math.cos(angle);
-  const sinA = Math.sin(angle);
-  let vx = pB.x - pA.x;
-  let vy = pB.y - pA.y;
-  const vertices: { x: number; y: number }[] = [{ x: pA.x, y: pA.y }, { x: pB.x, y: pB.y }];
-  let curX = pB.x;
-  let curY = pB.y;
-  for (let i = 0; i < n - 2; i++) {
-    const newVx = vx * cosA - vy * sinA;
-    const newVy = vx * sinA + vy * cosA;
-    vx = newVx;
-    vy = newVy;
-    curX = cleanZero(curX + vx);
-    curY = cleanZero(curY + vy);
-    vertices.push({ x: curX, y: curY });
-  }
-  return { type: "polygon", vertices };
-}
-
-/**
- * Unsigned angle at `vertex` between rays to `pointA` and `pointB`, in degrees, range [0, 180].
- * Uses atan2(|cross|, dot) of the two arm vectors, which is numerically stable
- * near 0 and 180 degrees and always non-negative (no directional/signed angle).
- */
-function angleMeasure(pointA: PointValue, vertex: PointValue, pointB: PointValue): EvaluatedValue {
-  const vax = pointA.x - vertex.x;
-  const vay = pointA.y - vertex.y;
-  const vbx = pointB.x - vertex.x;
-  const vby = pointB.y - vertex.y;
-  if (Math.hypot(vax, vay) <= GEOMETRY_EPSILON || Math.hypot(vbx, vby) <= GEOMETRY_EPSILON) {
-    return { type: "undefined", code: "coincident_points", message: "Angle requires distinct vertex and arm points" };
-  }
-  const cross = vax * vby - vay * vbx;
-  const dot = vax * vbx + vay * vby;
-  const angleRad = Math.atan2(Math.abs(cross), dot);
-  return { type: "scalar", value: (angleRad * 180) / Math.PI };
-}
-
-/** Shoelace formula; always non-negative regardless of vertex winding order. */
-function polygonArea(polygon: PolygonValue): number {
-  const vertices = polygon.vertices;
-  const n = vertices.length;
-  let total = 0;
-  for (let i = 0; i < n; i++) {
-    const j = (i + 1) % n;
-    total += vertices[i].x * vertices[j].y - vertices[j].x * vertices[i].y;
-  }
-  return Math.abs(total) / 2;
-}
-
-function isUndefined<T>(value: T | EvaluatedValue): value is Extract<EvaluatedValue, { type: "undefined" }> {
-  return typeof value === "object" && value !== null && "type" in value && value.type === "undefined";
 }
 
 function assertFiniteNumber(value: number, field: string): void {

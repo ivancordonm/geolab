@@ -26,13 +26,11 @@ EXPECTED_TOOLS = {
     "create_polygon",
     "create_regular_polygon",
     "create_vector_polygon",
-<<<<<<< HEAD
     "create_slider",
     "create_distance",
     "create_angle",
     "create_area",
     "create_slope",
-=======
     "create_reflection_over_line",
     "create_reflection_over_point",
     "create_translation",
@@ -42,7 +40,6 @@ EXPECTED_TOOLS = {
     "create_arc",
     "create_function",
     "create_polygon_vertex",
->>>>>>> origin/main
     "validate_construction",
     "evaluate_script",
     "get_current_graph",
@@ -202,7 +199,6 @@ def test_directional_intersection_tool_is_atomic_on_ambiguity() -> None:
     assert "C" not in workspace.graph_access_map().by_id
 
 
-<<<<<<< HEAD
 def test_measure_tools_create_distance_angle_area_and_slope() -> None:
     workspace = GeometryWorkspace()
     registry = create_geometry_tool_registry(workspace)
@@ -260,7 +256,6 @@ def test_create_distance_tool_rejects_non_point_parent() -> None:
 
     with pytest.raises(ToolExecutionError, match="must be a point"):
         execute(registry, "create_distance", {"objectId": "d", "pointA": "A", "pointB": "ln"})
-=======
 def test_transformation_tools_create_defined_objects() -> None:
     workspace = GeometryWorkspace()
     registry = create_geometry_tool_registry(workspace)
@@ -361,4 +356,3 @@ def test_export_tools_return_svg_png_and_json() -> None:
     assert descriptors["export_svg"].mutates_geometry_state is False
     assert descriptors["export_png"].mutates_geometry_state is False
     assert descriptors["export_json"].mutates_geometry_state is False
->>>>>>> origin/main

@@ -31,4 +31,4 @@ data/
 .claude/cache/
 .superpowers/
 .claude/keybindings.json
-
+.vercel

@@ -311,7 +311,6 @@ def create_vector_polygon(
 
 
 @mcp.tool(annotations=CREATE)
-<<<<<<< HEAD
 def create_slider(
     object_id: str,
     min_value: float,
@@ -375,20 +374,23 @@ def create_area(
 @mcp.tool(annotations=CREATE)
 def create_slope(
     object_id: str,
-=======
-def create_reflection_over_line(
-    object_id: str,
-    source: str,
->>>>>>> origin/main
     line: str,
     document: GeometryDocument | None = None,
     label: str | None = None,
 ) -> dict[str, Any]:
-<<<<<<< HEAD
     """Create a slope measure for an existing line; undefined for vertical lines."""
 
     return _mutate(document, "create_slope", {"objectId": object_id, "label": label, "line": line})
-=======
+
+
+@mcp.tool(annotations=CREATE)
+def create_reflection_over_line(
+    object_id: str,
+    source: str,
+    line: str,
+    document: GeometryDocument | None = None,
+    label: str | None = None,
+) -> dict[str, Any]:
     """Reflect an existing point/line/segment/circle/polygon over an existing line."""
 
     return _mutate(document, "create_reflection_over_line", {"objectId": object_id, "label": label, "source": source, "line": line})
@@ -499,7 +501,6 @@ def create_polygon_vertex(
     """Create a point bound to the i-th vertex (0-based) of an existing polygon."""
 
     return _mutate(document, "create_polygon_vertex", {"objectId": object_id, "label": label, "polygon": polygon, "index": index})
->>>>>>> origin/main
 
 
 @mcp.tool(

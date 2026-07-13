@@ -166,6 +166,62 @@ class SlopeConstructionInput(GeometryModel):
     line: str
 
 
+class SourceLineConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    source: str
+    line: str
+
+
+class SourcePointConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    source: str
+    center: str
+
+
+class TranslationConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    source: str
+    from_point: str
+    to_point: str
+
+
+class RotationConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    source: str
+    center: str
+    degrees: float
+
+
+class HomothetyConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    center: str
+    point: str
+    ratio: float
+
+
+class InversionConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    point: str
+    circle: str
+
+
+class FunctionConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    expression: str
+
+
+class PolygonVertexConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    polygon: str
+    index: int
 class ValidateConstructionInput(GeometryModel):
     document: GeometryDocument | None = None
 
@@ -196,3 +252,15 @@ class EvaluateScriptToolOutput(GeometryModel):
 
 class GetGraphToolOutput(GeometryModel):
     graph: GraphView
+
+
+class ExportSvgOutput(GeometryModel):
+    svg: str
+
+
+class ExportPngOutput(GeometryModel):
+    png_base64: str
+
+
+class ExportJsonOutput(GeometryModel):
+    document_json: str

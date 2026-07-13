@@ -1,0 +1,227 @@
+{
+  "script": "A = Point(0, 0)\nB = Point(4, 0)\nC = Point(2, 3)\npoly = Polygon(A, B, C)\nV = Vertex(poly, 1)\nreg = Polygon(A, B, 5)\nvec = VectorPolygon(A, (1, 0), (0, 1))\narc = Arc(A, C, B)\n",
+  "document": {
+    "schemaVersion": 1,
+    "id": "doc_polygons_arcs",
+    "title": "Polygons arcs",
+    "objects": [
+      {
+        "id": "A",
+        "label": "A",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 0.0,
+          "y": 0.0
+        }
+      },
+      {
+        "id": "B",
+        "label": "B",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 4.0,
+          "y": 0.0
+        }
+      },
+      {
+        "id": "C",
+        "label": "C",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 2.0,
+          "y": 3.0
+        }
+      },
+      {
+        "id": "poly",
+        "label": "poly",
+        "visible": true,
+        "style": null,
+        "kind": "polygon",
+        "definition": {
+          "type": "polygon",
+          "points": [
+            "A",
+            "B",
+            "C"
+          ]
+        }
+      },
+      {
+        "id": "V",
+        "label": "V",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "polygon_vertex",
+          "polygon": "poly",
+          "index": 1
+        }
+      },
+      {
+        "id": "reg",
+        "label": "reg",
+        "visible": true,
+        "style": null,
+        "kind": "polygon",
+        "definition": {
+          "type": "regular_polygon",
+          "pointA": "A",
+          "pointB": "B",
+          "sides": 5
+        }
+      },
+      {
+        "id": "vec",
+        "label": "vec",
+        "visible": true,
+        "style": null,
+        "kind": "polygon",
+        "definition": {
+          "type": "vector_polygon",
+          "anchor": "A",
+          "offsets": [
+            {
+              "x": 1.0,
+              "y": 0.0
+            },
+            {
+              "x": 0.0,
+              "y": 1.0
+            }
+          ]
+        }
+      },
+      {
+        "id": "arc",
+        "label": "arc",
+        "visible": true,
+        "style": null,
+        "kind": "arc",
+        "definition": {
+          "type": "arc_through_points",
+          "pointA": "A",
+          "pointMid": "C",
+          "pointB": "B"
+        }
+      }
+    ],
+    "viewport": {
+      "centerX": 0.0,
+      "centerY": 0.0,
+      "scale": 50.0
+    },
+    "metadata": null
+  },
+  "initialValues": {
+    "A": {
+      "type": "point",
+      "x": 0.0,
+      "y": 0.0
+    },
+    "B": {
+      "type": "point",
+      "x": 4.0,
+      "y": 0.0
+    },
+    "C": {
+      "type": "point",
+      "x": 2.0,
+      "y": 3.0
+    },
+    "poly": {
+      "type": "polygon",
+      "vertices": [
+        {
+          "x": 0.0,
+          "y": 0.0
+        },
+        {
+          "x": 4.0,
+          "y": 0.0
+        },
+        {
+          "x": 2.0,
+          "y": 3.0
+        }
+      ]
+    },
+    "V": {
+      "type": "point",
+      "x": 4.0,
+      "y": 0.0
+    },
+    "reg": {
+      "type": "polygon",
+      "vertices": [
+        {
+          "x": 0.0,
+          "y": 0.0
+        },
+        {
+          "x": 4.0,
+          "y": 0.0
+        },
+        {
+          "x": 5.23606797749979,
+          "y": 3.804226065180614
+        },
+        {
+          "x": 2.0000000000000004,
+          "y": 6.155367074350506
+        },
+        {
+          "x": -1.2360679774997894,
+          "y": 3.804226065180614
+        }
+      ]
+    },
+    "vec": {
+      "type": "polygon",
+      "vertices": [
+        {
+          "x": 0.0,
+          "y": 0.0
+        },
+        {
+          "x": 1.0,
+          "y": 0.0
+        },
+        {
+          "x": 0.0,
+          "y": 1.0
+        }
+      ]
+    },
+    "arc": {
+      "type": "arc",
+      "center": {
+        "x": 2.0,
+        "y": 0.8333333333333334
+      },
+      "radius": 2.1666666666666665,
+      "start": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "mid": {
+        "x": 2.0,
+        "y": 3.0
+      },
+      "end": {
+        "x": 4.0,
+        "y": 0.0
+      }
+    }
+  }
+}

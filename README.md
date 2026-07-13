@@ -201,3 +201,5 @@ cd ../backend
   backend SVG/PNG exports do not yet draw arcs; the interactive frontend does.
 - LLM output remains probabilistic even though every returned construction
   script is deterministically validated.
+
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the medium- and long-term plan.

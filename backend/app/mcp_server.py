@@ -311,6 +311,7 @@ def create_vector_polygon(
 
 
 @mcp.tool(annotations=CREATE)
+<<<<<<< HEAD
 def create_slider(
     object_id: str,
     min_value: float,
@@ -374,13 +375,131 @@ def create_area(
 @mcp.tool(annotations=CREATE)
 def create_slope(
     object_id: str,
+=======
+def create_reflection_over_line(
+    object_id: str,
+    source: str,
+>>>>>>> origin/main
     line: str,
     document: GeometryDocument | None = None,
     label: str | None = None,
 ) -> dict[str, Any]:
+<<<<<<< HEAD
     """Create a slope measure for an existing line; undefined for vertical lines."""
 
     return _mutate(document, "create_slope", {"objectId": object_id, "label": label, "line": line})
+=======
+    """Reflect an existing point/line/segment/circle/polygon over an existing line."""
+
+    return _mutate(document, "create_reflection_over_line", {"objectId": object_id, "label": label, "source": source, "line": line})
+
+
+@mcp.tool(annotations=CREATE)
+def create_reflection_over_point(
+    object_id: str,
+    source: str,
+    center: str,
+    document: GeometryDocument | None = None,
+    label: str | None = None,
+) -> dict[str, Any]:
+    """Reflect an existing point/line/segment/circle/polygon over an existing point."""
+
+    return _mutate(document, "create_reflection_over_point", {"objectId": object_id, "label": label, "source": source, "center": center})
+
+
+@mcp.tool(annotations=CREATE)
+def create_translation(
+    object_id: str,
+    source: str,
+    from_point: str,
+    to_point: str,
+    document: GeometryDocument | None = None,
+    label: str | None = None,
+) -> dict[str, Any]:
+    """Translate an existing object by the vector between two existing points."""
+
+    return _mutate(document, "create_translation", {"objectId": object_id, "label": label, "source": source, "fromPoint": from_point, "toPoint": to_point})
+
+
+@mcp.tool(annotations=CREATE)
+def create_rotation(
+    object_id: str,
+    source: str,
+    center: str,
+    degrees: float,
+    document: GeometryDocument | None = None,
+    label: str | None = None,
+) -> dict[str, Any]:
+    """Rotate an existing object around a center point by an angle in degrees."""
+
+    return _mutate(document, "create_rotation", {"objectId": object_id, "label": label, "source": source, "center": center, "degrees": degrees})
+
+
+@mcp.tool(annotations=CREATE)
+def create_homothety(
+    object_id: str,
+    center: str,
+    point: str,
+    ratio: float,
+    document: GeometryDocument | None = None,
+    label: str | None = None,
+) -> dict[str, Any]:
+    """Scale an existing point from a center by a numeric ratio (homothety)."""
+
+    return _mutate(document, "create_homothety", {"objectId": object_id, "label": label, "center": center, "point": point, "ratio": ratio})
+
+
+@mcp.tool(annotations=CREATE)
+def create_inversion(
+    object_id: str,
+    point: str,
+    circle: str,
+    document: GeometryDocument | None = None,
+    label: str | None = None,
+) -> dict[str, Any]:
+    """Invert an existing point in an existing circle."""
+
+    return _mutate(document, "create_inversion", {"objectId": object_id, "label": label, "point": point, "circle": circle})
+
+
+@mcp.tool(annotations=CREATE)
+def create_arc(
+    object_id: str,
+    point_a: str,
+    point_mid: str,
+    point_b: str,
+    document: GeometryDocument | None = None,
+    label: str | None = None,
+) -> dict[str, Any]:
+    """Create a circular arc through three existing points: start, mid, end."""
+
+    return _mutate(document, "create_arc", {"objectId": object_id, "label": label, "pointA": point_a, "pointB": point_mid, "pointC": point_b})
+
+
+@mcp.tool(annotations=CREATE)
+def create_function(
+    object_id: str,
+    expression: str,
+    document: GeometryDocument | None = None,
+    label: str | None = None,
+) -> dict[str, Any]:
+    """Create a real-valued function graph y = f(x) from a validated expression."""
+
+    return _mutate(document, "create_function", {"objectId": object_id, "label": label, "expression": expression})
+
+
+@mcp.tool(annotations=CREATE)
+def create_polygon_vertex(
+    object_id: str,
+    polygon: str,
+    index: int,
+    document: GeometryDocument | None = None,
+    label: str | None = None,
+) -> dict[str, Any]:
+    """Create a point bound to the i-th vertex (0-based) of an existing polygon."""
+
+    return _mutate(document, "create_polygon_vertex", {"objectId": object_id, "label": label, "polygon": polygon, "index": index})
+>>>>>>> origin/main
 
 
 @mcp.tool(

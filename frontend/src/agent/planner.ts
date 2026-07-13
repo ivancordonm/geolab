@@ -80,6 +80,15 @@ export async function* planStream(
     while (true) {
       const { done, value } = await reader.read();
       if (done) {
+        // The backend always terminates every frame (including `done`) with a
+        // trailing blank line, but guard against a stream that ends mid-frame
+        // so a complete-but-unterminated final frame isn't silently dropped.
+        if (buffer.length > 0) {
+          const parsed = parseSseFrame(buffer);
+          if (parsed !== null) {
+            yield parsed;
+          }
+        }
         break;
       }
       buffer += decoder.decode(value, { stream: true });

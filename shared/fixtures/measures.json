@@ -1,0 +1,179 @@
+{
+  "document": {
+    "schemaVersion": 1,
+    "id": "doc_measures",
+    "title": "Measures: distance, angle, area, slope",
+    "objects": [
+      {
+        "id": "A",
+        "label": "A",
+        "kind": "point",
+        "visible": true,
+        "definition": { "type": "free", "x": 0, "y": 0 }
+      },
+      {
+        "id": "B",
+        "label": "B",
+        "kind": "point",
+        "visible": true,
+        "definition": { "type": "free", "x": 3, "y": 4 }
+      },
+      {
+        "id": "dist",
+        "label": "dist",
+        "kind": "measure",
+        "visible": true,
+        "definition": { "type": "distance", "pointA": "A", "pointB": "B" }
+      },
+      {
+        "id": "O",
+        "label": "O",
+        "kind": "point",
+        "visible": true,
+        "definition": { "type": "free", "x": 0, "y": 0 }
+      },
+      {
+        "id": "P1",
+        "label": "P1",
+        "kind": "point",
+        "visible": true,
+        "definition": { "type": "free", "x": 1, "y": 0 }
+      },
+      {
+        "id": "P2",
+        "label": "P2",
+        "kind": "point",
+        "visible": true,
+        "definition": { "type": "free", "x": 0, "y": 1 }
+      },
+      {
+        "id": "ang",
+        "label": "ang",
+        "kind": "measure",
+        "visible": true,
+        "definition": { "type": "angle", "pointA": "P1", "vertex": "O", "pointB": "P2" }
+      },
+      {
+        "id": "T1",
+        "label": "T1",
+        "kind": "point",
+        "visible": true,
+        "definition": { "type": "free", "x": 0, "y": 0 }
+      },
+      {
+        "id": "T2",
+        "label": "T2",
+        "kind": "point",
+        "visible": true,
+        "definition": { "type": "free", "x": 4, "y": 0 }
+      },
+      {
+        "id": "T3",
+        "label": "T3",
+        "kind": "point",
+        "visible": true,
+        "definition": { "type": "free", "x": 0, "y": 3 }
+      },
+      {
+        "id": "tri",
+        "label": "tri",
+        "kind": "polygon",
+        "visible": true,
+        "definition": { "type": "polygon", "points": ["T1", "T2", "T3"] }
+      },
+      {
+        "id": "area",
+        "label": "area",
+        "kind": "measure",
+        "visible": true,
+        "definition": { "type": "area", "polygon": "tri" }
+      },
+      {
+        "id": "L1",
+        "label": "L1",
+        "kind": "point",
+        "visible": true,
+        "definition": { "type": "free", "x": 0, "y": 0 }
+      },
+      {
+        "id": "L2",
+        "label": "L2",
+        "kind": "point",
+        "visible": true,
+        "definition": { "type": "free", "x": 2, "y": 2 }
+      },
+      {
+        "id": "ln",
+        "label": "ln",
+        "kind": "line",
+        "visible": true,
+        "definition": { "type": "through_points", "pointA": "L1", "pointB": "L2" }
+      },
+      {
+        "id": "slope",
+        "label": "slope",
+        "kind": "measure",
+        "visible": true,
+        "definition": { "type": "slope", "line": "ln" }
+      },
+      {
+        "id": "V1",
+        "label": "V1",
+        "kind": "point",
+        "visible": true,
+        "definition": { "type": "free", "x": 2, "y": 0 }
+      },
+      {
+        "id": "V2",
+        "label": "V2",
+        "kind": "point",
+        "visible": true,
+        "definition": { "type": "free", "x": 2, "y": 5 }
+      },
+      {
+        "id": "vln",
+        "label": "vln",
+        "kind": "line",
+        "visible": true,
+        "definition": { "type": "through_points", "pointA": "V1", "pointB": "V2" }
+      },
+      {
+        "id": "vslope",
+        "label": "vslope",
+        "kind": "measure",
+        "visible": true,
+        "definition": { "type": "slope", "line": "vln" }
+      }
+    ],
+    "viewport": { "centerX": 0, "centerY": 0, "scale": 50 }
+  },
+  "initialValues": {
+    "A": { "type": "point", "x": 0, "y": 0 },
+    "B": { "type": "point", "x": 3, "y": 4 },
+    "dist": { "type": "scalar", "value": 5 },
+    "O": { "type": "point", "x": 0, "y": 0 },
+    "P1": { "type": "point", "x": 1, "y": 0 },
+    "P2": { "type": "point", "x": 0, "y": 1 },
+    "ang": { "type": "scalar", "value": 90 },
+    "T1": { "type": "point", "x": 0, "y": 0 },
+    "T2": { "type": "point", "x": 4, "y": 0 },
+    "T3": { "type": "point", "x": 0, "y": 3 },
+    "tri": {
+      "type": "polygon",
+      "vertices": [
+        { "x": 0, "y": 0 },
+        { "x": 4, "y": 0 },
+        { "x": 0, "y": 3 }
+      ]
+    },
+    "area": { "type": "scalar", "value": 6 },
+    "L1": { "type": "point", "x": 0, "y": 0 },
+    "L2": { "type": "point", "x": 2, "y": 2 },
+    "ln": { "type": "line", "a": 0.7071067811865475, "b": -0.7071067811865475, "c": 0 },
+    "slope": { "type": "scalar", "value": 1 },
+    "V1": { "type": "point", "x": 2, "y": 0 },
+    "V2": { "type": "point", "x": 2, "y": 5 },
+    "vln": { "type": "line", "a": 1, "b": 0, "c": -2 },
+    "vslope": { "type": "undefined", "code": "vertical_line", "message": "Slope 'vslope' is undefined for a vertical line" }
+  }
+}

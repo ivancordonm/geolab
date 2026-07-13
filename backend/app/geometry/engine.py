@@ -3,17 +3,20 @@
 from __future__ import annotations
 
 from collections import deque
-from math import cos, hypot, isfinite, pi, sin, sqrt
+from math import atan2, cos, degrees, hypot, isfinite, pi, sin, sqrt
 
 from app.geometry.models import (
     AngleBisectorDefinition,
+    AngleMeasureDefinition,
     ArcThroughPointsDefinition,
     ArcValue,
+    AreaMeasureDefinition,
     CircleByCenterPointDefinition,
     CircleByCenterRadiusDefinition,
     CircleValue,
     CircumscribedDefinition,
     Coordinate,
+    DistanceMeasureDefinition,
     EvaluatedValue,
     FunctionExpressionDefinition,
     FunctionValue,
@@ -45,6 +48,7 @@ from app.geometry.models import (
     SegmentBetweenPointsDefinition,
     SegmentValue,
     SliderDefinition,
+    SlopeMeasureDefinition,
     TranslationDefinition,
     UndefinedValue,
     VectorPolygonDefinition,
@@ -123,6 +127,15 @@ def get_parent_ids(obj: GeometryObject) -> list[str]:
         return [definition.point_a, definition.point_b]
     if isinstance(definition, VectorPolygonDefinition):
         return [definition.anchor]
+    # ─── Measures ────────────────────────────────────────────────────────────
+    if isinstance(definition, DistanceMeasureDefinition):
+        return [definition.point_a, definition.point_b]
+    if isinstance(definition, AngleMeasureDefinition):
+        return [definition.point_a, definition.vertex, definition.point_b]
+    if isinstance(definition, AreaMeasureDefinition):
+        return [definition.polygon]
+    if isinstance(definition, SlopeMeasureDefinition):
+        return [definition.line]
     raise GeometryValidationError(f"Unsupported definition for object '{obj.id}'")
 
 
@@ -321,6 +334,18 @@ class GeometryGraph:
             if len(definition.offsets) < 2:
                 raise GeometryValidationError(f"VectorPolygon '{obj.id}' requires at least 2 offsets")
             require_kind(definition.anchor, "point")
+        # ─── Measures ─────────────────────────────────────────────────────────
+        elif isinstance(definition, DistanceMeasureDefinition):
+            require_kind(definition.point_a, "point")
+            require_kind(definition.point_b, "point")
+        elif isinstance(definition, AngleMeasureDefinition):
+            require_kind(definition.point_a, "point")
+            require_kind(definition.vertex, "point")
+            require_kind(definition.point_b, "point")
+        elif isinstance(definition, AreaMeasureDefinition):
+            require_kind(definition.polygon, "polygon")
+        elif isinstance(definition, SlopeMeasureDefinition):
+            require_kind(definition.line, "line")
 
     def _build_topological_order(self) -> list[str]:
         states: dict[str, str] = {}
@@ -661,6 +686,49 @@ class GeometryGraph:
             for offset in definition.offsets:
                 vertices.append(Coordinate(x=_clean_zero(ax + offset.x), y=_clean_zero(ay + offset.y)))
             return PolygonValue(vertices=vertices)
+
+        # ─── Measures ───────────────────────────────────────────────────────
+
+        if isinstance(definition, DistanceMeasureDefinition):
+            points = self._require_points(obj.id, definition.point_a, definition.point_b)
+            if isinstance(points, UndefinedValue):
+                return points
+            pt_a, pt_b = points
+            return ScalarValue(value=hypot(pt_b.x - pt_a.x, pt_b.y - pt_a.y))
+
+        if isinstance(definition, AngleMeasureDefinition):
+            pt_a = self._require_value(obj.id, definition.point_a, "point")
+            if isinstance(pt_a, UndefinedValue):
+                return pt_a
+            vertex = self._require_value(obj.id, definition.vertex, "point")
+            if isinstance(vertex, UndefinedValue):
+                return vertex
+            pt_b = self._require_value(obj.id, definition.point_b, "point")
+            if isinstance(pt_b, UndefinedValue):
+                return pt_b
+            assert isinstance(pt_a, PointValue)
+            assert isinstance(vertex, PointValue)
+            assert isinstance(pt_b, PointValue)
+            return _angle_measure(pt_a, vertex, pt_b)
+
+        if isinstance(definition, AreaMeasureDefinition):
+            polygon = self._require_value(obj.id, definition.polygon, "polygon")
+            if isinstance(polygon, UndefinedValue):
+                return polygon
+            assert isinstance(polygon, PolygonValue)
+            return ScalarValue(value=_polygon_area(polygon))
+
+        if isinstance(definition, SlopeMeasureDefinition):
+            line = self._require_value(obj.id, definition.line, "line")
+            if isinstance(line, UndefinedValue):
+                return line
+            assert isinstance(line, LineValue)
+            if abs(line.b) <= GEOMETRY_EPSILON:
+                return UndefinedValue(
+                    code="vertical_line",
+                    message=f"Slope '{obj.id}' is undefined for a vertical line",
+                )
+            return ScalarValue(value=-line.a / line.b)
 
         raise GeometryValidationError(f"Unsupported definition for object '{obj.id}'")
 
@@ -1032,6 +1100,37 @@ def _regular_polygon_vertices(pA: PointValue, pB: PointValue, n: int) -> Evaluat
         cur_y = _clean_zero(cur_y + vy)
         vertices.append(Coordinate(x=cur_x, y=cur_y))
     return PolygonValue(vertices=vertices)
+
+
+def _angle_measure(pt_a: PointValue, vertex: PointValue, pt_b: PointValue) -> EvaluatedValue:
+    """Unsigned angle at `vertex` between rays to `pt_a` and `pt_b`, in degrees, range [0, 180].
+
+    Uses atan2(|cross|, dot) of the two arm vectors, which is numerically stable
+    near 0 and 180 degrees and always non-negative (no directional/signed angle).
+    """
+
+    vax = pt_a.x - vertex.x
+    vay = pt_a.y - vertex.y
+    vbx = pt_b.x - vertex.x
+    vby = pt_b.y - vertex.y
+    if hypot(vax, vay) <= GEOMETRY_EPSILON or hypot(vbx, vby) <= GEOMETRY_EPSILON:
+        return UndefinedValue(code="coincident_points", message="Angle requires distinct vertex and arm points")
+    cross = vax * vby - vay * vbx
+    dot = vax * vbx + vay * vby
+    angle_rad = atan2(abs(cross), dot)
+    return ScalarValue(value=degrees(angle_rad))
+
+
+def _polygon_area(polygon: PolygonValue) -> float:
+    """Shoelace formula; always non-negative regardless of vertex winding order."""
+
+    vertices = polygon.vertices
+    n = len(vertices)
+    total = 0.0
+    for i in range(n):
+        j = (i + 1) % n
+        total += vertices[i].x * vertices[j].y - vertices[j].x * vertices[i].y
+    return abs(total) / 2.0
 
 
 def _clean_zero(value: float) -> float:

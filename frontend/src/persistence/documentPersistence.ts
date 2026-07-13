@@ -98,7 +98,7 @@ function validateDocument(value: unknown): GeometryDocument {
       !isRecord(object) ||
       typeof object.id !== "string" ||
       typeof object.label !== "string" ||
-      !["point", "line", "segment", "circle", "polygon", "arc", "function", "slider"].includes(String(object.kind)) ||
+      !["point", "line", "segment", "circle", "polygon", "arc", "function", "slider", "measure"].includes(String(object.kind)) ||
       typeof object.visible !== "boolean" ||
       !isRecord(object.definition)
     ) {
@@ -229,6 +229,14 @@ function objectToScript(
       const offsetArgs = object.definition.offsets.map((o) => `(${formatNumber(o.x)}, ${formatNumber(o.y)})`).join(", ");
       return `${variable} = VectorPolygon(${reference(object.definition.anchor)}, ${offsetArgs})`;
     }
+    case "distance":
+      return `${variable} = Distance(${reference(object.definition.pointA)}, ${reference(object.definition.pointB)})`;
+    case "angle":
+      return `${variable} = Angle(${reference(object.definition.pointA)}, ${reference(object.definition.vertex)}, ${reference(object.definition.pointB)})`;
+    case "area":
+      return `${variable} = Area(${reference(object.definition.polygon)})`;
+    case "slope":
+      return `${variable} = Slope(${reference(object.definition.line)})`;
   }
 }
 

@@ -1,7 +1,7 @@
 export const GEOMETRY_SCHEMA_VERSION = 1 as const;
 
 export type GeometryObjectId = string;
-export type GeometryKind = "point" | "line" | "segment" | "circle" | "polygon" | "arc" | "function" | "slider";
+export type GeometryKind = "point" | "line" | "segment" | "circle" | "polygon" | "arc" | "function" | "slider" | "measure";
 
 export type StrokeDash = "solid" | "dashed" | "dotted";
 
@@ -176,6 +176,17 @@ export interface Slider extends GeometryObjectBase {
   definition: { type: "slider"; min: number; max: number; value: number; step: number };
 }
 
+// ─── Measures ──────────────────────────────────────────────────────────────
+
+export interface Measure extends GeometryObjectBase {
+  kind: "measure";
+  definition:
+    | { type: "distance"; pointA: GeometryObjectId; pointB: GeometryObjectId }
+    | { type: "angle"; pointA: GeometryObjectId; vertex: GeometryObjectId; pointB: GeometryObjectId }
+    | { type: "area"; polygon: GeometryObjectId }
+    | { type: "slope"; line: GeometryObjectId };
+}
+
 // ─── Union ─────────────────────────────────────────────────────────────────
 
 export type GeometryObject =
@@ -219,7 +230,8 @@ export type GeometryObject =
   | Arc
   | FunctionGraph
   | Polygon
-  | Slider;
+  | Slider
+  | Measure;
 
 // ─── Viewport and document ─────────────────────────────────────────────────
 

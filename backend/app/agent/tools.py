@@ -7,6 +7,8 @@ from collections.abc import Callable
 from pydantic import BaseModel
 
 from app.agent.models import (
+    AngleConstructionInput,
+    AreaConstructionInput,
     CircleCircleIntersectionInput,
     CircleConstructionInput,
     CircleLineIntersectionInput,
@@ -23,6 +25,7 @@ from app.agent.models import (
     PolygonConstructionInput,
     RegularPolygonConstructionInput,
     SliderConstructionInput,
+    SlopeConstructionInput,
     ThreePointConstructionInput,
     TwoPointConstructionInput,
     ValidateConstructionInput,
@@ -32,9 +35,12 @@ from app.agent.models import (
 from app.agent.registry import ToolDefinition, ToolExecutionError, ToolRegistry
 from app.geometry.engine import GeometryGraph
 from app.geometry.models import (
+    AngleMeasureDefinition,
+    AreaMeasureDefinition,
     Circle,
     CircleByCenterPointDefinition,
     Coordinate,
+    DistanceMeasureDefinition,
     GeometryDocument,
     GeometryObject,
     IntersectionCC,
@@ -45,6 +51,7 @@ from app.geometry.models import (
     IntersectionLLDefinition,
     Line,
     LineThroughPointsDefinition,
+    Measure,
     Midpoint,
     MidpointDefinition,
     ParallelLine,
@@ -65,6 +72,7 @@ from app.geometry.models import (
     SegmentBetweenPointsDefinition,
     Slider,
     SliderDefinition,
+    SlopeMeasureDefinition,
     VectorPolygonDefinition,
 )
 from app.geometry.script import ConstructionScriptError, evaluate_script
@@ -104,6 +112,65 @@ def _create_slider(workspace: GeometryWorkspace, raw_input: BaseModel) -> Mutati
         ),
     )
     return _commit(workspace, obj)
+
+
+def _create_distance(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = TwoPointConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    point_a = _resolve_kind(access, input_model.point_a, "point")
+    point_b = _resolve_kind(access, input_model.point_b, "point")
+    obj = Measure(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=DistanceMeasureDefinition(point_a=point_a.object.id, point_b=point_b.object.id),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_angle(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = AngleConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    point_a = _resolve_kind(access, input_model.point_a, "point")
+    vertex = _resolve_kind(access, input_model.vertex, "point")
+    point_b = _resolve_kind(access, input_model.point_b, "point")
+    obj = Measure(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=AngleMeasureDefinition(
+            point_a=point_a.object.id,
+            vertex=vertex.object.id,
+            point_b=point_b.object.id,
+        ),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_area(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = AreaConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    polygon = _resolve_kind(access, input_model.polygon, "polygon")
+    obj = Measure(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=AreaMeasureDefinition(polygon=polygon.object.id),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_slope(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = SlopeConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    line = _resolve_kind(access, input_model.line, "line")
+    obj = Measure(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=SlopeMeasureDefinition(line=line.object.id),
+    )
+    return _commit_defined(workspace, obj)
 
 
 def create_geometry_tool_registry(workspace: GeometryWorkspace) -> ToolRegistry:
@@ -278,6 +345,46 @@ def create_geometry_tool_registry(workspace: GeometryWorkspace) -> ToolRegistry:
             MutationToolOutput,
             True,
             lambda model: _create_slider(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_distance",
+            "Create a distance measure: the Euclidean distance between two existing points.",
+            TwoPointConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_distance(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_angle",
+            "Create an angle measure (degrees, 0-180) at a vertex between two existing points.",
+            AngleConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_angle(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_area",
+            "Create an area measure for an existing polygon (shoelace formula, always non-negative).",
+            AreaConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_area(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_slope",
+            "Create a slope measure for an existing line (undefined for vertical lines).",
+            SlopeConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_slope(workspace, model),
         )
     )
     registry.register(

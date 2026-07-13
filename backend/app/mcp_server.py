@@ -332,6 +332,57 @@ def create_slider(
     })
 
 
+@mcp.tool(annotations=CREATE)
+def create_distance(
+    object_id: str,
+    point_a: str,
+    point_b: str,
+    document: GeometryDocument | None = None,
+    label: str | None = None,
+) -> dict[str, Any]:
+    """Create a distance measure: the Euclidean distance between two existing points."""
+
+    return _mutate(document, "create_distance", {"objectId": object_id, "label": label, "pointA": point_a, "pointB": point_b})
+
+
+@mcp.tool(annotations=CREATE)
+def create_angle(
+    object_id: str,
+    point_a: str,
+    vertex: str,
+    point_b: str,
+    document: GeometryDocument | None = None,
+    label: str | None = None,
+) -> dict[str, Any]:
+    """Create an angle measure in degrees (range 0-180) at a vertex between two existing points."""
+
+    return _mutate(document, "create_angle", {"objectId": object_id, "label": label, "pointA": point_a, "vertex": vertex, "pointB": point_b})
+
+
+@mcp.tool(annotations=CREATE)
+def create_area(
+    object_id: str,
+    polygon: str,
+    document: GeometryDocument | None = None,
+    label: str | None = None,
+) -> dict[str, Any]:
+    """Create an area measure for an existing polygon (always non-negative)."""
+
+    return _mutate(document, "create_area", {"objectId": object_id, "label": label, "polygon": polygon})
+
+
+@mcp.tool(annotations=CREATE)
+def create_slope(
+    object_id: str,
+    line: str,
+    document: GeometryDocument | None = None,
+    label: str | None = None,
+) -> dict[str, Any]:
+    """Create a slope measure for an existing line; undefined for vertical lines."""
+
+    return _mutate(document, "create_slope", {"objectId": object_id, "label": label, "line": line})
+
+
 @mcp.tool(
     description="Checks geometric consistency only. Does not render anything.",
     annotations=READ_ONLY,

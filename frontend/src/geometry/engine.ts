@@ -84,6 +84,15 @@ export function getParentIds(object: GeometryObject): GeometryObjectId[] {
       return [object.definition.pointA, object.definition.pointB];
     case "vector_polygon":
       return [object.definition.anchor];
+    // ─── Measures ─────────────────────────────────────────────────────────
+    case "distance":
+      return [object.definition.pointA, object.definition.pointB];
+    case "angle":
+      return [object.definition.pointA, object.definition.vertex, object.definition.pointB];
+    case "area":
+      return [object.definition.polygon];
+    case "slope":
+      return [object.definition.line];
   }
 }
 
@@ -385,6 +394,23 @@ export class GeometryGraph {
           throw new GeometryValidationError(`VectorPolygon '${object.id}' requires at least 2 offsets`);
         }
         requireKind(def.anchor, "point");
+        return;
+      // ─── Measures ───────────────────────────────────────────────────────
+      case "distance":
+        requireKind(def.pointA, "point");
+        requireKind(def.pointB, "point");
+        return;
+      case "angle":
+        requireKind(def.pointA, "point");
+        requireKind(def.vertex, "point");
+        requireKind(def.pointB, "point");
+        return;
+      case "area":
+        requireKind(def.polygon, "polygon");
+        return;
+      case "slope":
+        requireKind(def.line, "line");
+        return;
     }
   }
 
@@ -583,7 +609,7 @@ export class GeometryGraph {
         const ln = this.requireValue<LineValue>(object.id, def.line, "line");
         if (isUndefined(ln)) return ln;
         const sourceId = def.object ?? def.point!;
-        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind as Exclude<typeof object.kind, "slider">);
+        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind as Exclude<typeof object.kind, "slider" | "measure">);
         if (isUndefined(source)) return source;
         return reflectValueOverLine(source, ln);
       }
@@ -592,7 +618,7 @@ export class GeometryGraph {
         const ctr = this.requireValue<PointValue>(object.id, def.center, "point");
         if (isUndefined(ctr)) return ctr;
         const sourceId = def.object ?? def.point!;
-        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind as Exclude<typeof object.kind, "slider">);
+        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind as Exclude<typeof object.kind, "slider" | "measure">);
         if (isUndefined(source)) return source;
         return reflectValueOverPoint(source, ctr);
       }
@@ -651,7 +677,7 @@ export class GeometryGraph {
 
       case "translation": {
         const sourceId = def.object ?? def.point!;
-        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind as Exclude<typeof object.kind, "slider">);
+        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind as Exclude<typeof object.kind, "slider" | "measure">);
         if (isUndefined(source)) return source;
         const from = this.requireValue<PointValue>(object.id, def.from, "point");
         if (isUndefined(from)) return from;
@@ -664,7 +690,7 @@ export class GeometryGraph {
         const ctr = this.requireValue<PointValue>(object.id, def.center, "point");
         if (isUndefined(ctr)) return ctr;
         const sourceId = def.object ?? def.point!;
-        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind as Exclude<typeof object.kind, "slider">);
+        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind as Exclude<typeof object.kind, "slider" | "measure">);
         if (isUndefined(source)) return source;
         return rotateValue(source, ctr, def.degrees);
       }
@@ -724,6 +750,43 @@ export class GeometryGraph {
           vertices.push({ x: cleanZero(ax + offset.x), y: cleanZero(ay + offset.y) });
         }
         return { type: "polygon", vertices } satisfies PolygonValue;
+      }
+
+      // ─── Measures ───────────────────────────────────────────────────────
+
+      case "distance": {
+        const pts = this.requirePointValues(object.id, [def.pointA, def.pointB]);
+        if (isUndefined(pts)) return pts;
+        return { type: "scalar", value: Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y) };
+      }
+
+      case "angle": {
+        const pA = this.requireValue<PointValue>(object.id, def.pointA, "point");
+        if (isUndefined(pA)) return pA;
+        const vertex = this.requireValue<PointValue>(object.id, def.vertex, "point");
+        if (isUndefined(vertex)) return vertex;
+        const pB = this.requireValue<PointValue>(object.id, def.pointB, "point");
+        if (isUndefined(pB)) return pB;
+        return angleMeasure(pA, vertex, pB);
+      }
+
+      case "area": {
+        const polygon = this.requireValue<PolygonValue>(object.id, def.polygon, "polygon");
+        if (isUndefined(polygon)) return polygon;
+        return { type: "scalar", value: polygonArea(polygon) };
+      }
+
+      case "slope": {
+        const line = this.requireValue<LineValue>(object.id, def.line, "line");
+        if (isUndefined(line)) return line;
+        if (Math.abs(line.b) <= GEOMETRY_EPSILON) {
+          return {
+            type: "undefined",
+            code: "vertical_line",
+            message: `Slope '${object.id}' is undefined for a vertical line`,
+          };
+        }
+        return { type: "scalar", value: -line.a / line.b };
       }
     }
   }
@@ -1162,6 +1225,37 @@ function regularPolygonVertices(pA: PointValue, pB: PointValue, n: number): Eval
     vertices.push({ x: curX, y: curY });
   }
   return { type: "polygon", vertices };
+}
+
+/**
+ * Unsigned angle at `vertex` between rays to `pointA` and `pointB`, in degrees, range [0, 180].
+ * Uses atan2(|cross|, dot) of the two arm vectors, which is numerically stable
+ * near 0 and 180 degrees and always non-negative (no directional/signed angle).
+ */
+function angleMeasure(pointA: PointValue, vertex: PointValue, pointB: PointValue): EvaluatedValue {
+  const vax = pointA.x - vertex.x;
+  const vay = pointA.y - vertex.y;
+  const vbx = pointB.x - vertex.x;
+  const vby = pointB.y - vertex.y;
+  if (Math.hypot(vax, vay) <= GEOMETRY_EPSILON || Math.hypot(vbx, vby) <= GEOMETRY_EPSILON) {
+    return { type: "undefined", code: "coincident_points", message: "Angle requires distinct vertex and arm points" };
+  }
+  const cross = vax * vby - vay * vbx;
+  const dot = vax * vbx + vay * vby;
+  const angleRad = Math.atan2(Math.abs(cross), dot);
+  return { type: "scalar", value: (angleRad * 180) / Math.PI };
+}
+
+/** Shoelace formula; always non-negative regardless of vertex winding order. */
+function polygonArea(polygon: PolygonValue): number {
+  const vertices = polygon.vertices;
+  const n = vertices.length;
+  let total = 0;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    total += vertices[i].x * vertices[j].y - vertices[j].x * vertices[i].y;
+  }
+  return Math.abs(total) / 2;
 }
 
 function isUndefined<T>(value: T | EvaluatedValue): value is Extract<EvaluatedValue, { type: "undefined" }> {

@@ -135,6 +135,26 @@ class SliderConstructionInput(GeometryModel):
     step: float
 
 
+class AngleConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    point_a: str
+    vertex: str
+    point_b: str
+
+
+class AreaConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    polygon: str
+
+
+class SlopeConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    line: str
+
+
 class ValidateConstructionInput(GeometryModel):
     document: GeometryDocument | None = None
 

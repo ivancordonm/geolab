@@ -423,6 +423,41 @@ class Slider(GeometryObjectBase):
     definition: SliderDefinition
 
 
+# ─── Measures ───────────────────────────────────────────────────────────────
+
+class DistanceMeasureDefinition(GeometryModel):
+    type: Literal["distance"] = "distance"
+    point_a: str
+    point_b: str
+
+
+class AngleMeasureDefinition(GeometryModel):
+    type: Literal["angle"] = "angle"
+    point_a: str
+    vertex: str
+    point_b: str
+
+
+class AreaMeasureDefinition(GeometryModel):
+    type: Literal["area"] = "area"
+    polygon: str
+
+
+class SlopeMeasureDefinition(GeometryModel):
+    type: Literal["slope"] = "slope"
+    line: str
+
+
+MeasureVariantDefinition: TypeAlias = (
+    DistanceMeasureDefinition | AngleMeasureDefinition | AreaMeasureDefinition | SlopeMeasureDefinition
+)
+
+
+class Measure(GeometryObjectBase):
+    kind: Literal["measure"] = "measure"
+    definition: MeasureVariantDefinition
+
+
 GeometryObject: TypeAlias = (
     Point
     | Line
@@ -449,6 +484,7 @@ GeometryObject: TypeAlias = (
     | FunctionGraph
     | Polygon
     | Slider
+    | Measure
 )
 
 

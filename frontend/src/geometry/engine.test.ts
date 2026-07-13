@@ -472,4 +472,40 @@ describe("sliders conformance", () => {
 
     expect(() => new GeometryGraph(invalid)).toThrow(GeometryValidationError);
   });
+
+  it("rejects a slider with NaN/Infinity parameters", () => {
+    const invalidValue: GeometryDocument = {
+      schemaVersion: 1,
+      id: "invalid-slider-value",
+      title: "Invalid slider",
+      objects: [
+        {
+          id: "s",
+          label: "s",
+          kind: "slider",
+          visible: true,
+          definition: { type: "slider", min: 0, max: 10, value: NaN, step: 1 },
+        },
+      ],
+    };
+
+    expect(() => new GeometryGraph(invalidValue)).toThrow(GeometryValidationError);
+
+    const invalidMin: GeometryDocument = {
+      schemaVersion: 1,
+      id: "invalid-slider-min",
+      title: "Invalid slider",
+      objects: [
+        {
+          id: "s",
+          label: "s",
+          kind: "slider",
+          visible: true,
+          definition: { type: "slider", min: Infinity, max: 10, value: 5, step: 1 },
+        },
+      ],
+    };
+
+    expect(() => new GeometryGraph(invalidMin)).toThrow(GeometryValidationError);
+  });
 });

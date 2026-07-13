@@ -202,6 +202,12 @@ export class GeometryGraph {
         assertFiniteNumber(def.x, `${object.id}.x`);
         assertFiniteNumber(def.y, `${object.id}.y`);
         return;
+      case "slider":
+        assertFiniteNumber(def.min, `${object.id}.min`);
+        assertFiniteNumber(def.max, `${object.id}.max`);
+        assertFiniteNumber(def.value, `${object.id}.value`);
+        assertFiniteNumber(def.step, `${object.id}.step`);
+        return;
       case "polygon_vertex":
         requireKind(def.polygon, "polygon");
         if (!Number.isInteger(def.index) || def.index < 0) {

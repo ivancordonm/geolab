@@ -231,6 +231,9 @@ export class GeometryGraph {
         return;
       case "center_radius":
         requireKind(def.center, "point");
+        // Deliberately slider-only: Measures also produce scalars, but no script/tool
+        // path can construct a measure-driven radius today, so widening this is left
+        // for whoever builds that construction, not a forgotten follow-up.
         if (this.objectsById.get(def.radius)?.kind !== "slider") {
           throw new GeometryValidationError(
             `Object '${object.id}' requires parent '${def.radius}' to produce a scalar value`,

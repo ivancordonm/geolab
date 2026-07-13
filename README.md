@@ -160,6 +160,7 @@ Important REST routes:
 
 - `POST /geometry/evaluate-script`, `POST /geometry/graph`
 - `POST /agent/plan`, `GET /agent/tools`, `POST /agent/execute-tool`
+- `POST /agent/plan-with-tools` (Claude native tool-calling planner), `POST /agent/plan-stream` (SSE streaming variant)
 - `POST /auth/google`, `POST /auth/logout`, `GET /auth/me`
 - authenticated CRUD under `/documents`
 - `GET /health`

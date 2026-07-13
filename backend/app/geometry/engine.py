@@ -228,7 +228,10 @@ class GeometryGraph:
             require_kind(definition.point, "point")
         elif isinstance(definition, CircleByCenterRadiusDefinition):
             require_kind(definition.center, "point")
-            scalar_kinds = {"slider"}  # extend when Measures (Task 2) also produce scalars
+            # Deliberately slider-only: Measures also produce scalars, but no script/tool
+            # path can construct a measure-driven radius today, so widening this is left
+            # for whoever builds that construction, not a forgotten follow-up.
+            scalar_kinds = {"slider"}
             actual = self._objects_by_id[definition.radius].kind
             if actual not in scalar_kinds:
                 raise GeometryValidationError(

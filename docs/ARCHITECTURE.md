@@ -302,6 +302,8 @@ All APIs use versioned Pydantic request/response models and structured errors.
 | `POST /agent/plan` | Produce a typed, unexecuted plan and proposed script |
 | `GET /agent/tools` | Discover deterministic tool JSON schemas |
 | `POST /agent/execute-tool` | Execute one validated tool against the REST workspace |
+| `POST /agent/plan-with-tools` | Claude native tool-calling planner: proposes tool calls instead of a script |
+| `POST /agent/plan-stream` | SSE streaming variant of the tool-calling planner (thinking/tools_selected/done/error events) |
 | `POST /auth/google` / `POST /auth/logout` / `GET /auth/me` | Session lifecycle |
 | `/documents` CRUD | User-scoped PostgreSQL document persistence |
 | `POST /mcp` | Stateless MCP Streamable HTTP transport |

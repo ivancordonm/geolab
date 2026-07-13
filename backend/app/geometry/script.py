@@ -14,14 +14,17 @@ from app.geometry.function_expression import (
 from app.geometry.models import (
     AngleBisectorLine,
     AngleBisectorDefinition,
+    AngleMeasureDefinition,
     Arc,
     ArcThroughPointsDefinition,
+    AreaMeasureDefinition,
     Circle,
     CircleByCenterPointDefinition,
     CircleByCenterRadiusDefinition,
     CircumscribedCircle,
     CircumscribedDefinition,
     Coordinate,
+    DistanceMeasureDefinition,
     EvaluatedValue,
     FunctionExpressionDefinition,
     FunctionGraph,
@@ -42,6 +45,7 @@ from app.geometry.models import (
     InversionInCircleDefinition,
     Line,
     LineThroughPointsDefinition,
+    Measure,
     Midpoint,
     MidpointDefinition,
     ParallelLine,
@@ -66,6 +70,7 @@ from app.geometry.models import (
     SegmentBetweenPointsDefinition,
     Slider,
     SliderDefinition,
+    SlopeMeasureDefinition,
     TranslatedObject,
     TranslationDefinition,
     VectorPolygonDefinition,
@@ -97,6 +102,10 @@ CommandName = Literal[
     "Function",
     "Polygon",
     "VectorPolygon",
+    "Distance",
+    "Angle",
+    "Area",
+    "Slope",
 ]
 
 SUPPORTED_COMMANDS: frozenset[str] = frozenset(
@@ -126,6 +135,10 @@ SUPPORTED_COMMANDS: frozenset[str] = frozenset(
         "Function",
         "Polygon",
         "VectorPolygon",
+        "Distance",
+        "Angle",
+        "Area",
+        "Slope",
     }
 )
 
@@ -692,6 +705,33 @@ def _build_object(
             label=statement.target,
             definition=VectorPolygonDefinition(anchor=anchor.id, offsets=offsets),
         )]
+
+    # ─── New: measures ──────────────────────────────────────────────────────
+
+    if command == "Distance":
+        _require_arity(statement, 2)
+        a = _resolve_point_argument(arguments[0], statement, symbols, objects, argument_position=1)
+        b = _resolve_point_argument(arguments[1], statement, symbols, objects, argument_position=2)
+        return [Measure(id=statement.target, label=statement.target, definition=DistanceMeasureDefinition(point_a=a.id, point_b=b.id))]
+
+    if command == "Angle":
+        _require_arity(statement, 3)
+        a = _resolve_point_argument(arguments[0], statement, symbols, objects, argument_position=1)
+        vertex = _resolve_point_argument(arguments[1], statement, symbols, objects, argument_position=2)
+        b = _resolve_point_argument(arguments[2], statement, symbols, objects, argument_position=3)
+        return [Measure(id=statement.target, label=statement.target, definition=AngleMeasureDefinition(point_a=a.id, vertex=vertex.id, point_b=b.id))]
+
+    if command == "Area":
+        _require_arity(statement, 1)
+        polygon = _resolve_reference(arguments[0], statement, symbols, argument_position=1)
+        _require_kind(polygon, "polygon", statement, 1)
+        return [Measure(id=statement.target, label=statement.target, definition=AreaMeasureDefinition(polygon=polygon.id))]
+
+    if command == "Slope":
+        _require_arity(statement, 1)
+        line = _resolve_reference(arguments[0], statement, symbols, argument_position=1)
+        _require_kind(line, "line", statement, 1)
+        return [Measure(id=statement.target, label=statement.target, definition=SlopeMeasureDefinition(line=line.id))]
 
     _raise("unknown_command", f"Unknown command '{command}'", statement.line, statement.source_line)
 

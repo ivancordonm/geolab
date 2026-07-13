@@ -200,6 +200,49 @@ describe("document persistence", () => {
     );
   });
 
+  it("exports every measure variant as a backend-parseable script", () => {
+    // Regression test (Task 2 fix, mirroring the slider regression above):
+    // documentToScript's switch is exhaustive over every definition type, so any
+    // document containing a measure emits a `Distance(...)`, `Angle(...)`,
+    // `Area(...)`, or `Slope(...)` statement. Before this fix, the backend script
+    // parser did not recognize any of the four measure commands, so re-submitting
+    // this exact script text (as happens whenever the object command bar
+    // round-trips through the backend) failed with "Unknown command 'Distance'"
+    // (or Angle/Area/Slope). This test pins down the exact script text so a
+    // backend conformance test (test_measures.py) can replay it and prove the
+    // backend now accepts it end-to-end.
+    const document: GeometryDocument = {
+      schemaVersion: 1,
+      id: "measures-export",
+      title: "Measures export",
+      objects: [
+        { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+        { id: "B", label: "B", kind: "point", visible: true, definition: { type: "free", x: 4, y: 0 } },
+        { id: "C", label: "C", kind: "point", visible: true, definition: { type: "free", x: 2, y: 3 } },
+        { id: "AB", label: "AB", kind: "line", visible: true, definition: { type: "through_points", pointA: "A", pointB: "B" } },
+        { id: "poly", label: "poly", kind: "polygon", visible: true, definition: { type: "polygon", points: ["A", "B", "C"] } },
+        { id: "d", label: "d", kind: "measure", visible: true, definition: { type: "distance", pointA: "A", pointB: "B" } },
+        { id: "ang", label: "ang", kind: "measure", visible: true, definition: { type: "angle", pointA: "A", vertex: "B", pointB: "C" } },
+        { id: "ar", label: "ar", kind: "measure", visible: true, definition: { type: "area", polygon: "poly" } },
+        { id: "sl", label: "sl", kind: "measure", visible: true, definition: { type: "slope", line: "AB" } },
+      ],
+    };
+
+    const script = documentToScript(document);
+
+    expect(script).toBe(
+      "A = Point(0, 0)\n" +
+        "B = Point(4, 0)\n" +
+        "C = Point(2, 3)\n" +
+        "AB = Line(A, B)\n" +
+        "poly = Polygon(A, B, C)\n" +
+        "d = Distance(A, B)\n" +
+        "ang = Angle(A, B, C)\n" +
+        "ar = Area(poly)\n" +
+        "sl = Slope(AB)\n",
+    );
+  });
+
   it("saves and restores every polygon variant", () => {
     const document: GeometryDocument = {
       schemaVersion: 1,

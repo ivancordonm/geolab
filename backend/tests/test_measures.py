@@ -8,6 +8,7 @@ import pytest
 
 from app.geometry.engine import GeometryGraph, GeometryValidationError, evaluate_geometry_document
 from app.geometry.models import GeometryDocument
+from app.geometry.script import evaluate_script
 
 FIXTURE_PATH = Path(__file__).resolve().parents[2] / "shared" / "fixtures" / "measures.json"
 
@@ -275,3 +276,45 @@ def test_shared_measures_fixture_evaluates_all_four_variants() -> None:
     values = dump_values(evaluate_geometry_document(document))
 
     assert_nested_close(values, fixture["initialValues"])
+
+
+def test_object_command_bar_regression_measures_do_not_break_subsequent_commands() -> None:
+    """Regression test for the Measures equivalent of Task 1's Slider regression.
+
+    `documentToScript` (frontend) emits `Distance(...)`, `Angle(...)`, `Area(...)`,
+    and `Slope(...)` statements for any document containing measure objects. Before
+    this fix, the backend script parser did not recognize any of these four
+    commands, so re-submitting the exported script (or any new command typed into
+    the object command bar) for a document containing a measure failed with
+    "Unknown command 'Distance'" (or Angle/Area/Slope). This reproduces the exact
+    script text `documentToScript` emits (pinned down in
+    frontend/src/persistence/documentPersistence.test.ts's "exports every measure
+    variant as a backend-parseable script" test) for points, a line, a polygon,
+    one of each measure type, and confirms the backend now parses and evaluates
+    all of it.
+    """
+
+    # Mirrors frontend/src/persistence/documentPersistence.ts's objectToScript
+    # output for points, a line, a polygon, and all four measure variants.
+    exported_script = (
+        "A = Point(0, 0)\n"
+        "B = Point(4, 0)\n"
+        "C = Point(2, 3)\n"
+        "AB = Line(A, B)\n"
+        "poly = Polygon(A, B, C)\n"
+        "d = Distance(A, B)\n"
+        "ang = Angle(A, B, C)\n"
+        "ar = Area(poly)\n"
+        "sl = Slope(AB)\n"
+    )
+
+    document, values = evaluate_script(exported_script, document_id="command-bar-measures-regression")
+
+    assert [obj.id for obj in document.objects] == ["A", "B", "C", "AB", "poly", "d", "ang", "ar", "sl"]
+    assert values["d"].type == "scalar"
+    assert values["d"].value == pytest.approx(4.0)
+    assert values["ang"].type == "scalar"
+    assert values["ar"].type == "scalar"
+    assert values["ar"].value == pytest.approx(6.0)
+    assert values["sl"].type == "scalar"
+    assert values["sl"].value == pytest.approx(0.0)

@@ -54,8 +54,16 @@ def test_shared_document_parses_and_serializes_with_camel_case_fields() -> None:
     assert serialized_payload["objects"][3]["definition"]["pointA"] == "A"
 
 
-def test_all_supported_constructions_match_shared_fixture() -> None:
-    fixture = load_fixture()
+FIXTURES_DIR = Path(__file__).resolve().parents[2] / "shared" / "fixtures"
+
+
+@pytest.mark.parametrize(
+    "fixture_path",
+    sorted(FIXTURES_DIR.glob("*.json")),
+    ids=lambda path: path.stem,
+)
+def test_conformance_fixture_values_match_engine(fixture_path: Path) -> None:
+    fixture = json.loads(fixture_path.read_text())
     document = GeometryDocument.model_validate(fixture["document"])
 
     values = dump_values(evaluate_geometry_document(document))

@@ -1,3 +1,5 @@
+import base64
+import json
 from types import MappingProxyType
 
 import pytest
@@ -24,9 +26,21 @@ EXPECTED_TOOLS = {
     "create_polygon",
     "create_regular_polygon",
     "create_vector_polygon",
+    "create_reflection_over_line",
+    "create_reflection_over_point",
+    "create_translation",
+    "create_rotation",
+    "create_homothety",
+    "create_inversion",
+    "create_arc",
+    "create_function",
+    "create_polygon_vertex",
     "validate_construction",
     "evaluate_script",
     "get_current_graph",
+    "export_svg",
+    "export_png",
+    "export_json",
 }
 
 
@@ -178,3 +192,105 @@ def test_directional_intersection_tool_is_atomic_on_ambiguity() -> None:
 
     assert workspace.revision == 4
     assert "C" not in workspace.graph_access_map().by_id
+
+
+def test_transformation_tools_create_defined_objects() -> None:
+    workspace = GeometryWorkspace()
+    registry = create_geometry_tool_registry(workspace)
+    execute(registry, "create_point", {"objectId": "A", "x": 1, "y": 1})
+    execute(registry, "create_point", {"objectId": "B", "x": 0, "y": 0})
+    execute(registry, "create_point", {"objectId": "C", "x": 0, "y": 2})
+    execute(registry, "create_point", {"objectId": "D", "x": 2, "y": -1})
+    execute(registry, "create_point", {"objectId": "P", "x": 2, "y": 0})
+    execute(registry, "create_point", {"objectId": "U", "x": 1, "y": 0})
+    execute(registry, "create_line", {"objectId": "axis", "pointA": "B", "pointB": "C"})
+    execute(registry, "create_circle", {"objectId": "c1", "center": "B", "point": "U"})
+
+    def point_value(output: object, object_id: str) -> tuple[float, float]:
+        graph = output.graph  # type: ignore[attr-defined]
+        value = graph.objects[graph.id_map[object_id]].value
+        assert value.type == "point"
+        return value.x, value.y
+
+    reflected = execute(registry, "create_reflection_over_line", {"objectId": "R", "source": "A", "line": "axis"})
+    assert point_value(reflected, "R") == pytest.approx((-1.0, 1.0))
+
+    mirrored = execute(registry, "create_reflection_over_point", {"objectId": "RP", "source": "A", "center": "B"})
+    assert point_value(mirrored, "RP") == pytest.approx((-1.0, -1.0))
+
+    translated = execute(registry, "create_translation", {"objectId": "T", "source": "A", "fromPoint": "B", "toPoint": "D"})
+    assert point_value(translated, "T") == pytest.approx((3.0, 0.0))
+
+    rotated = execute(registry, "create_rotation", {"objectId": "G", "source": "A", "center": "B", "degrees": 90})
+    assert point_value(rotated, "G") == pytest.approx((-1.0, 1.0))
+
+    scaled = execute(registry, "create_homothety", {"objectId": "H", "center": "B", "point": "P", "ratio": 2})
+    assert point_value(scaled, "H") == pytest.approx((4.0, 0.0))
+
+    inverted = execute(registry, "create_inversion", {"objectId": "Inv", "point": "P", "circle": "c1"})
+    assert point_value(inverted, "Inv") == pytest.approx((0.5, 0.0))
+
+
+def test_transformation_source_must_be_transformable() -> None:
+    workspace = GeometryWorkspace()
+    registry = create_geometry_tool_registry(workspace)
+    execute(registry, "create_point", {"objectId": "A", "x": 0, "y": 0})
+    execute(registry, "create_point", {"objectId": "B", "x": 4, "y": 0})
+    execute(registry, "create_point", {"objectId": "C", "x": 2, "y": 3})
+    execute(registry, "create_arc", {"objectId": "arc1", "pointA": "A", "pointB": "C", "pointC": "B"})
+    execute(registry, "create_line", {"objectId": "l1", "pointA": "A", "pointB": "B"})
+
+    with pytest.raises(ToolExecutionError, match="must be a point, line, segment, circle, or polygon"):
+        execute(registry, "create_reflection_over_line", {"objectId": "R", "source": "arc1", "line": "l1"})
+
+
+def test_arc_function_and_vertex_tools() -> None:
+    workspace = GeometryWorkspace()
+    registry = create_geometry_tool_registry(workspace)
+    execute(registry, "create_point", {"objectId": "A", "x": 0, "y": 0})
+    execute(registry, "create_point", {"objectId": "B", "x": 4, "y": 0})
+    execute(registry, "create_point", {"objectId": "C", "x": 2, "y": 3})
+    execute(registry, "create_polygon", {"objectId": "poly", "pointIds": ["A", "B", "C"]})
+
+    arc = execute(registry, "create_arc", {"objectId": "arc1", "pointA": "A", "pointB": "C", "pointC": "B"})
+    arc_value = arc.graph.objects[arc.graph.id_map["arc1"]].value
+    assert arc_value.type == "arc"
+
+    fn = execute(registry, "create_function", {"objectId": "f1", "expression": "x^2 + 1"})
+    fn_value = fn.graph.objects[fn.graph.id_map["f1"]].value
+    assert fn_value.type == "function"
+
+    vertex = execute(registry, "create_polygon_vertex", {"objectId": "V", "polygon": "poly", "index": 1})
+    vertex_value = vertex.graph.objects[vertex.graph.id_map["V"]].value
+    assert vertex_value.type == "point"
+    assert (vertex_value.x, vertex_value.y) == pytest.approx((4.0, 0.0))
+
+
+def test_invalid_function_expression_is_rejected_without_mutation() -> None:
+    workspace = GeometryWorkspace()
+    registry = create_geometry_tool_registry(workspace)
+
+    with pytest.raises(ToolExecutionError):
+        execute(registry, "create_function", {"objectId": "f1", "expression": "__import__('os')"})
+    assert workspace.revision == 0
+
+
+def test_export_tools_return_svg_png_and_json() -> None:
+    workspace = GeometryWorkspace()
+    registry = create_geometry_tool_registry(workspace)
+    execute(registry, "create_point", {"objectId": "A", "x": 0, "y": 0})
+
+    svg = execute(registry, "export_svg", {})
+    assert "<svg" in svg.svg
+
+    png = execute(registry, "export_png", {})
+    assert base64.b64decode(png.png_base64)[:8] == b"\x89PNG\r\n\x1a\n"
+
+    exported = execute(registry, "export_json", {})
+    payload = json.loads(exported.document_json)
+    assert payload["objects"][0]["id"] == "A"
+
+    descriptors = {d.name: d for d in registry.descriptors()}
+    assert descriptors["export_svg"].mutates_geometry_state is False
+    assert descriptors["export_png"].mutates_geometry_state is False
+    assert descriptors["export_json"].mutates_geometry_state is False

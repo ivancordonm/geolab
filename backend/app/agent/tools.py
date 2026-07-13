@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 from collections.abc import Callable
 
 from pydantic import BaseModel
@@ -14,15 +15,26 @@ from app.agent.models import (
     EmptyToolInput,
     EvaluateScriptToolInput,
     EvaluateScriptToolOutput,
+    ExportJsonOutput,
+    ExportPngOutput,
+    ExportSvgOutput,
+    FunctionConstructionInput,
     GetGraphToolOutput,
     GraphObjectView,
     GraphView,
+    HomothetyConstructionInput,
+    InversionConstructionInput,
     LineLineIntersectionInput,
     MutationToolOutput,
     PointLineConstructionInput,
     PolygonConstructionInput,
+    PolygonVertexConstructionInput,
     RegularPolygonConstructionInput,
+    RotationConstructionInput,
+    SourceLineConstructionInput,
+    SourcePointConstructionInput,
     ThreePointConstructionInput,
+    TranslationConstructionInput,
     TwoPointConstructionInput,
     ValidateConstructionInput,
     ValidationToolOutput,
@@ -30,38 +42,58 @@ from app.agent.models import (
 )
 from app.agent.registry import ToolDefinition, ToolExecutionError, ToolRegistry
 from app.geometry.engine import GeometryGraph
+from app.geometry.function_expression import normalize_function_expression
+from app.geometry.rendering import render_graph_png, render_graph_svg
 from app.geometry.models import (
+    AngleBisectorDefinition,
+    AngleBisectorLine,
+    Arc,
+    ArcThroughPointsDefinition,
     Circle,
     CircleByCenterPointDefinition,
+    CircumscribedCircle,
+    CircumscribedDefinition,
     Coordinate,
+    FunctionExpressionDefinition,
+    FunctionGraph,
     GeometryDocument,
     GeometryObject,
+    HomothetyScalar,
+    HomothetyScalarDefinition,
     IntersectionCC,
     IntersectionCCDefinition,
     IntersectionLC,
     IntersectionLCDefinition,
     IntersectionLL,
     IntersectionLLDefinition,
+    InversionInCircle,
+    InversionInCircleDefinition,
     Line,
     LineThroughPointsDefinition,
     Midpoint,
     MidpointDefinition,
     ParallelLine,
     ParallelLineDefinition,
-    PerpendicularLine,
-    PerpendicularLineDefinition,
     PerpendicularBisectorDefinition,
     PerpendicularBisectorLine,
-    AngleBisectorDefinition,
-    AngleBisectorLine,
-    CircumscribedCircle,
-    CircumscribedDefinition,
+    PerpendicularLine,
+    PerpendicularLineDefinition,
     Point,
     Polygon,
     PolygonDefinition,
+    PolygonVertexDefinition,
+    PolygonVertexPoint,
+    ReflectionOverLine,
+    ReflectionOverLineDefinition,
+    ReflectionOverPoint,
+    ReflectionOverPointDefinition,
     RegularPolygonDefinition,
+    RotatedObject,
+    RotationDefinition,
     Segment,
     SegmentBetweenPointsDefinition,
+    TranslatedObject,
+    TranslationDefinition,
     VectorPolygonDefinition,
 )
 from app.geometry.script import ConstructionScriptError, evaluate_script
@@ -84,6 +116,21 @@ def graph_view_from_access_map(access_map: GraphAccessMap) -> GraphView:
         id_map={node.object.id: index for index, node in enumerate(nodes)},
         label_map=dict(access_map.id_by_label),
     )
+
+
+def _export_svg(workspace: GeometryWorkspace) -> ExportSvgOutput:
+    graph = graph_view_from_access_map(workspace.graph_access_map())
+    return ExportSvgOutput(svg=render_graph_svg(graph))
+
+
+def _export_png(workspace: GeometryWorkspace) -> ExportPngOutput:
+    graph = graph_view_from_access_map(workspace.graph_access_map())
+    return ExportPngOutput(png_base64=base64.b64encode(render_graph_png(graph)).decode("ascii"))
+
+
+def _export_json(workspace: GeometryWorkspace) -> ExportJsonOutput:
+    document = workspace.document_snapshot()
+    return ExportJsonOutput(document_json=document.model_dump_json(by_alias=True, indent=2))
 
 
 def create_geometry_tool_registry(workspace: GeometryWorkspace) -> ToolRegistry:
@@ -252,6 +299,96 @@ def create_geometry_tool_registry(workspace: GeometryWorkspace) -> ToolRegistry:
     )
     registry.register(
         _definition(
+            "create_reflection_over_line",
+            "Reflect an existing point/line/segment/circle/polygon over an existing line.",
+            SourceLineConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_reflection_over_line(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_reflection_over_point",
+            "Reflect an existing point/line/segment/circle/polygon over an existing point.",
+            SourcePointConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_reflection_over_point(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_translation",
+            "Translate an existing object by the vector from one point to another.",
+            TranslationConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_translation(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_rotation",
+            "Rotate an existing object around a center point by an angle in degrees.",
+            RotationConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_rotation(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_homothety",
+            "Scale an existing point from a center by a numeric ratio (homothety).",
+            HomothetyConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_homothety(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_inversion",
+            "Invert an existing point in an existing circle.",
+            InversionConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_inversion(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_arc",
+            "Create a circular arc through three existing points: start, mid, end.",
+            ThreePointConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_arc(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_function",
+            "Create a real-valued function graph y = f(x) from a validated expression.",
+            FunctionConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_function(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_polygon_vertex",
+            "Create a point bound to the i-th vertex (0-based) of an existing polygon.",
+            PolygonVertexConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_polygon_vertex(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
             "validate_construction",
             "Validate a supplied document, or the current graph when omitted, without mutation.",
             ValidateConstructionInput,
@@ -278,6 +415,36 @@ def create_geometry_tool_registry(workspace: GeometryWorkspace) -> ToolRegistry:
             GetGraphToolOutput,
             False,
             lambda model: GetGraphToolOutput(graph=graph_view_from_access_map(workspace.graph_access_map())),
+        )
+    )
+    registry.register(
+        _definition(
+            "export_svg",
+            "Render the current construction as an SVG image string without mutation.",
+            EmptyToolInput,
+            ExportSvgOutput,
+            False,
+            lambda model: _export_svg(workspace),
+        )
+    )
+    registry.register(
+        _definition(
+            "export_png",
+            "Render the current construction as a base64-encoded PNG without mutation.",
+            EmptyToolInput,
+            ExportPngOutput,
+            False,
+            lambda model: _export_png(workspace),
+        )
+    )
+    registry.register(
+        _definition(
+            "export_json",
+            "Serialize the current versioned document as pretty-printed JSON without mutation.",
+            EmptyToolInput,
+            ExportJsonOutput,
+            False,
+            lambda model: _export_json(workspace),
         )
     )
     return registry
@@ -607,6 +774,152 @@ def _create_vector_polygon(
     return _commit_defined(workspace, obj)
 
 
+def _create_reflection_over_line(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = SourceLineConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    source = _resolve_transformable(access, input_model.source)
+    line = _resolve_kind(access, input_model.line, "line")
+    obj = ReflectionOverLine(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        kind=source.object.kind,
+        definition=ReflectionOverLineDefinition(object_id=source.object.id, line=line.object.id),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_reflection_over_point(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = SourcePointConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    source = _resolve_transformable(access, input_model.source)
+    center = _resolve_kind(access, input_model.center, "point")
+    obj = ReflectionOverPoint(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        kind=source.object.kind,
+        definition=ReflectionOverPointDefinition(object_id=source.object.id, center=center.object.id),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_translation(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = TranslationConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    source = _resolve_transformable(access, input_model.source)
+    from_point = _resolve_kind(access, input_model.from_point, "point")
+    to_point = _resolve_kind(access, input_model.to_point, "point")
+    obj = TranslatedObject(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        kind=source.object.kind,
+        definition=TranslationDefinition(
+            object_id=source.object.id,
+            from_=from_point.object.id,
+            to=to_point.object.id,
+        ),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_rotation(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = RotationConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    source = _resolve_transformable(access, input_model.source)
+    center = _resolve_kind(access, input_model.center, "point")
+    obj = RotatedObject(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        kind=source.object.kind,
+        definition=RotationDefinition(
+            object_id=source.object.id,
+            center=center.object.id,
+            degrees=input_model.degrees,
+        ),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_homothety(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = HomothetyConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    center = _resolve_kind(access, input_model.center, "point")
+    point = _resolve_kind(access, input_model.point, "point")
+    obj = HomothetyScalar(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=HomothetyScalarDefinition(
+            center=center.object.id,
+            point=point.object.id,
+            ratio=input_model.ratio,
+        ),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_inversion(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = InversionConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    point = _resolve_kind(access, input_model.point, "point")
+    circle = _resolve_kind(access, input_model.circle, "circle")
+    obj = InversionInCircle(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=InversionInCircleDefinition(point=point.object.id, circle=circle.object.id),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_arc(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = ThreePointConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    start = _resolve_kind(access, input_model.point_a, "point")
+    mid = _resolve_kind(access, input_model.point_b, "point")
+    end = _resolve_kind(access, input_model.point_c, "point")
+    obj = Arc(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=ArcThroughPointsDefinition(
+            point_a=start.object.id,
+            point_mid=mid.object.id,
+            point_b=end.object.id,
+        ),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_function(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = FunctionConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    expression = normalize_function_expression(input_model.expression)
+    obj = FunctionGraph(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=FunctionExpressionDefinition(expression=expression),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_polygon_vertex(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = PolygonVertexConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    polygon = _resolve_kind(access, input_model.polygon, "polygon")
+    obj = PolygonVertexPoint(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=PolygonVertexDefinition(polygon=polygon.object.id, index=input_model.index),
+    )
+    return _commit_defined(workspace, obj)
+
+
 def _commit(workspace: GeometryWorkspace, obj: GeometryObject) -> MutationToolOutput:
     access = workspace.add_object(obj)
     return MutationToolOutput(
@@ -647,6 +960,22 @@ def _resolve_kind(access: GraphAccessMap, identifier: str, expected_kind: str) -
         raise ToolExecutionError(
             f"Geometry object '{identifier}' must be a {expected_kind}, "
             f"but it is a {node.object.kind}"
+        )
+    return node
+
+
+_TRANSFORMABLE_KINDS = ("point", "line", "segment", "circle", "polygon")
+
+
+def _resolve_transformable(access: GraphAccessMap, identifier: str) -> GraphObjectAccess:
+    try:
+        node = access.resolve(identifier)
+    except ValueError as error:
+        raise ToolExecutionError(str(error)) from error
+    if node.object.kind not in _TRANSFORMABLE_KINDS:
+        raise ToolExecutionError(
+            f"Geometry object '{identifier}' must be a point, line, segment, circle, "
+            f"or polygon, but it is a {node.object.kind}"
         )
     return node
 

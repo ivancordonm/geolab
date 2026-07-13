@@ -1,0 +1,277 @@
+{
+  "script": "A = Point(0, 0)\nB = Point(4, 0)\nC = Point(0, 4)\nl1 = Line(A, B)\nl2 = Line(A, C)\nX = IntersectionLL(l1, l2)\nc1 = Circle(A, B)\nc2 = Circle(B, A)\nY0 = IntersectionCC(c1, c2, 1)\nY1 = IntersectionCC(c1, c2, 2)\nZ0 = IntersectionLC(l1, c1, 1)\npb = PerpendicularBisector(A, B)\nab = AngleBisector(B, A, C)\ncc = Circumcircle(A, B, C)\n",
+  "document": {
+    "schemaVersion": 1,
+    "id": "doc_derived_constructions",
+    "title": "Derived constructions",
+    "objects": [
+      {
+        "id": "A",
+        "label": "A",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 0.0,
+          "y": 0.0
+        }
+      },
+      {
+        "id": "B",
+        "label": "B",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 4.0,
+          "y": 0.0
+        }
+      },
+      {
+        "id": "C",
+        "label": "C",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 0.0,
+          "y": 4.0
+        }
+      },
+      {
+        "id": "l1",
+        "label": "l1",
+        "visible": true,
+        "style": null,
+        "kind": "line",
+        "definition": {
+          "type": "through_points",
+          "pointA": "A",
+          "pointB": "B"
+        }
+      },
+      {
+        "id": "l2",
+        "label": "l2",
+        "visible": true,
+        "style": null,
+        "kind": "line",
+        "definition": {
+          "type": "through_points",
+          "pointA": "A",
+          "pointB": "C"
+        }
+      },
+      {
+        "id": "X",
+        "label": "X",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "intersection_ll",
+          "lineA": "l1",
+          "lineB": "l2"
+        }
+      },
+      {
+        "id": "c1",
+        "label": "c1",
+        "visible": true,
+        "style": null,
+        "kind": "circle",
+        "definition": {
+          "type": "center_through_point",
+          "center": "A",
+          "point": "B"
+        }
+      },
+      {
+        "id": "c2",
+        "label": "c2",
+        "visible": true,
+        "style": null,
+        "kind": "circle",
+        "definition": {
+          "type": "center_through_point",
+          "center": "B",
+          "point": "A"
+        }
+      },
+      {
+        "id": "Y0",
+        "label": "Y0",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "intersection_cc",
+          "circleA": "c1",
+          "circleB": "c2",
+          "index": 1,
+          "selector": null
+        }
+      },
+      {
+        "id": "Y1",
+        "label": "Y1",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "intersection_cc",
+          "circleA": "c1",
+          "circleB": "c2",
+          "index": 2,
+          "selector": null
+        }
+      },
+      {
+        "id": "Z0",
+        "label": "Z0",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "intersection_lc",
+          "line": "l1",
+          "circle": "c1",
+          "index": 1,
+          "selector": null
+        }
+      },
+      {
+        "id": "pb",
+        "label": "pb",
+        "visible": true,
+        "style": null,
+        "kind": "line",
+        "definition": {
+          "type": "perpendicular_bisector",
+          "pointA": "A",
+          "pointB": "B"
+        }
+      },
+      {
+        "id": "ab",
+        "label": "ab",
+        "visible": true,
+        "style": null,
+        "kind": "line",
+        "definition": {
+          "type": "angle_bisector",
+          "armA": "B",
+          "vertex": "A",
+          "armB": "C"
+        }
+      },
+      {
+        "id": "cc",
+        "label": "cc",
+        "visible": true,
+        "style": null,
+        "kind": "circle",
+        "definition": {
+          "type": "circumscribed",
+          "pointA": "A",
+          "pointB": "B",
+          "pointC": "C"
+        }
+      }
+    ],
+    "viewport": {
+      "centerX": 0.0,
+      "centerY": 0.0,
+      "scale": 50.0
+    },
+    "metadata": null
+  },
+  "initialValues": {
+    "A": {
+      "type": "point",
+      "x": 0.0,
+      "y": 0.0
+    },
+    "B": {
+      "type": "point",
+      "x": 4.0,
+      "y": 0.0
+    },
+    "C": {
+      "type": "point",
+      "x": 0.0,
+      "y": 4.0
+    },
+    "l1": {
+      "type": "line",
+      "a": 0.0,
+      "b": 1.0,
+      "c": 0.0
+    },
+    "l2": {
+      "type": "line",
+      "a": 1.0,
+      "b": 0.0,
+      "c": 0.0
+    },
+    "X": {
+      "type": "point",
+      "x": 0.0,
+      "y": 0.0
+    },
+    "c1": {
+      "type": "circle",
+      "center": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "radius": 4.0
+    },
+    "c2": {
+      "type": "circle",
+      "center": {
+        "x": 4.0,
+        "y": 0.0
+      },
+      "radius": 4.0
+    },
+    "Y0": {
+      "type": "point",
+      "x": 2.0,
+      "y": 3.4641016151377544
+    },
+    "Y1": {
+      "type": "point",
+      "x": 2.0,
+      "y": -3.4641016151377544
+    },
+    "Z0": {
+      "type": "point",
+      "x": -4.0,
+      "y": 0.0
+    },
+    "pb": {
+      "type": "line",
+      "a": 1.0,
+      "b": 0.0,
+      "c": -2.0
+    },
+    "ab": {
+      "type": "line",
+      "a": 0.7071067811865475,
+      "b": -0.7071067811865475,
+      "c": 0.0
+    },
+    "cc": {
+      "type": "circle",
+      "center": {
+        "x": 2.0,
+        "y": 2.0
+      },
+      "radius": 2.8284271247461903
+    }
+  }
+}

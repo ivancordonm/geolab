@@ -40,8 +40,10 @@ from app.geometry.models import (
     ReflectionOverPointDefinition,
     RegularPolygonDefinition,
     RotationDefinition,
+    ScalarValue,
     SegmentBetweenPointsDefinition,
     SegmentValue,
+    SliderDefinition,
     TranslationDefinition,
     UndefinedValue,
     VectorPolygonDefinition,
@@ -73,7 +75,7 @@ def get_parent_ids(obj: GeometryObject) -> list[str]:
     """Return construction parent IDs in deterministic argument order."""
 
     definition = obj.definition
-    if isinstance(definition, FreePointDefinition):
+    if isinstance(definition, (FreePointDefinition, SliderDefinition)):
         return []
     if isinstance(definition, PolygonVertexDefinition):
         return [definition.polygon]
@@ -197,6 +199,9 @@ class GeometryGraph:
         if isinstance(definition, FreePointDefinition):
             if not isfinite(definition.x) or not isfinite(definition.y):
                 raise GeometryValidationError(f"Point '{obj.id}' coordinates must be finite")
+        elif isinstance(definition, SliderDefinition):
+            if not isfinite(definition.min) or not isfinite(definition.max) or not isfinite(definition.value) or not isfinite(definition.step):
+                raise GeometryValidationError(f"Slider '{obj.id}' parameters must be finite")
         elif isinstance(definition, PolygonVertexDefinition):
             require_kind(definition.polygon, "polygon")
         elif isinstance(definition, (LineThroughPointsDefinition, SegmentBetweenPointsDefinition, MidpointDefinition, PerpendicularBisectorDefinition)):
@@ -352,6 +357,9 @@ class GeometryGraph:
 
         if isinstance(definition, FreePointDefinition):
             return PointValue(x=definition.x, y=definition.y)
+
+        if isinstance(definition, SliderDefinition):
+            return ScalarValue(value=definition.value)
 
         if isinstance(definition, PolygonVertexDefinition):
             polygon = self._require_value(obj.id, definition.polygon, "polygon")

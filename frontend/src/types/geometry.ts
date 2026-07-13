@@ -1,7 +1,7 @@
 export const GEOMETRY_SCHEMA_VERSION = 1 as const;
 
 export type GeometryObjectId = string;
-export type GeometryKind = "point" | "line" | "segment" | "circle" | "polygon" | "arc" | "function";
+export type GeometryKind = "point" | "line" | "segment" | "circle" | "polygon" | "arc" | "function" | "slider";
 
 export type StrokeDash = "solid" | "dashed" | "dotted";
 
@@ -167,6 +167,13 @@ export interface Polygon extends GeometryObjectBase {
     | { type: "vector_polygon"; anchor: GeometryObjectId; offsets: { x: number; y: number }[] };
 }
 
+// ─── Parameters ────────────────────────────────────────────────────────────
+
+export interface Slider extends GeometryObjectBase {
+  kind: "slider";
+  definition: { type: "slider"; min: number; max: number; value: number; step: number };
+}
+
 // ─── Union ─────────────────────────────────────────────────────────────────
 
 export type GeometryObject =
@@ -209,7 +216,8 @@ export type GeometryObject =
   | RotatedObject<"polygon">
   | Arc
   | FunctionGraph
-  | Polygon;
+  | Polygon
+  | Slider;
 
 // ─── Viewport and document ─────────────────────────────────────────────────
 
@@ -280,6 +288,11 @@ export interface FunctionValue {
   expression: string;
 }
 
+export interface ScalarValue {
+  type: "scalar";
+  value: number;
+}
+
 export type EvaluatedValue =
   | PointValue
   | LineValue
@@ -288,6 +301,7 @@ export type EvaluatedValue =
   | ArcValue
   | PolygonValue
   | FunctionValue
+  | ScalarValue
   | UndefinedValue;
 
 export type EvaluationMap = ReadonlyMap<GeometryObjectId, EvaluatedValue>;

@@ -24,6 +24,7 @@ EXPECTED_TOOLS = {
     "create_polygon",
     "create_regular_polygon",
     "create_vector_polygon",
+    "create_slider",
     "validate_construction",
     "evaluate_script",
     "get_current_graph",

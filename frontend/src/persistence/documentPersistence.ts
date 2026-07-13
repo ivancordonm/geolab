@@ -169,6 +169,8 @@ function objectToScript(
   switch (object.definition.type) {
     case "free":
       return `${variable} = Point(${formatNumber(object.definition.x)}, ${formatNumber(object.definition.y)})`;
+    case "slider":
+      return `${variable} = Slider(${formatNumber(object.definition.min)}, ${formatNumber(object.definition.max)}, ${formatNumber(object.definition.value)}, ${formatNumber(object.definition.step)})`;
     case "polygon_vertex":
       return `${variable} = Vertex(${reference(object.definition.polygon)}, ${object.definition.index})`;
     case "through_points":

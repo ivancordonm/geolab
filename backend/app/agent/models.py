@@ -126,6 +126,15 @@ class VectorPolygonConstructionInput(GeometryModel):
     offsets: list[dict[str, float]]
 
 
+class SliderConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    min: float
+    max: float
+    value: float
+    step: float
+
+
 class ValidateConstructionInput(GeometryModel):
     document: GeometryDocument | None = None
 

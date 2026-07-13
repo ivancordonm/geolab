@@ -310,6 +310,28 @@ def create_vector_polygon(
     return _mutate(document, "create_vector_polygon", {"objectId": object_id, "label": label, "anchor": anchor, "offsets": offsets})
 
 
+@mcp.tool(annotations=CREATE)
+def create_slider(
+    object_id: str,
+    min_value: float,
+    max_value: float,
+    value: float,
+    step: float,
+    document: GeometryDocument | None = None,
+    label: str | None = None,
+) -> dict[str, Any]:
+    """Create a slider parameter with min/max bounds and initial value."""
+
+    return _mutate(document, "create_slider", {
+        "objectId": object_id,
+        "label": label,
+        "min": min_value,
+        "max": max_value,
+        "value": value,
+        "step": step,
+    })
+
+
 @mcp.tool(
     description="Checks geometric consistency only. Does not render anything.",
     annotations=READ_ONLY,

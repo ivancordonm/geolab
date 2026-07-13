@@ -695,6 +695,7 @@ function describeObject(object: GeometryObject): string {
     polygon: "Polygon",
     regular_polygon: "Regular polygon",
     vector_polygon: "Vector polygon",
+    slider: "Slider",
   };
   return descriptions[object.definition.type as Exclude<GeometryObject["definition"]["type"], "function_expression">];
 }

@@ -402,6 +402,21 @@ class Polygon(GeometryObjectBase):
     definition: PolygonVariantDefinition
 
 
+# ─── Parameters ─────────────────────────────────────────────────────────────
+
+class SliderDefinition(GeometryModel):
+    type: Literal["slider"] = "slider"
+    min: float
+    max: float
+    value: float
+    step: float
+
+
+class Slider(GeometryObjectBase):
+    kind: Literal["slider"] = "slider"
+    definition: SliderDefinition
+
+
 GeometryObject: TypeAlias = (
     Point
     | Line
@@ -427,6 +442,7 @@ GeometryObject: TypeAlias = (
     | Arc
     | FunctionGraph
     | Polygon
+    | Slider
 )
 
 
@@ -512,6 +528,11 @@ class FunctionValue(GeometryModel):
     expression: str
 
 
+class ScalarValue(GeometryModel):
+    type: Literal["scalar"] = "scalar"
+    value: float
+
+
 EvaluatedValue: TypeAlias = (
     PointValue
     | LineValue
@@ -520,6 +541,7 @@ EvaluatedValue: TypeAlias = (
     | ArcValue
     | PolygonValue
     | FunctionValue
+    | ScalarValue
     | UndefinedValue
 )
 

@@ -22,6 +22,7 @@ from app.agent.models import (
     PointLineConstructionInput,
     PolygonConstructionInput,
     RegularPolygonConstructionInput,
+    SliderConstructionInput,
     ThreePointConstructionInput,
     TwoPointConstructionInput,
     ValidateConstructionInput,
@@ -62,6 +63,8 @@ from app.geometry.models import (
     RegularPolygonDefinition,
     Segment,
     SegmentBetweenPointsDefinition,
+    Slider,
+    SliderDefinition,
     VectorPolygonDefinition,
 )
 from app.geometry.script import ConstructionScriptError, evaluate_script
@@ -84,6 +87,23 @@ def graph_view_from_access_map(access_map: GraphAccessMap) -> GraphView:
         id_map={node.object.id: index for index, node in enumerate(nodes)},
         label_map=dict(access_map.id_by_label),
     )
+
+
+def _create_slider(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = SliderConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    obj = Slider(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=SliderDefinition(
+            min=input_model.min,
+            max=input_model.max,
+            value=input_model.value,
+            step=input_model.step,
+        ),
+    )
+    return _commit(workspace, obj)
 
 
 def create_geometry_tool_registry(workspace: GeometryWorkspace) -> ToolRegistry:
@@ -248,6 +268,16 @@ def create_geometry_tool_registry(workspace: GeometryWorkspace) -> ToolRegistry:
             MutationToolOutput,
             True,
             lambda model: _create_vector_polygon(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_slider",
+            "Create a slider parameter (min, max, initial value, step).",
+            SliderConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_slider(workspace, model),
         )
     )
     registry.register(

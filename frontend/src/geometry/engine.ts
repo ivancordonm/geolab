@@ -10,6 +10,7 @@ import type {
   Point,
   PolygonValue,
   PointValue,
+  ScalarValue,
   UndefinedValue,
 } from "../types/geometry";
 import { normalizeFunctionExpression } from "./functionExpression";
@@ -32,6 +33,7 @@ export interface RecomputeResult {
 export function getParentIds(object: GeometryObject): GeometryObjectId[] {
   switch (object.definition.type) {
     case "free":
+    case "slider":
       return [];
     case "polygon_vertex":
       return [object.definition.polygon];
@@ -438,6 +440,9 @@ export class GeometryGraph {
       case "free":
         return { type: "point", x: def.x, y: def.y };
 
+      case "slider":
+        return { type: "scalar", value: def.value };
+
       case "polygon_vertex": {
         const polygon = this.requireValue<PolygonValue>(object.id, def.polygon, "polygon");
         if (isUndefined(polygon)) return polygon;
@@ -551,7 +556,7 @@ export class GeometryGraph {
         const ln = this.requireValue<LineValue>(object.id, def.line, "line");
         if (isUndefined(ln)) return ln;
         const sourceId = def.object ?? def.point!;
-        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind);
+        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind as Exclude<typeof object.kind, "slider">);
         if (isUndefined(source)) return source;
         return reflectValueOverLine(source, ln);
       }
@@ -560,7 +565,7 @@ export class GeometryGraph {
         const ctr = this.requireValue<PointValue>(object.id, def.center, "point");
         if (isUndefined(ctr)) return ctr;
         const sourceId = def.object ?? def.point!;
-        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind);
+        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind as Exclude<typeof object.kind, "slider">);
         if (isUndefined(source)) return source;
         return reflectValueOverPoint(source, ctr);
       }
@@ -619,7 +624,7 @@ export class GeometryGraph {
 
       case "translation": {
         const sourceId = def.object ?? def.point!;
-        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind);
+        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind as Exclude<typeof object.kind, "slider">);
         if (isUndefined(source)) return source;
         const from = this.requireValue<PointValue>(object.id, def.from, "point");
         if (isUndefined(from)) return from;
@@ -632,7 +637,7 @@ export class GeometryGraph {
         const ctr = this.requireValue<PointValue>(object.id, def.center, "point");
         if (isUndefined(ctr)) return ctr;
         const sourceId = def.object ?? def.point!;
-        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind);
+        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, object.kind as Exclude<typeof object.kind, "slider">);
         if (isUndefined(source)) return source;
         return rotateValue(source, ctr, def.degrees);
       }

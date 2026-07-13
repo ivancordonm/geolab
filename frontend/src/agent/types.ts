@@ -70,3 +70,17 @@ export interface AssistantMessage {
   role: "user" | "assistant";
   content: string;
 }
+
+/**
+ * Events streamed by `/agent/plan-stream` (SSE). Event names and payload keys
+ * mirror the backend wire format exactly. The planner only *proposes*: there is
+ * deliberately no server-side execution event. `thinking` deltas arrive as
+ * reasoning text streams; `tools_selected` and `done` carry the same proposal
+ * data the non-streaming `/agent/plan-with-tools` returns; `error` replaces
+ * them on refusal, empty plan, or transport failure.
+ */
+export type PlanStreamEvent =
+  | { event: "thinking"; data: { delta: string } }
+  | { event: "tools_selected"; data: { tool_calls: ToolCallProposal[] } }
+  | { event: "done"; data: ToolCallPlanResult }
+  | { event: "error"; data: AgentPlanErrorDetail };

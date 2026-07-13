@@ -1,6 +1,10 @@
 """HTTP adapter for discovery and execution of deterministic agent tools."""
 
+import json
+from collections.abc import Iterator
+
 from fastapi import APIRouter, HTTPException, status
+from fastapi.responses import StreamingResponse
 
 from app.agent.models import ExecuteToolRequest, ExecuteToolResponse, ToolDescriptor
 from app.agent.planner import PlannerError, ProviderTimeoutError, UnsupportedRequestError
@@ -83,6 +87,32 @@ def plan_construction_with_tools(request: ToolCallPlanRequest) -> ToolCallPlanRe
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=detail.model_dump(by_alias=True),
         ) from error
+
+
+@router.post("/plan-stream")
+def plan_construction_stream(request: ToolCallPlanRequest) -> StreamingResponse:
+    """Stream tool-calling planning progress as server-sent events.
+
+    Additive; does not replace ``/agent/plan`` or ``/agent/plan-with-tools``.
+    Builds a fresh per-request workspace/registry, exactly like
+    ``/agent/plan-with-tools`` — nothing is executed here. Each SSE frame is a
+    standard two-field frame (``event:`` name + ``data:`` JSON payload); the
+    planner only proposes, so the caller still applies each call one at a time
+    through ``/agent/execute-tool``.
+    """
+    workspace = (
+        GeometryWorkspace(request.document) if request.document is not None else GeometryWorkspace()
+    )
+    registry = create_geometry_tool_registry(workspace)
+    planner = ToolCallingPlanner()
+
+    def generate() -> Iterator[str]:
+        for event in planner.plan_stream(
+            request.document, request.user_request, registry.descriptors()
+        ):
+            yield f"event: {event['event']}\ndata: {json.dumps(event['data'])}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 
 @router.get("/tools", response_model=list[ToolDescriptor])

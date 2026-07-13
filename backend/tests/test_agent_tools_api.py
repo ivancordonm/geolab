@@ -67,19 +67,39 @@ def test_execute_tool_and_graph_endpoints_return_read_only_snapshots() -> None:
 
 
 def test_invalid_calls_return_errors_without_partial_mutation() -> None:
+    # Seed a populated, non-empty document. The invalid calls below are fed
+    # this SAME document, so if a future bug let a failed call commit partial
+    # state (or fall back to some shared/global workspace instead of a fresh
+    # per-request one), it would show up either as a leaked object/changed
+    # error code here, or as a divergent result in the "replay" section below.
+    seed = client.post(
+        "/agent/execute-tool",
+        json={
+            "toolName": "create_point",
+            "arguments": {"objectId": "point_a", "label": "A", "x": 1, "y": 2},
+        },
+    )
+    assert seed.status_code == 200
+    populated_document = seed.json()["document"]
+
     unknown = client.post(
         "/agent/execute-tool",
-        json={"toolName": "unknown", "arguments": {}},
+        json={"toolName": "unknown", "arguments": {}, "document": populated_document},
     )
     invalid_input = client.post(
         "/agent/execute-tool",
-        json={"toolName": "create_point", "arguments": {"objectId": "A", "x": 0}},
+        json={
+            "toolName": "create_point",
+            "arguments": {"objectId": "point_b", "x": 0},
+            "document": populated_document,
+        },
     )
     invalid_reference = client.post(
         "/agent/execute-tool",
         json={
             "toolName": "create_line",
-            "arguments": {"objectId": "AB", "pointA": "A", "pointB": "B"},
+            "arguments": {"objectId": "line_ab", "pointA": "A", "pointB": "B"},
+            "document": populated_document,
         },
     )
 
@@ -89,4 +109,37 @@ def test_invalid_calls_return_errors_without_partial_mutation() -> None:
     assert invalid_input.json()["detail"]["code"] == "invalid_tool_arguments"
     assert invalid_reference.status_code == 422
     assert invalid_reference.json()["detail"]["code"] == "tool_execution_failed"
-    assert client.post("/geometry/graph", json={"document": None}).json()["graph"]["revision"] == 0
+
+    # None of the failed calls ever produced a document: the error path raises
+    # inside registry.execute() before router.execute_tool() builds an
+    # ExecuteToolResponse (and thus before workspace.document_snapshot() is
+    # ever called), so there is no output for a caller to (accidentally)
+    # thread forward.
+    assert "document" not in unknown.json()
+    assert "document" not in invalid_input.json()
+    assert "document" not in invalid_reference.json()
+
+    # The atomicity property that actually matters in the stateless world:
+    # replaying the ORIGINAL populated document, after all three failed calls,
+    # behaves exactly as if those calls had never happened. Each
+    # /agent/execute-tool request builds its own fresh workspace from the
+    # supplied document, so a genuine bug here would be a regression back to
+    # some shared/global workspace, or a handler that mutates state before
+    # fully validating -- either would make this next call see extra objects,
+    # a name collision, or an unexpected revision/object count.
+    replay = client.post(
+        "/agent/execute-tool",
+        json={
+            "toolName": "create_point",
+            "arguments": {"objectId": "point_b", "label": "B", "x": 3, "y": 4},
+            "document": populated_document,
+        },
+    )
+    assert replay.status_code == 200
+    assert replay.json()["output"]["revision"] == 1
+    replay_document = replay.json()["document"]
+    assert [obj["id"] for obj in replay_document["objects"]] == ["point_a", "point_b"]
+
+    graph = client.post("/geometry/graph", json={"document": replay_document})
+    assert graph.status_code == 200
+    assert graph.json()["graph"]["idMap"] == {"point_a": 0, "point_b": 1}

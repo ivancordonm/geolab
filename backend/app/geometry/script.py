@@ -581,16 +581,10 @@ def _build_object(
             if ratio == 0 and src.kind != "point":
                 _raise("invalid_argument", "A zero Homothety ratio is only supported for points", statement.line, statement.source_line)
             return [HomothetyScalar(id=statement.target, label=statement.target, kind=src.kind, definition=HomothetyScalarDefinition(center=center.id, object_id=src.id, ratio=ratio))]
-        src = _resolve_reference(arguments[1], statement, symbols, argument_position=2)
-        if src.kind not in {"point", "line", "segment", "circle", "polygon"}:
-            _raise(
-                "invalid_reference_type",
-                f"Argument 2 of Homothety must reference a transformable object, but '{src.id}' is a {src.kind}",
-                statement.line, statement.source_line, src.id,
-            )
+        src = _resolve_point_argument(arguments[1], statement, symbols, objects, argument_position=2)
         ratio_pt = _resolve_reference(arguments[2], statement, symbols, argument_position=3)
         _require_kind(ratio_pt, "point", statement, 3)
-        return [HomothetyPoint(id=statement.target, label=statement.target, kind=src.kind, definition=HomothetyPointDefinition(center=center.id, object_id=src.id, ratio_point=ratio_pt.id))]
+        return [HomothetyPoint(id=statement.target, label=statement.target, definition=HomothetyPointDefinition(center=center.id, point=src.id, ratio_point=ratio_pt.id))]
 
     if command == "Inversion":
         _require_arity(statement, 2)

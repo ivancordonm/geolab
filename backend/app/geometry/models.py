@@ -198,10 +198,7 @@ class HomothetyScalarDefinition(GeometryModel):
 class HomothetyPointDefinition(GeometryModel):
     type: Literal["homothety_point"] = "homothety_point"
     center: str
-    object_id: str = Field(
-        validation_alias=AliasChoices("object", "point"),
-        serialization_alias="object",
-    )
+    point: str
     ratio_point: str
 
 
@@ -345,7 +342,7 @@ class HomothetyScalar(GeometryObjectBase):
 
 
 class HomothetyPoint(GeometryObjectBase):
-    kind: Literal["point", "line", "segment", "circle", "polygon"]
+    kind: Literal["point"] = "point"
     definition: HomothetyPointDefinition
 
 

@@ -987,7 +987,6 @@ def _create_homothety(workspace: GeometryWorkspace, raw_input: BaseModel) -> Mut
     obj = HomothetyScalar(
         id=input_model.object_id,
         label=input_model.label or input_model.object_id,
-        kind=point.object.kind,
         definition=HomothetyScalarDefinition(
             center=center.object.id,
             point=point.object.id,

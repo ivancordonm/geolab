@@ -109,7 +109,7 @@ def get_parent_ids(obj: GeometryObject) -> list[str]:
     if isinstance(definition, HomothetyScalarDefinition):
         return [definition.center, definition.object_id]
     if isinstance(definition, HomothetyPointDefinition):
-        return [definition.center, definition.object_id, definition.ratio_point]
+        return [definition.center, definition.point, definition.ratio_point]
     if isinstance(definition, InversionInCircleDefinition):
         return [definition.point, definition.circle]
     if isinstance(definition, TranslationDefinition):
@@ -296,15 +296,7 @@ class GeometryGraph:
                 raise GeometryValidationError(f"Object '{obj.id}' ratio must be non-zero for {actual}s")
         elif isinstance(definition, HomothetyPointDefinition):
             require_kind(definition.center, "point")
-            actual = self._objects_by_id[definition.object_id].kind
-            if actual not in {"point", "line", "segment", "circle", "polygon"}:
-                raise GeometryValidationError(
-                    f"Object '{obj.id}' requires parent '{definition.object_id}' to be scalable"
-                )
-            if obj.kind != actual:
-                raise GeometryValidationError(
-                    f"Object '{obj.id}' must keep the scaled kind '{actual}'"
-                )
+            require_kind(definition.point, "point")
             require_kind(definition.ratio_point, "point")
         elif isinstance(definition, InversionInCircleDefinition):
             require_kind(definition.point, "point")
@@ -588,22 +580,20 @@ class GeometryGraph:
             ctr = self._require_value(obj.id, definition.center, "point")
             if isinstance(ctr, UndefinedValue):
                 return ctr
-            assert isinstance(ctr, PointValue)
-            source = self._require_value(obj.id, definition.object_id, obj.kind)
-            if isinstance(source, UndefinedValue):
-                return source
+            pt = self._require_value(obj.id, definition.point, "point")
+            if isinstance(pt, UndefinedValue):
+                return pt
             rp = self._require_value(obj.id, definition.ratio_point, "point")
             if isinstance(rp, UndefinedValue):
                 return rp
+            assert isinstance(ctr, PointValue)
+            assert isinstance(pt, PointValue)
             assert isinstance(rp, PointValue)
-            ref = _reference_point_for_ratio(source, ctr)
-            dop = hypot(ref.x - ctr.x, ref.y - ctr.y)
+            dop = hypot(pt.x - ctr.x, pt.y - ctr.y)
             if dop <= GEOMETRY_EPSILON:
-                return UndefinedValue(code="coincident_points", message="Center and reference point coincide")
+                return UndefinedValue(code="coincident_points", message="Center and source point coincide")
             k = hypot(rp.x - ctr.x, rp.y - ctr.y) / dop
-            if k == 0 and source.type != "point":
-                return UndefinedValue(code="zero_ratio", message="A zero homothety ratio is only supported for points")
-            return _scale_value(source, ctr, k)
+            return PointValue(x=_clean_zero(ctr.x + k * (pt.x - ctr.x)), y=_clean_zero(ctr.y + k * (pt.y - ctr.y)))
 
         if isinstance(definition, InversionInCircleDefinition):
             pt = self._require_value(obj.id, definition.point, "point")
@@ -987,28 +977,6 @@ def _scale_value(value: EvaluatedValue, center: PointValue, ratio: float) -> Eva
                     for vertex in value.vertices
                 )
             ]
-        )
-    raise GeometryValidationError(f"Homothety is unsupported for evaluated type '{value.type}'")
-
-
-def _reference_point_for_ratio(value: EvaluatedValue, center: PointValue) -> PointValue:
-    if isinstance(value, PointValue):
-        return value
-    if isinstance(value, LineValue):
-        d = value.a * center.x + value.b * center.y + value.c
-        return PointValue(x=_clean_zero(center.x - value.a * d), y=_clean_zero(center.y - value.b * d))
-    if isinstance(value, SegmentValue):
-        return PointValue(
-            x=_clean_zero((value.start.x + value.end.x) / 2),
-            y=_clean_zero((value.start.y + value.end.y) / 2),
-        )
-    if isinstance(value, CircleValue):
-        return PointValue(x=value.center.x, y=value.center.y)
-    if isinstance(value, PolygonValue):
-        count = len(value.vertices)
-        return PointValue(
-            x=_clean_zero(sum(vertex.x for vertex in value.vertices) / count),
-            y=_clean_zero(sum(vertex.y for vertex in value.vertices) / count),
         )
     raise GeometryValidationError(f"Homothety is unsupported for evaluated type '{value.type}'")
 

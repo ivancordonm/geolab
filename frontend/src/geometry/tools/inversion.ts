@@ -5,6 +5,7 @@ import type {
   EvaluationMap,
   GeometryDocument,
   GeometryObject,
+  HomothetyPoint,
   HomothetyScalar,
   IntersectionLC,
   IntersectionLL,
@@ -34,10 +35,10 @@ type LineObject = Extract<GeometryObject, { kind: "line" }>;
 type CircleObject = Extract<GeometryObject, { kind: "circle" }>;
 type SegmentObject = Extract<GeometryObject, { kind: "segment" }>;
 type PolygonObject = Extract<GeometryObject, { kind: "polygon" }>;
-type SourceLineObject = Exclude<LineObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar>;
-type SourceCircleObject = Exclude<CircleObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar>;
-type SourceSegmentObject = Exclude<SegmentObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar>;
-type SourcePolygonObject = Exclude<PolygonObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar>;
+type SourceLineObject = Exclude<LineObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar | HomothetyPoint>;
+type SourceCircleObject = Exclude<CircleObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar | HomothetyPoint>;
+type SourceSegmentObject = Exclude<SegmentObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar | HomothetyPoint>;
+type SourcePolygonObject = Exclude<PolygonObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar | HomothetyPoint>;
 
 export function createInversionConstruction(
   document: GeometryDocument,

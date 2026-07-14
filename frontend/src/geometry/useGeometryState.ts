@@ -293,9 +293,7 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
     if (target === undefined || (target.definition.type !== "homothety_scalar" && target.definition.type !== "homothety_point")) return;
     if (target.definition.type === "homothety_scalar" && target.definition.ratio === ratio) return;
     const centerId = target.definition.center;
-    const sourceId = target.definition.type === "homothety_scalar"
-      ? (target.definition.object ?? target.definition.point)
-      : target.definition.point;
+    const sourceId = target.definition.object ?? target.definition.point;
     if (sourceId === undefined || (ratio === 0 && target.kind !== "point")) return;
     recordDocumentChange();
     const nextDocument: GeometryDocument = {

@@ -315,6 +315,63 @@ describe("GeometryGraph", () => {
     expect(() => new GeometryGraph(document)).toThrow("ratio must be non-zero");
   });
 
+  it("scales a complete object with a point-ratio homothety", () => {
+    const document: GeometryDocument = {
+      schemaVersion: 1,
+      id: "point-ratio-homothety-objects",
+      title: "Point-ratio homothety objects",
+      objects: [
+        { id: "B", label: "B", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+        { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 1, y: 1 } },
+        { id: "D", label: "D", kind: "point", visible: true, definition: { type: "free", x: 2, y: -1 } },
+        { id: "V", label: "V", kind: "point", visible: true, definition: { type: "free", x: 3, y: 0 } },
+        { id: "S", label: "S", kind: "segment", visible: true, definition: { type: "between_points", pointA: "A", pointB: "D" } },
+        { id: "HP", label: "HP", kind: "segment", visible: true, definition: { type: "homothety_point", center: "B", object: "S", ratioPoint: "V" } },
+      ],
+    };
+
+    expect(new GeometryGraph(document).values.get("HP")).toEqual({
+      type: "segment", start: { x: 2, y: 2 }, end: { x: 4, y: -2 },
+    });
+  });
+
+  it("marks a point-ratio homothety zero_ratio for a non-point with a coincident ratio point", () => {
+    const document: GeometryDocument = {
+      schemaVersion: 1,
+      id: "zero-point-ratio-homothety",
+      title: "Zero point-ratio homothety",
+      objects: [
+        { id: "B", label: "B", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+        { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 1, y: 1 } },
+        { id: "D", label: "D", kind: "point", visible: true, definition: { type: "free", x: 2, y: -1 } },
+        { id: "S", label: "S", kind: "segment", visible: true, definition: { type: "between_points", pointA: "A", pointB: "D" } },
+        { id: "HP", label: "HP", kind: "segment", visible: true, definition: { type: "homothety_point", center: "B", object: "S", ratioPoint: "B" } },
+      ],
+    };
+
+    const value = new GeometryGraph(document).values.get("HP");
+    expect(value?.type).toBe("undefined");
+    expect((value as { code: string }).code).toBe("zero_ratio");
+  });
+
+  it("rejects a point-ratio homothety kind mismatch", () => {
+    const document: GeometryDocument = {
+      schemaVersion: 1,
+      id: "mismatch-point-ratio-homothety",
+      title: "Mismatch point-ratio homothety",
+      objects: [
+        { id: "B", label: "B", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+        { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 1, y: 0 } },
+        { id: "D", label: "D", kind: "point", visible: true, definition: { type: "free", x: 2, y: 1 } },
+        { id: "V", label: "V", kind: "point", visible: true, definition: { type: "free", x: 3, y: 0 } },
+        { id: "S", label: "S", kind: "segment", visible: true, definition: { type: "between_points", pointA: "A", pointB: "D" } },
+        { id: "HP", label: "HP", kind: "point", visible: true, definition: { type: "homothety_point", center: "B", object: "S", ratioPoint: "V" } },
+      ],
+    };
+
+    expect(() => new GeometryGraph(document)).toThrow("must keep the scaled kind");
+  });
+
   it("translates complete objects, not only points", () => {
     const doc: GeometryDocument = {
       schemaVersion: 1,

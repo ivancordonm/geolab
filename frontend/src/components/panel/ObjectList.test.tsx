@@ -159,4 +159,35 @@ describe("ObjectList", () => {
     expect(input).toHaveValue(2);
   });
 
+  it("shows the ratio of a point-ratio homothety over a non-point object", () => {
+    const document = {
+      ...exampleGeometryDocument,
+      objects: [
+        ...exampleGeometryDocument.objects,
+        { id: "V", label: "V", kind: "point" as const, visible: true, definition: { type: "free" as const, x: 1, y: 11 } },
+        {
+          id: "H",
+          label: "H",
+          kind: "segment" as const,
+          visible: true,
+          definition: { type: "homothety_point" as const, center: "C", object: "base", ratioPoint: "V" },
+        },
+      ],
+    };
+    const graph = new GeometryGraph(document);
+
+    render(
+      <ObjectList
+        document={graph.document}
+        values={graph.values}
+        selectedObjectId={null}
+        onSelectObject={() => undefined}
+        onToggleVisibility={() => undefined}
+        onUpdateHomothetyRatio={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("Ratio for H")).toHaveValue(2);
+  });
+
 });

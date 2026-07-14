@@ -61,10 +61,10 @@ type SegmentObject = Extract<GeometryObject, { kind: "segment" }>;
 type PolygonObject = Extract<GeometryObject, { kind: "polygon" }>;
 type ReflectableObject = Extract<GeometryObject, { kind: "point" | "line" | "segment" | "circle" | "polygon" }>;
 type ReflectionObject = ReflectionOverLine | ReflectionOverPoint;
-type SourceLineObject = Exclude<LineObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar>;
-type SourceCircleObject = Exclude<CircleObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar>;
-type SourceSegmentObject = Exclude<SegmentObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar>;
-type SourcePolygonObject = Exclude<PolygonObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar>;
+type SourceLineObject = Exclude<LineObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar | HomothetyPoint>;
+type SourceCircleObject = Exclude<CircleObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar | HomothetyPoint>;
+type SourceSegmentObject = Exclude<SegmentObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar | HomothetyPoint>;
+type SourcePolygonObject = Exclude<PolygonObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar | HomothetyPoint>;
 
 export interface ConstructionToolState {
   activeTool: ConstructionTool;
@@ -101,7 +101,7 @@ export const TOOL_INSTRUCTIONS: Record<ConstructionTool, string> = {
   circumcircle: "Click three points to draw the circumscribed circle.",
   reflect_line: "Select the object to reflect, then select the mirror line.",
   reflect_point: "Select the object to reflect, then select the center of symmetry.",
-  homothety: "Click center, then source point, then a point defining the ratio.",
+  homothety: "Click center, then the object to transform, then a point defining the ratio.",
   homothety_scalar: "Select the center, then the object to scale. Set the numeric ratio in the toolbar.",
   inversion: "Select the object to invert, then select the inversion circle.",
   translation: "Select the object to translate, then the start of the translation vector, then the end.",
@@ -126,7 +126,7 @@ const MULTI_STEP_REQUIREMENTS: Partial<Record<ConstructionTool, readonly Require
   circumcircle: ["point", "point", "point"],
   reflect_line: ["invertible", "line"],
   reflect_point: ["invertible", "point"],
-  homothety: ["point", "point", "point"],
+  homothety: ["point", "invertible", "point"],
   homothety_scalar: ["point", "invertible"],
   inversion: ["invertible", "circle"],
   translation: ["invertible", "point", "point"],
@@ -544,7 +544,17 @@ function createConstruction(
 
     case "homothety": {
       const id = nextObjectId(document, "ht");
-      const obj: HomothetyPoint = { id, label: id, kind: "point", visible: true, definition: { type: "homothety_point", center: first, point: second, ratioPoint: third } };
+      const source = requireObject(document, second);
+      if (!isReflectableObject(source)) {
+        throw new Error("Homothety requires a point, line, segment, circle, or polygon");
+      }
+      const obj = {
+        id,
+        label: id,
+        kind: source.kind,
+        visible: true,
+        definition: { type: "homothety_point", center: first, object: second, ratioPoint: third },
+      } as HomothetyPoint;
       return [obj];
     }
     case "homothety_scalar": {
@@ -1114,19 +1124,19 @@ function isReflectableObject(object: GeometryObject): object is ReflectableObjec
 }
 
 function isSourceLineObject(object: GeometryObject): object is SourceLineObject {
-  return object.kind === "line" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point" && object.definition.type !== "rotation" && object.definition.type !== "translation" && object.definition.type !== "homothety_scalar";
+  return object.kind === "line" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point" && object.definition.type !== "rotation" && object.definition.type !== "translation" && object.definition.type !== "homothety_scalar" && object.definition.type !== "homothety_point";
 }
 
 function isSourceCircleObject(object: GeometryObject): object is SourceCircleObject {
-  return object.kind === "circle" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point" && object.definition.type !== "rotation" && object.definition.type !== "translation" && object.definition.type !== "homothety_scalar";
+  return object.kind === "circle" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point" && object.definition.type !== "rotation" && object.definition.type !== "translation" && object.definition.type !== "homothety_scalar" && object.definition.type !== "homothety_point";
 }
 
 function isSourceSegmentObject(object: GeometryObject): object is SourceSegmentObject {
-  return object.kind === "segment" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point" && object.definition.type !== "rotation" && object.definition.type !== "translation" && object.definition.type !== "homothety_scalar";
+  return object.kind === "segment" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point" && object.definition.type !== "rotation" && object.definition.type !== "translation" && object.definition.type !== "homothety_scalar" && object.definition.type !== "homothety_point";
 }
 
 function isSourcePolygonObject(object: GeometryObject): object is SourcePolygonObject {
-  return object.kind === "polygon" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point" && object.definition.type !== "rotation" && object.definition.type !== "translation" && object.definition.type !== "homothety_scalar";
+  return object.kind === "polygon" && object.definition.type !== "reflection_over_line" && object.definition.type !== "reflection_over_point" && object.definition.type !== "rotation" && object.definition.type !== "translation" && object.definition.type !== "homothety_scalar" && object.definition.type !== "homothety_point";
 }
 
 function makeReflectionOverLine<K extends ReflectableObject["kind"]>(

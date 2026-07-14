@@ -2,7 +2,7 @@ import { Check, MoreVertical, Trash2, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { getParentIds } from "../../geometry/engine";
+import { getParentIds, referencePointForRatio } from "../../geometry/engine";
 import type { EvaluationMap, GeometryDocument, GeometryObject, GeometryStyle, StrokeDash } from "../../types/geometry";
 
 interface ObjectListProps {
@@ -393,10 +393,12 @@ function homothetyRatio(object: GeometryObject, values: EvaluationMap): number |
   if (object.definition.type === "homothety_scalar") return object.definition.ratio;
   if (object.definition.type !== "homothety_point") return null;
   const center = values.get(object.definition.center);
-  const point = values.get(object.definition.point);
+  const sourceId = object.definition.object ?? object.definition.point;
+  const source = sourceId === undefined ? undefined : values.get(sourceId);
   const ratioPoint = values.get(object.definition.ratioPoint);
-  if (center?.type !== "point" || point?.type !== "point" || ratioPoint?.type !== "point") return null;
-  const sourceDistance = Math.hypot(point.x - center.x, point.y - center.y);
+  if (center?.type !== "point" || source === undefined || source.type === "undefined" || ratioPoint?.type !== "point") return null;
+  const reference = referencePointForRatio(source, center);
+  const sourceDistance = Math.hypot(reference.x - center.x, reference.y - center.y);
   if (sourceDistance === 0) return null;
   return Math.hypot(ratioPoint.x - center.x, ratioPoint.y - center.y) / sourceDistance;
 }

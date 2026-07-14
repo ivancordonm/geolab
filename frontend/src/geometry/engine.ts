@@ -67,7 +67,7 @@ export function getParentIds(object: GeometryObject): GeometryObjectId[] {
     case "homothety_scalar":
       return [object.definition.center, object.definition.object ?? object.definition.point!];
     case "homothety_point":
-      return [object.definition.center, object.definition.point, object.definition.ratioPoint];
+      return [object.definition.center, object.definition.object ?? object.definition.point!, object.definition.ratioPoint];
     case "inversion_in_circle":
       return [object.definition.point, object.definition.circle];
     case "translation":
@@ -335,9 +335,21 @@ export class GeometryGraph {
         return;
         }
       case "homothety_point":
-        requireKind(def.center, "point");
-        requireKind(def.point, "point");
-        requireKind(def.ratioPoint, "point");
+        {
+          const sourceId = def.object ?? def.point!;
+          requireKind(def.center, "point");
+          const parent = this.objectsById.get(sourceId);
+          const actual = parent?.kind;
+          if (actual === undefined || !["point", "line", "segment", "circle", "polygon"].includes(actual)) {
+            throw new GeometryValidationError(
+              `Object '${object.id}' requires parent '${sourceId}' to be scalable`,
+            );
+          }
+          if (object.kind !== actual) {
+            throw new GeometryValidationError(`Object '${object.id}' must keep the scaled kind '${actual}'`);
+          }
+          requireKind(def.ratioPoint, "point");
+        }
         return;
       case "inversion_in_circle":
         requireKind(def.point, "point");
@@ -650,21 +662,24 @@ export class GeometryGraph {
       case "homothety_point": {
         const ctr = this.requireValue<PointValue>(object.id, def.center, "point");
         if (isUndefined(ctr)) return ctr;
-        const pt = this.requireValue<PointValue>(object.id, def.point, "point");
-        if (isUndefined(pt)) return pt;
+        const source = this.requireValue<EvaluatedValue>(
+          object.id,
+          def.object ?? def.point!,
+          object.kind as EvaluatedValue["type"],
+        );
+        if (isUndefined(source)) return source;
         const rp = this.requireValue<PointValue>(object.id, def.ratioPoint, "point");
         if (isUndefined(rp)) return rp;
-        const dop = Math.hypot(pt.x - ctr.x, pt.y - ctr.y);
-        const dor = Math.hypot(rp.x - ctr.x, rp.y - ctr.y);
+        const ref = referencePointForRatio(source, ctr);
+        const dop = Math.hypot(ref.x - ctr.x, ref.y - ctr.y);
         if (dop <= GEOMETRY_EPSILON) {
-          return { type: "undefined", code: "coincident_points", message: "Center and source point coincide" };
+          return { type: "undefined", code: "coincident_points", message: "Center and reference point coincide" };
         }
-        const k = dor / dop;
-        return {
-          type: "point",
-          x: cleanZero(ctr.x + k * (pt.x - ctr.x)),
-          y: cleanZero(ctr.y + k * (pt.y - ctr.y)),
-        };
+        const k = Math.hypot(rp.x - ctr.x, rp.y - ctr.y) / dop;
+        if (k === 0 && source.type !== "point") {
+          return { type: "undefined", code: "zero_ratio", message: "A zero homothety ratio is only supported for points" };
+        }
+        return scaleValue(source, ctr, k);
       }
 
       case "inversion_in_circle": {
@@ -1106,6 +1121,35 @@ function scaleValue(value: EvaluatedValue, center: PointValue, ratio: number): E
           return { x: scaled.x, y: scaled.y };
         }),
       };
+    default:
+      throw new GeometryValidationError(`Homothety is unsupported for evaluated type '${value.type}'`);
+  }
+}
+
+export function referencePointForRatio(value: EvaluatedValue, center: PointValue): PointValue {
+  switch (value.type) {
+    case "point":
+      return value;
+    case "line": {
+      const d = value.a * center.x + value.b * center.y + value.c;
+      return { type: "point", x: cleanZero(center.x - value.a * d), y: cleanZero(center.y - value.b * d) };
+    }
+    case "segment":
+      return {
+        type: "point",
+        x: cleanZero((value.start.x + value.end.x) / 2),
+        y: cleanZero((value.start.y + value.end.y) / 2),
+      };
+    case "circle":
+      return { type: "point", x: value.center.x, y: value.center.y };
+    case "polygon": {
+      const count = value.vertices.length;
+      return {
+        type: "point",
+        x: cleanZero(value.vertices.reduce((sum, vertex) => sum + vertex.x, 0) / count),
+        y: cleanZero(value.vertices.reduce((sum, vertex) => sum + vertex.y, 0) / count),
+      };
+    }
     default:
       throw new GeometryValidationError(`Homothety is unsupported for evaluated type '${value.type}'`);
   }

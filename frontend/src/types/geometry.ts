@@ -136,10 +136,17 @@ export type HomothetyScalar = {
   [K in ReflectableKind]: HomothetyScalarForKind<K>;
 }[ReflectableKind];
 
-export interface HomothetyPoint extends GeometryObjectBase {
-  kind: "point";
-  definition: { type: "homothety_point"; center: GeometryObjectId; point: GeometryObjectId; ratioPoint: GeometryObjectId };
+interface HomothetyPointForKind<K extends ReflectableKind> extends GeometryObjectBase {
+  kind: K;
+  /** `point` is retained only to read documents saved before point-ratio homotheties supported all transformable objects. */
+  definition:
+    | { type: "homothety_point"; center: GeometryObjectId; object: GeometryObjectId; point?: GeometryObjectId; ratioPoint: GeometryObjectId }
+    | { type: "homothety_point"; center: GeometryObjectId; point: GeometryObjectId; object?: GeometryObjectId; ratioPoint: GeometryObjectId };
 }
+
+export type HomothetyPoint = {
+  [K in ReflectableKind]: HomothetyPointForKind<K>;
+}[ReflectableKind];
 
 export interface InversionInCircle extends GeometryObjectBase {
   kind: "point";

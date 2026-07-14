@@ -243,6 +243,38 @@ describe("document persistence", () => {
     );
   });
 
+  it("exports a point-ratio homothety of a non-point object using the canonical object field", () => {
+    // Regression test: objectToScript's "homothety_point" case must read the
+    // canonical `object` field (falling back to the legacy `point` field only
+    // when `object` is absent). A prior version of this code read `point`
+    // alone, which emitted `undefined` as the scaled reference whenever the
+    // object had round-tripped through the backend (which serializes the
+    // field as `object`).
+    const document: GeometryDocument = {
+      schemaVersion: 1,
+      id: "homothety-point-object-export",
+      title: "Homothety point-ratio export",
+      objects: [
+        { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+        { id: "B", label: "B", kind: "point", visible: true, definition: { type: "free", x: 4, y: 0 } },
+        { id: "O", label: "O", kind: "point", visible: true, definition: { type: "free", x: 1, y: 1 } },
+        { id: "R", label: "R", kind: "point", visible: true, definition: { type: "free", x: 2, y: 2 } },
+        { id: "s", label: "s", kind: "segment", visible: true, definition: { type: "between_points", pointA: "A", pointB: "B" } },
+        {
+          id: "hp",
+          label: "hp",
+          kind: "segment",
+          visible: true,
+          definition: { type: "homothety_point", center: "O", object: "s", ratioPoint: "R" },
+        },
+      ],
+    };
+
+    const script = documentToScript(document);
+
+    expect(script).toContain("hp = Homothety(O, s, R)");
+  });
+
   it("saves and restores every polygon variant", () => {
     const document: GeometryDocument = {
       schemaVersion: 1,

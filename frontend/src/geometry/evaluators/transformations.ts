@@ -50,14 +50,15 @@ export function evaluateTransformationFamily(object: GeometryObject, values: Eva
     case "homothety_scalar": {
       const ctr = requireValue<PointValue>(values, object.id, def.center, "point");
       if (isUndefined(ctr)) return ctr;
-      const pt = requireValue<PointValue>(values, object.id, def.point, "point");
-      if (isUndefined(pt)) return pt;
-      const k = def.ratio;
-      return {
-        type: "point",
-        x: cleanZero(ctr.x + k * (pt.x - ctr.x)),
-        y: cleanZero(ctr.y + k * (pt.y - ctr.y)),
-      };
+      const sourceId = def.object ?? def.point!;
+      const source = requireValue<EvaluatedValue>(
+        values,
+        object.id,
+        sourceId,
+        object.kind as EvaluatedValue["type"],
+      );
+      if (isUndefined(source)) return source;
+      return source;
     }
 
     case "homothety_point": {

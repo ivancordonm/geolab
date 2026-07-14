@@ -22,6 +22,10 @@ export interface ClippedLine {
   end: Coordinate;
 }
 
+/** Interactive zoom bounds in screen pixels per world unit. */
+export const MIN_VIEWPORT_SCALE = 2;
+export const MAX_VIEWPORT_SCALE = 180;
+
 export function worldToScreen(
   point: Coordinate,
   viewport: GeometryViewport,
@@ -129,7 +133,7 @@ export function zoomViewportAtScreenPoint(
   zoomFactor: number,
 ): GeometryViewport {
   const worldBefore = screenToWorld(screenPoint, viewport, size);
-  const scale = Math.min(180, Math.max(24, viewport.scale * zoomFactor));
+  const scale = Math.min(MAX_VIEWPORT_SCALE, Math.max(MIN_VIEWPORT_SCALE, viewport.scale * zoomFactor));
   const next = { ...viewport, scale };
   const worldAfter = screenToWorld(screenPoint, next, size);
   return {
@@ -138,4 +142,3 @@ export function zoomViewportAtScreenPoint(
     scale,
   };
 }
-

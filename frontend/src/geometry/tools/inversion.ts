@@ -5,6 +5,7 @@ import type {
   EvaluationMap,
   GeometryDocument,
   GeometryObject,
+  HomothetyScalar,
   IntersectionLC,
   IntersectionLL,
   InversionInCircle,
@@ -33,10 +34,10 @@ type LineObject = Extract<GeometryObject, { kind: "line" }>;
 type CircleObject = Extract<GeometryObject, { kind: "circle" }>;
 type SegmentObject = Extract<GeometryObject, { kind: "segment" }>;
 type PolygonObject = Extract<GeometryObject, { kind: "polygon" }>;
-type SourceLineObject = Exclude<LineObject, ReflectionObject | RotatedObject | TranslatedObject>;
-type SourceCircleObject = Exclude<CircleObject, ReflectionObject | RotatedObject | TranslatedObject>;
-type SourceSegmentObject = Exclude<SegmentObject, ReflectionObject | RotatedObject | TranslatedObject>;
-type SourcePolygonObject = Exclude<PolygonObject, ReflectionObject | RotatedObject | TranslatedObject>;
+type SourceLineObject = Exclude<LineObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar>;
+type SourceCircleObject = Exclude<CircleObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar>;
+type SourceSegmentObject = Exclude<SegmentObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar>;
+type SourcePolygonObject = Exclude<PolygonObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar>;
 
 export function createInversionConstruction(
   document: GeometryDocument,
@@ -437,8 +438,12 @@ function ensureCircleCenterPoint(
   getDocument: () => GeometryDocument,
   push: (object: GeometryObject) => void,
 ): string {
-  if (circle.definition.type === "center_through_point" || circle.definition.type === "center_radius") {
-    return circle.definition.center;
+  switch (circle.definition.type) {
+    case "center_through_point":
+    case "center_radius":
+      return circle.definition.center;
+    case "circumscribed":
+      break;
   }
 
   const line1: PerpendicularBisectorLine = {
@@ -565,13 +570,14 @@ function pointOnSegment(
 }
 
 function getCircleRadiusPointId(circle: SourceCircleObject): string {
-  if (circle.definition.type === "center_through_point") {
-    return circle.definition.point;
+  switch (circle.definition.type) {
+    case "center_through_point":
+      return circle.definition.point;
+    case "center_radius":
+      throw new Error(
+        "This construction requires a circle defined by a point on its circumference, not a scalar radius",
+      );
+    case "circumscribed":
+      return circle.definition.pointA;
   }
-  if (circle.definition.type === "center_radius") {
-    throw new Error(
-      "This construction requires a circle defined by a point on its circumference, not a scalar radius",
-    );
-  }
-  return circle.definition.pointA;
 }

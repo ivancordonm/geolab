@@ -247,7 +247,7 @@ describe("buildFunctionPathData", () => {
     ];
     const failures: string[] = [];
     for (const { expr, poleX } of cases) {
-      for (const scale of [24, 30, 40, 50, 60, 72, 100, 140, 180]) {
+      for (const scale of [2, 24, 30, 40, 50, 60, 72, 100, 140, 180]) {
         for (let cx = poleX - 2; cx <= poleX + 2; cx += 0.013) {
           const vp: GeometryViewport = { centerX: cx, centerY: 0, scale };
           const pathData = buildFunctionPathData(makeFunction(expr), vp, realSize);

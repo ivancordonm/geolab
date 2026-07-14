@@ -6,6 +6,8 @@ import {
   clientToSvgScreen,
   clipImplicitLineToBounds,
   getWorldBounds,
+  MAX_VIEWPORT_SCALE,
+  MIN_VIEWPORT_SCALE,
   screenToWorld,
   worldToScreen,
   zoomViewportAtScreenPoint,
@@ -44,6 +46,19 @@ describe("viewport coordinates", () => {
     expect(zoomed.scale).toBe(75);
   });
 
+  it("allows a much wider view while preserving the cursor anchor at the zoom bounds", () => {
+    const cursor = { x: 720, y: 180 };
+    const wideViewport: GeometryViewport = { centerX: 2, centerY: 1, scale: MIN_VIEWPORT_SCALE };
+    const before = screenToWorld(cursor, wideViewport, size);
+    const zoomedOut = zoomViewportAtScreenPoint(wideViewport, cursor, size, 1 / 1.12);
+    const after = screenToWorld(cursor, zoomedOut, size);
+
+    expect(zoomedOut.scale).toBe(MIN_VIEWPORT_SCALE);
+    expect(after.x).toBeCloseTo(before.x, 12);
+    expect(after.y).toBeCloseTo(before.y, 12);
+    expect(zoomViewportAtScreenPoint({ ...viewport, scale: MAX_VIEWPORT_SCALE }, cursor, size, 1.12).scale).toBe(MAX_VIEWPORT_SCALE);
+  });
+
   it("clips implicit lines to visible world bounds", () => {
     const bounds = getWorldBounds({ centerX: 0, centerY: 0, scale: 50 }, size);
     const horizontal = clipImplicitLineToBounds(
@@ -65,4 +80,3 @@ describe("viewport coordinates", () => {
     expect(chooseGridStep(140)).toBe(1);
   });
 });
-

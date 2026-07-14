@@ -70,6 +70,35 @@ describe("ConstructionToolController", () => {
     expectValidAdditions(baseDocument, result.createdObjects!);
   });
 
+  it("creates a numeric homothety of a complete transformable object", () => {
+    const controller = new ConstructionToolController();
+    controller.activate("homothety_scalar");
+    controller.setHomothetyRatio(-2);
+
+    controller.handleObjectClick("A", baseDocument);
+    const result = controller.handleObjectClick("AB", baseDocument);
+
+    expect(result.createdObjects).toEqual([
+      expect.objectContaining({
+        kind: "line",
+        definition: { type: "homothety_scalar", center: "A", object: "AB", ratio: -2 },
+      }),
+    ]);
+    expectValidAdditions(baseDocument, result.createdObjects!);
+  });
+
+  it("reports a validation error instead of throwing for zero scaling of a non-point", () => {
+    const controller = new ConstructionToolController();
+    controller.activate("homothety_scalar");
+    controller.setHomothetyRatio(0);
+    controller.handleObjectClick("A", baseDocument);
+
+    const result = controller.handleObjectClick("AB", baseDocument);
+
+    expect(result.createdObjects).toBeUndefined();
+    expect(result.state.error).toContain("zero homothety ratio");
+  });
+
   it("inverts a line into a circle when the inversion center is off the line", () => {
     const controller = new ConstructionToolController();
     controller.activate("inversion");
@@ -377,6 +406,32 @@ describe("useConstructionTools", () => {
 });
 
 describe("useGeometryState", () => {
+  it("edits a graphical homothety into a numeric one and supports undo", () => {
+    const document: GeometryDocument = {
+      ...baseDocument,
+      objects: [
+        ...baseDocument.objects,
+        {
+          id: "H",
+          label: "H",
+          kind: "point",
+          visible: true,
+          definition: { type: "homothety_point", center: "A", point: "B", ratioPoint: "C" },
+        },
+      ],
+    };
+    const { result } = renderHook(() => useGeometryState(document));
+
+    act(() => result.current.updateHomothetyRatio("H", -0.5));
+
+    expect(result.current.document.objects.find((object) => object.id === "H")?.definition).toEqual({
+      type: "homothety_scalar", center: "A", object: "B", ratio: -0.5,
+    });
+    expect(result.current.values.get("H")).toEqual({ type: "point", x: -2, y: 0 });
+
+    act(() => result.current.undo());
+    expect(result.current.document.objects.find((object) => object.id === "H")?.definition.type).toBe("homothety_point");
+  });
   it("applies vector-polygon creation and auxiliary-point removal atomically", () => {
     const document: GeometryDocument = {
       schemaVersion: 1,

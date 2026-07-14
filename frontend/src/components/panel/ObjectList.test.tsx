@@ -106,4 +106,57 @@ describe("ObjectList", () => {
     expect(screen.queryByRole("button", { name: /add object command/i })).toBeNull();
   });
 
+  it("shows and commits the ratio of a homothety", async () => {
+    const user = userEvent.setup();
+    const document = {
+      ...exampleGeometryDocument,
+      objects: [
+        ...exampleGeometryDocument.objects,
+        {
+          id: "H",
+          label: "H",
+          kind: "point" as const,
+          visible: true,
+          definition: { type: "homothety_scalar" as const, center: "A", object: "B", ratio: 2 },
+        },
+      ],
+    };
+    const graph = new GeometryGraph(document);
+    const onUpdateHomothetyRatio = vi.fn();
+
+    render(
+      <ObjectList
+        document={graph.document}
+        values={graph.values}
+        selectedObjectId={null}
+        onSelectObject={() => undefined}
+        onToggleVisibility={() => undefined}
+        onUpdateHomothetyRatio={onUpdateHomothetyRatio}
+      />,
+    );
+
+    const input = screen.getByLabelText("Ratio for H");
+    expect(input).toHaveValue(2);
+    await user.clear(input);
+    await user.type(input, "-3{Enter}");
+    expect(onUpdateHomothetyRatio).toHaveBeenCalledWith("H", -3);
+  });
+
+  it("cancels a homothety ratio edit with Escape", async () => {
+    const user = userEvent.setup();
+    const document = {
+      ...exampleGeometryDocument,
+      objects: [...exampleGeometryDocument.objects, { id: "H", label: "H", kind: "point" as const, visible: true, definition: { type: "homothety_scalar" as const, center: "A", object: "B", ratio: 2 } }],
+    };
+    const graph = new GeometryGraph(document);
+    const onUpdateHomothetyRatio = vi.fn();
+    render(<ObjectList document={graph.document} values={graph.values} selectedObjectId={null} onSelectObject={() => undefined} onToggleVisibility={() => undefined} onUpdateHomothetyRatio={onUpdateHomothetyRatio} />);
+
+    const input = screen.getByLabelText("Ratio for H");
+    await user.clear(input);
+    await user.type(input, "-3{Escape}");
+    expect(onUpdateHomothetyRatio).not.toHaveBeenCalled();
+    expect(input).toHaveValue(2);
+  });
+
 });

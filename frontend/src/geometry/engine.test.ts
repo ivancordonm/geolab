@@ -279,6 +279,42 @@ describe("GeometryGraph", () => {
     }
   });
 
+  it("scales complete objects with a numeric homothety", () => {
+    const document: GeometryDocument = {
+      schemaVersion: 1,
+      id: "homothety-objects",
+      title: "Homothety objects",
+      objects: [
+        { id: "O", label: "O", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+        { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 1, y: 2 } },
+        { id: "B", label: "B", kind: "point", visible: true, definition: { type: "free", x: 3, y: 2 } },
+        { id: "S", label: "S", kind: "segment", visible: true, definition: { type: "between_points", pointA: "A", pointB: "B" } },
+        { id: "HS", label: "HS", kind: "segment", visible: true, definition: { type: "homothety_scalar", center: "O", object: "S", ratio: -2 } },
+      ],
+    };
+
+    expect(new GeometryGraph(document).values.get("HS")).toEqual({
+      type: "segment", start: { x: -2, y: -4 }, end: { x: -6, y: -4 },
+    });
+  });
+
+  it("rejects a zero numeric homothety for non-point objects", () => {
+    const document: GeometryDocument = {
+      schemaVersion: 1,
+      id: "zero-homothety",
+      title: "Zero homothety",
+      objects: [
+        { id: "O", label: "O", kind: "point", visible: true, definition: { type: "free", x: 0, y: 0 } },
+        { id: "A", label: "A", kind: "point", visible: true, definition: { type: "free", x: 1, y: 0 } },
+        { id: "B", label: "B", kind: "point", visible: true, definition: { type: "free", x: 2, y: 0 } },
+        { id: "S", label: "S", kind: "segment", visible: true, definition: { type: "between_points", pointA: "A", pointB: "B" } },
+        { id: "HS", label: "HS", kind: "segment", visible: true, definition: { type: "homothety_scalar", center: "O", object: "S", ratio: 0 } },
+      ],
+    };
+
+    expect(() => new GeometryGraph(document)).toThrow("ratio must be non-zero");
+  });
+
   it("translates complete objects, not only points", () => {
     const doc: GeometryDocument = {
       schemaVersion: 1,

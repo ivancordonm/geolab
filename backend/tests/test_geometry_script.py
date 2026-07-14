@@ -479,6 +479,30 @@ C = IntersectionCC(cA,cB,1)"""
     assert values["C"].type == "point"
 
 
+def test_numeric_homothety_scales_a_segment_and_preserves_legacy_point_field() -> None:
+    script = """O = Point(0, 0)
+A = Point(1, 2)
+B = Point(3, 2)
+S = Segment(A, B)
+HS = Homothety(O, S, -2)"""
+
+    document, values = evaluate_script(script)
+
+    scaled = document.objects[-1]
+    assert scaled.kind == "segment"
+    assert scaled.definition.type == "homothety_scalar"
+    assert scaled.definition.object_id == "S"
+    assert values["HS"].model_dump() == {"type": "segment", "start": {"x": -2.0, "y": -4.0}, "end": {"x": -6.0, "y": -4.0}}
+
+    restored = geometry_document_from_json(
+        '{"schemaVersion":1,"id":"legacy","title":"Legacy","objects":['
+        '{"id":"O","label":"O","kind":"point","visible":true,"definition":{"type":"free","x":0,"y":0}},'
+        '{"id":"P","label":"P","kind":"point","visible":true,"definition":{"type":"free","x":2,"y":0}},'
+        '{"id":"H","label":"H","kind":"point","visible":true,"definition":{"type":"homothety_scalar","center":"O","point":"P","ratio":2}}]}'
+    )
+    assert restored.objects[-1].definition.object_id == "P"
+
+
 # ─── Anonymous command syntax (no explicit assignment) ─────────────────────────
 
 def test_bare_point_command_creates_auto_labelled_point() -> None:

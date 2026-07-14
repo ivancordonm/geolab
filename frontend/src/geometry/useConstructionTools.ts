@@ -28,6 +28,7 @@ export interface ConstructionToolsState extends ConstructionToolState {
   finish: () => void;
   setRegularPolygonSides: (sides: number) => void;
   setRotationAngle: (angle: number) => void;
+  setHomothetyRatio: (ratio: number) => void;
   handleCanvasClick: (world: Coordinate) => void;
   handleObjectClick: (objectId: string) => void;
   updatePointer: (world: Coordinate | null) => void;
@@ -76,6 +77,10 @@ export function useConstructionTools({
     setState(controllerRef.current.setRotationAngle(angle));
   }, []);
 
+  const setHomothetyRatio = useCallback((ratio: number) => {
+    setState(controllerRef.current.setHomothetyRatio(ratio));
+  }, []);
+
   const handleCanvasClick = useCallback(
     (world: Coordinate) => applyResult(controllerRef.current.handleCanvasClick(world, document)),
     [applyResult, document],
@@ -110,6 +115,7 @@ export function useConstructionTools({
     finish,
     setRegularPolygonSides,
     setRotationAngle,
+    setHomothetyRatio,
     handleCanvasClick,
     handleObjectClick,
     updatePointer,

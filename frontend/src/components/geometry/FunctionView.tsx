@@ -16,10 +16,10 @@ interface FunctionViewProps {
 
 const SAMPLE_COUNT = 240;
 const MAX_ABS_Y = 1e6;
-// Depth needed: step ≈ 0.04 at lowest zoom (scale 60); to reach |y| > MAX_ABS_Y
-// near a pole (e.g. 1/x), we need the interval < 1e-6, so ~16 halvings minimum.
-// 20 gives comfortable headroom. At most 20 evaluations per segment checked.
-const BISECTION_MAX_DEPTH = 20;
+// At the minimum scale the widest sampled interval is ≈2 world units. To reach
+// |y| > MAX_ABS_Y near a pole (e.g. 1/x), it needs <1e-6, or ~21 halvings.
+// 23 gives comfortable headroom without materially affecting rendering cost.
+const BISECTION_MAX_DEPTH = 23;
 
 export function buildFunctionPathData(
   object: FunctionGraph,

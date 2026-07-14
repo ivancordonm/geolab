@@ -34,6 +34,7 @@ export interface GeometryState {
   setObjectColor: (objectId: GeometryObjectId, color: string | null) => void;
   setObjectStyle: (objectId: GeometryObjectId, patch: Partial<GeometryStyle>) => void;
   updateFunctionExpression: (objectId: GeometryObjectId, expression: string) => void;
+  updateHomothetyRatio: (objectId: GeometryObjectId, ratio: number) => void;
   removeObject: (objectId: GeometryObjectId) => void;
   setObjectLabelOffset: (objectId: GeometryObjectId, x: number, y: number) => void;
   setViewport: (viewport: GeometryViewport) => void;
@@ -285,6 +286,31 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
     applyDocument(nextDocument);
   }, [applyDocument, recordDocumentChange]);
 
+  const updateHomothetyRatio = useCallback((objectId: GeometryObjectId, ratio: number) => {
+    if (!Number.isFinite(ratio)) return;
+    const currentDocument = graphRef.current!.document;
+    const target = currentDocument.objects.find((object) => object.id === objectId);
+    if (target === undefined || (target.definition.type !== "homothety_scalar" && target.definition.type !== "homothety_point")) return;
+    if (target.definition.type === "homothety_scalar" && target.definition.ratio === ratio) return;
+    const centerId = target.definition.center;
+    const sourceId = target.definition.type === "homothety_scalar"
+      ? (target.definition.object ?? target.definition.point)
+      : target.definition.point;
+    if (sourceId === undefined || (ratio === 0 && target.kind !== "point")) return;
+    recordDocumentChange();
+    const nextDocument: GeometryDocument = {
+      ...currentDocument,
+      objects: currentDocument.objects.map((object) => {
+        if (object.id !== objectId) return object;
+        return {
+          ...object,
+          definition: { type: "homothety_scalar", center: centerId, object: sourceId, ratio },
+        } as GeometryObject;
+      }),
+    };
+    applyDocument(nextDocument);
+  }, [applyDocument, recordDocumentChange]);
+
   const removeObject = useCallback((objectId: GeometryObjectId) => {
     const currentDocument = graphRef.current!.document;
     const removedIds = new Set<GeometryObjectId>([objectId]);
@@ -373,6 +399,7 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
     setObjectColor,
     setObjectStyle,
     updateFunctionExpression,
+    updateHomothetyRatio,
     removeObject,
     setObjectLabelOffset,
     setViewport,

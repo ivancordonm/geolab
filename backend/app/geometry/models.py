@@ -188,7 +188,10 @@ class ReflectionOverPointDefinition(GeometryModel):
 class HomothetyScalarDefinition(GeometryModel):
     type: Literal["homothety_scalar"] = "homothety_scalar"
     center: str
-    point: str
+    object_id: str = Field(
+        validation_alias=AliasChoices("object", "point"),
+        serialization_alias="object",
+    )
     ratio: float
 
 
@@ -334,7 +337,7 @@ class ReflectionOverPoint(GeometryObjectBase):
 
 
 class HomothetyScalar(GeometryObjectBase):
-    kind: Literal["point"] = "point"
+    kind: Literal["point", "line", "segment", "circle", "polygon"]
     definition: HomothetyScalarDefinition
 
 

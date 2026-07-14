@@ -107,7 +107,7 @@ def get_parent_ids(obj: GeometryObject) -> list[str]:
     if isinstance(definition, ReflectionOverPointDefinition):
         return [definition.object_id, definition.center]
     if isinstance(definition, HomothetyScalarDefinition):
-        return [definition.center, definition.point]
+        return [definition.center, definition.object_id]
     if isinstance(definition, HomothetyPointDefinition):
         return [definition.center, definition.point, definition.ratio_point]
     if isinstance(definition, InversionInCircleDefinition):
@@ -281,9 +281,19 @@ class GeometryGraph:
                 )
         elif isinstance(definition, HomothetyScalarDefinition):
             require_kind(definition.center, "point")
-            require_kind(definition.point, "point")
+            actual = self._objects_by_id[definition.object_id].kind
+            if actual not in {"point", "line", "segment", "circle", "polygon"}:
+                raise GeometryValidationError(
+                    f"Object '{obj.id}' requires parent '{definition.object_id}' to be scalable"
+                )
+            if obj.kind != actual:
+                raise GeometryValidationError(
+                    f"Object '{obj.id}' must keep the scaled kind '{actual}'"
+                )
             if not isfinite(definition.ratio):
                 raise GeometryValidationError(f"Object '{obj.id}' ratio must be finite")
+            if definition.ratio == 0 and actual != "point":
+                raise GeometryValidationError(f"Object '{obj.id}' ratio must be non-zero for {actual}s")
         elif isinstance(definition, HomothetyPointDefinition):
             require_kind(definition.center, "point")
             require_kind(definition.point, "point")
@@ -560,13 +570,11 @@ class GeometryGraph:
             ctr = self._require_value(obj.id, definition.center, "point")
             if isinstance(ctr, UndefinedValue):
                 return ctr
-            pt = self._require_value(obj.id, definition.point, "point")
-            if isinstance(pt, UndefinedValue):
-                return pt
             assert isinstance(ctr, PointValue)
-            assert isinstance(pt, PointValue)
-            k = definition.ratio
-            return PointValue(x=_clean_zero(ctr.x + k * (pt.x - ctr.x)), y=_clean_zero(ctr.y + k * (pt.y - ctr.y)))
+            source = self._require_value(obj.id, definition.object_id, obj.kind)
+            if isinstance(source, UndefinedValue):
+                return source
+            return _scale_value(source, ctr, definition.ratio)
 
         if isinstance(definition, HomothetyPointDefinition):
             ctr = self._require_value(obj.id, definition.center, "point")
@@ -935,6 +943,42 @@ def _rotate_value(value: EvaluatedValue, center: PointValue, degrees: float) -> 
             ]
         )
     raise GeometryValidationError(f"Rotation is unsupported for evaluated type '{value.type}'")
+
+
+def _scale_point(point: PointValue, center: PointValue, ratio: float) -> PointValue:
+    return PointValue(
+        x=_clean_zero(center.x + ratio * (point.x - center.x)),
+        y=_clean_zero(center.y + ratio * (point.y - center.y)),
+    )
+
+
+def _scale_value(value: EvaluatedValue, center: PointValue, ratio: float) -> EvaluatedValue:
+    if isinstance(value, PointValue):
+        return _scale_point(value, center, ratio)
+    if isinstance(value, LineValue):
+        p1, p2 = _line_sample_points(value)
+        return _line_through_points(_scale_point(p1, center, ratio), _scale_point(p2, center, ratio))
+    if isinstance(value, SegmentValue):
+        start = _scale_point(PointValue(x=value.start.x, y=value.start.y), center, ratio)
+        end = _scale_point(PointValue(x=value.end.x, y=value.end.y), center, ratio)
+        return SegmentValue(start=Coordinate(x=start.x, y=start.y), end=Coordinate(x=end.x, y=end.y))
+    if isinstance(value, CircleValue):
+        scaled_center = _scale_point(PointValue(x=value.center.x, y=value.center.y), center, ratio)
+        return CircleValue(
+            center=Coordinate(x=scaled_center.x, y=scaled_center.y),
+            radius=abs(ratio) * value.radius,
+        )
+    if isinstance(value, PolygonValue):
+        return PolygonValue(
+            vertices=[
+                Coordinate(x=scaled.x, y=scaled.y)
+                for scaled in (
+                    _scale_point(PointValue(x=vertex.x, y=vertex.y), center, ratio)
+                    for vertex in value.vertices
+                )
+            ]
+        )
+    raise GeometryValidationError(f"Homothety is unsupported for evaluated type '{value.type}'")
 
 
 def _intersect_line_circle(

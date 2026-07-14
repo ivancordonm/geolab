@@ -568,11 +568,20 @@ def _build_object(
     if command == "Homothety":
         _require_arity(statement, 3)
         center = _resolve_point_argument(arguments[0], statement, symbols, objects, argument_position=1)
-        src = _resolve_point_argument(arguments[1], statement, symbols, objects, argument_position=2)
         # 3rd argument: numeric ratio or point identifier
         if _NUMBER_PATTERN.fullmatch(arguments[2]) is not None:
+            src = _resolve_reference(arguments[1], statement, symbols, argument_position=2)
+            if src.kind not in {"point", "line", "segment", "circle", "polygon"}:
+                _raise(
+                    "invalid_reference_type",
+                    f"Argument 2 of Homothety must reference a transformable object, but '{src.id}' is a {src.kind}",
+                    statement.line, statement.source_line, src.id,
+                )
             ratio = _parse_number(arguments[2], statement, argument_position=3)
-            return [HomothetyScalar(id=statement.target, label=statement.target, definition=HomothetyScalarDefinition(center=center.id, point=src.id, ratio=ratio))]
+            if ratio == 0 and src.kind != "point":
+                _raise("invalid_argument", "A zero Homothety ratio is only supported for points", statement.line, statement.source_line)
+            return [HomothetyScalar(id=statement.target, label=statement.target, kind=src.kind, definition=HomothetyScalarDefinition(center=center.id, object_id=src.id, ratio=ratio))]
+        src = _resolve_point_argument(arguments[1], statement, symbols, objects, argument_position=2)
         ratio_pt = _resolve_reference(arguments[2], statement, symbols, argument_position=3)
         _require_kind(ratio_pt, "point", statement, 3)
         return [HomothetyPoint(id=statement.target, label=statement.target, definition=HomothetyPointDefinition(center=center.id, point=src.id, ratio_point=ratio_pt.id))]

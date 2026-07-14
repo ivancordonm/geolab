@@ -1,5 +1,5 @@
 import type { ComponentType, ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowLeftRight,
@@ -34,6 +34,8 @@ interface ConstructionToolbarProps {
   onRegularPolygonSidesChange?: (sides: number) => void;
   rotationAngle?: number;
   onRotationAngleChange?: (angle: number) => void;
+  homothetyRatio?: number;
+  onHomothetyRatioChange?: (ratio: number) => void;
   /** Controles adicionales (tema, reset view, persistencia) que se colocan bajo un divisor. */
   controls?: ReactNode;
 }
@@ -67,6 +69,7 @@ const TOOLS: readonly ToolEntry[] = [
   { tool: "reflect_line", label: "Reflect over line", icon: ArrowLeftRight },
   { tool: "reflect_point", label: "Reflect over point", icon: RefreshCcw },
   { tool: "homothety", label: "Homothety (point ratio)", icon: Maximize2 },
+  { tool: "homothety_scalar", label: "Homothety (numeric ratio)", icon: Maximize2 },
   { tool: "inversion", label: "Inversion in circle", icon: RefreshCw },
   { tool: "translation", label: "Translation", icon: Move },
   { tool: "rotation", label: "Rotate", icon: RotateCw },
@@ -90,13 +93,23 @@ export function ConstructionToolbar({
   onRegularPolygonSidesChange,
   rotationAngle = 45,
   onRotationAngleChange,
+  homothetyRatio = 1,
+  onHomothetyRatioChange,
   controls,
 }: ConstructionToolbarProps) {
   const hasInput =
     (activeTool === "rotation" && onRotationAngleChange !== undefined) ||
+    (activeTool === "homothety_scalar" && onHomothetyRatioChange !== undefined) ||
     (activeTool === "regular_polygon" && onRegularPolygonSidesChange !== undefined);
 
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+  const [homothetyRatioText, setHomothetyRatioText] = useState(String(homothetyRatio));
+  const editingHomothetyRatioRef = useRef(false);
+  const cancelHomothetyRatioEditRef = useRef(false);
+
+  useEffect(() => {
+    if (!editingHomothetyRatioRef.current) setHomothetyRatioText(String(homothetyRatio));
+  }, [homothetyRatio]);
 
   const showTooltip = (e: React.MouseEvent<HTMLButtonElement>, label: string, instruction: string) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -183,6 +196,48 @@ export function ConstructionToolbar({
                 onChange={(e) => {
                   const v = parseFloat(e.target.value);
                   if (!isNaN(v)) onRotationAngleChange(v);
+                }}
+                className="w-full rounded border border-edge bg-surface px-1.5 py-0.5 text-xs text-content focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+            </div>
+          </>
+        )}
+        {activeTool === "homothety_scalar" && onHomothetyRatioChange !== undefined && (
+          <>
+            <div className="my-0.5 h-px bg-edge" role="separator" />
+            <div className="flex flex-col gap-1 px-1">
+              <label className="text-[10px] font-semibold text-muted" htmlFor="homothety-ratio">
+                Ratio
+              </label>
+              <input
+                id="homothety-ratio"
+                type="number"
+                step="any"
+                value={homothetyRatioText}
+                onChange={(e) => {
+                  setHomothetyRatioText(e.target.value);
+                }}
+                onFocus={() => { editingHomothetyRatioRef.current = true; }}
+                onBlur={() => {
+                  editingHomothetyRatioRef.current = false;
+                  if (cancelHomothetyRatioEditRef.current) {
+                    cancelHomothetyRatioEditRef.current = false;
+                    return;
+                  }
+                  const v = Number(homothetyRatioText);
+                  if (homothetyRatioText.trim() !== "" && Number.isFinite(v)) {
+                    onHomothetyRatioChange(v);
+                  } else {
+                    setHomothetyRatioText(String(homothetyRatio));
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") e.currentTarget.blur();
+                  if (e.key === "Escape") {
+                    cancelHomothetyRatioEditRef.current = true;
+                    setHomothetyRatioText(String(homothetyRatio));
+                    e.currentTarget.blur();
+                  }
                 }}
                 className="w-full rounded border border-edge bg-surface px-1.5 py-0.5 text-xs text-content focus:outline-none focus:ring-1 focus:ring-brand-500"
               />

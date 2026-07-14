@@ -457,6 +457,8 @@ export function App() {
         onRegularPolygonSidesChange={constructionTools.setRegularPolygonSides}
         rotationAngle={constructionTools.rotationAngle}
         onRotationAngleChange={constructionTools.setRotationAngle}
+        homothetyRatio={constructionTools.homothetyRatio}
+        onHomothetyRatioChange={constructionTools.setHomothetyRatio}
         controls={toolbarControls}
       />
 
@@ -548,6 +550,7 @@ export function App() {
                     onSetObjectColor={geometry.setObjectColor}
                     onSetObjectStyle={geometry.setObjectStyle}
                     onUpdateFunctionExpression={geometry.updateFunctionExpression}
+                    onUpdateHomothetyRatio={geometry.updateHomothetyRatio}
                     onDeleteObject={handleDeleteObject}
                     onSubmitCommand={handleSubmitObjectCommand}
                   />

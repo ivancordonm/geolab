@@ -15,6 +15,7 @@ interface ObjectListProps {
   onSetObjectColor?: (objectId: string, color: string | null) => void;
   onSetObjectStyle?: (objectId: string, patch: Partial<GeometryStyle>) => void;
   onUpdateFunctionExpression?: (objectId: string, expression: string) => void;
+  onUpdateHomothetyRatio?: (objectId: string, ratio: number) => void;
   onDeleteObject?: (objectId: string) => void;
   onSubmitCommand?: (command: string) => Promise<void> | void;
 }
@@ -68,6 +69,7 @@ export function ObjectList({
   onSetObjectColor,
   onSetObjectStyle,
   onUpdateFunctionExpression,
+  onUpdateHomothetyRatio,
   onDeleteObject,
   onSubmitCommand,
 }: ObjectListProps) {
@@ -282,7 +284,7 @@ export function ObjectList({
                       object.visible ? "" : "opacity-40"
                     }`}
                   >
-                    <span className="block min-w-0">
+                    <span className="block min-w-0 flex-1">
                       <strong className="block truncate text-sm font-semibold text-content">
                         {object.label}
                       </strong>
@@ -306,6 +308,15 @@ export function ObjectList({
                     </span>
                   </button>
                 )}
+
+                {isHomothety(object) && onUpdateHomothetyRatio !== undefined ? (
+                  <HomothetyRatioInput
+                    key={`${object.id}:${homothetyRatio(object, values) ?? "undefined"}`}
+                    object={object}
+                    values={values}
+                    onCommit={(ratio) => onUpdateHomothetyRatio(object.id, ratio)}
+                  />
+                ) : null}
 
                 {/* Botón tres puntos */}
                 {(onSetObjectLabel !== undefined || onSetObjectColor !== undefined || onSetObjectStyle !== undefined || onDeleteObject !== undefined) && (
@@ -371,6 +382,77 @@ export function ObjectList({
         />
       )}
     </section>
+  );
+}
+
+function isHomothety(object: GeometryObject): boolean {
+  return object.definition.type === "homothety_scalar" || object.definition.type === "homothety_point";
+}
+
+function homothetyRatio(object: GeometryObject, values: EvaluationMap): number | null {
+  if (object.definition.type === "homothety_scalar") return object.definition.ratio;
+  if (object.definition.type !== "homothety_point") return null;
+  const center = values.get(object.definition.center);
+  const point = values.get(object.definition.point);
+  const ratioPoint = values.get(object.definition.ratioPoint);
+  if (center?.type !== "point" || point?.type !== "point" || ratioPoint?.type !== "point") return null;
+  const sourceDistance = Math.hypot(point.x - center.x, point.y - center.y);
+  if (sourceDistance === 0) return null;
+  return Math.hypot(ratioPoint.x - center.x, ratioPoint.y - center.y) / sourceDistance;
+}
+
+function HomothetyRatioInput({
+  object,
+  values,
+  onCommit,
+}: {
+  object: GeometryObject;
+  values: EvaluationMap;
+  onCommit: (ratio: number) => void;
+}) {
+  const initialRatio = homothetyRatio(object, values);
+  const [value, setValue] = useState(initialRatio === null ? "" : String(initialRatio));
+  const cancelEditRef = useRef(false);
+  const commit = () => {
+    const ratio = Number(value);
+    if (value.trim() !== "" && Number.isFinite(ratio) && !(ratio === 0 && object.kind !== "point")) {
+      onCommit(ratio);
+      return;
+    }
+    setValue(initialRatio === null ? "" : String(initialRatio));
+  };
+
+  return (
+    <label
+      className="flex w-20 shrink-0 flex-col justify-center gap-1 border-l border-edge bg-surface-muted px-2 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted"
+      onClick={(event) => event.stopPropagation()}
+    >
+      Ratio
+      <input
+        aria-label={`Ratio for ${object.label}`}
+        type="number"
+        step="any"
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") { event.preventDefault(); commit(); }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            cancelEditRef.current = true;
+            setValue(initialRatio === null ? "" : String(initialRatio));
+            (event.currentTarget as HTMLInputElement).blur();
+          }
+        }}
+        onBlur={() => {
+          if (cancelEditRef.current) {
+            cancelEditRef.current = false;
+            return;
+          }
+          commit();
+        }}
+        className="w-full rounded-md border border-edge bg-surface px-2 py-1 text-xs font-normal text-content outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-400"
+      />
+    </label>
   );
 }
 

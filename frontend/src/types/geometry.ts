@@ -124,10 +124,17 @@ export interface ReflectionOverPoint<K extends ReflectableKind = ReflectableKind
   definition: { type: "reflection_over_point"; object: GeometryObjectId; center: GeometryObjectId; point?: GeometryObjectId };
 }
 
-export interface HomothetyScalar extends GeometryObjectBase {
-  kind: "point";
-  definition: { type: "homothety_scalar"; center: GeometryObjectId; point: GeometryObjectId; ratio: number };
+interface HomothetyScalarForKind<K extends ReflectableKind> extends GeometryObjectBase {
+  kind: K;
+  /** `point` is retained only to read documents saved before scalar homotheties supported all transformable objects. */
+  definition:
+    | { type: "homothety_scalar"; center: GeometryObjectId; object: GeometryObjectId; point?: GeometryObjectId; ratio: number }
+    | { type: "homothety_scalar"; center: GeometryObjectId; point: GeometryObjectId; object?: GeometryObjectId; ratio: number };
 }
+
+export type HomothetyScalar = {
+  [K in ReflectableKind]: HomothetyScalarForKind<K>;
+}[ReflectableKind];
 
 export interface HomothetyPoint extends GeometryObjectBase {
   kind: "point";

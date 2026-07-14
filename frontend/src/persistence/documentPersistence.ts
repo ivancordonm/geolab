@@ -208,7 +208,7 @@ function objectToScript(
     case "reflection_over_point":
       return `${variable} = Reflection(${reference(object.definition.object ?? object.definition.point!)}, ${reference(object.definition.center)})`;
     case "homothety_scalar":
-      return `${variable} = Homothety(${reference(object.definition.center)}, ${reference(object.definition.point)}, ${formatNumber(object.definition.ratio)})`;
+      return `${variable} = Homothety(${reference(object.definition.center)}, ${reference(object.definition.object ?? object.definition.point!)}, ${formatNumber(object.definition.ratio)})`;
     case "homothety_point":
       return `${variable} = Homothety(${reference(object.definition.center)}, ${reference(object.definition.point)}, ${reference(object.definition.ratioPoint)})`;
     case "inversion_in_circle":

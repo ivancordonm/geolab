@@ -503,6 +503,73 @@ HS = Homothety(O, S, -2)"""
     assert restored.objects[-1].definition.object_id == "P"
 
 
+def test_point_ratio_homothety_scales_a_segment() -> None:
+    script = """B = Point(0, 0)
+A = Point(1, 1)
+D = Point(2, -1)
+V = Point(3, 0)
+S = Segment(A, D)
+HP = Homothety(B, S, V)"""
+
+    document, values = evaluate_script(script)
+
+    scaled = document.objects[-1]
+    assert scaled.kind == "segment"
+    assert scaled.definition.type == "homothety_point"
+    assert scaled.definition.object_id == "S"
+    assert values["HP"].model_dump() == {
+        "type": "segment",
+        "start": {"x": 2.0, "y": 2.0},
+        "end": {"x": 4.0, "y": -2.0},
+    }
+
+    restored = geometry_document_from_json(
+        '{"schemaVersion":1,"id":"legacy","title":"Legacy","objects":['
+        '{"id":"B","label":"B","kind":"point","visible":true,"definition":{"type":"free","x":0,"y":0}},'
+        '{"id":"A","label":"A","kind":"point","visible":true,"definition":{"type":"free","x":1,"y":0}},'
+        '{"id":"V","label":"V","kind":"point","visible":true,"definition":{"type":"free","x":2,"y":0}},'
+        '{"id":"H","label":"H","kind":"point","visible":true,"definition":'
+        '{"type":"homothety_point","center":"B","point":"A","ratioPoint":"V"}}]}'
+    )
+    assert restored.objects[-1].definition.object_id == "A"
+
+
+def test_point_ratio_homothety_rejects_non_transformable_object() -> None:
+    script = """B = Point(0, 0)
+V = Point(2, 0)
+f = Function(y = x)
+HP = Homothety(B, f, V)"""
+
+    with pytest.raises(ConstructionScriptError) as error_info:
+        evaluate_script(script)
+
+    assert error_info.value.diagnostic.code == "invalid_reference_type"
+
+
+def test_point_ratio_homothety_zero_ratio_is_undefined_for_non_point() -> None:
+    script = """B = Point(0, 0)
+A = Point(1, 1)
+D = Point(2, -1)
+S = Segment(A, D)
+HP = Homothety(B, S, B)"""
+
+    document, values = evaluate_script(script)
+
+    assert values["HP"].code == "zero_ratio"
+
+
+def test_point_ratio_homothety_coincident_reference_point_is_undefined() -> None:
+    script = """B = Point(0, 0)
+P1 = Point(1, 0)
+C = Circle(B, P1)
+V = Point(2, 0)
+HP = Homothety(B, C, V)"""
+
+    document, values = evaluate_script(script)
+
+    assert values["HP"].code == "coincident_points"
+
+
 # ─── Anonymous command syntax (no explicit assignment) ─────────────────────────
 
 def test_bare_point_command_creates_auto_labelled_point() -> None:

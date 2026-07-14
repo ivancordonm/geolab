@@ -269,3 +269,19 @@ def test_translation_models_accept_legacy_point_and_serialize_as_object() -> Non
     payload = json.loads(geometry_document_to_json(document))
     assert payload["objects"][-1]["definition"]["object"] == "A"
     assert "point" not in payload["objects"][-1]["definition"]
+
+
+def test_point_ratio_homothety_rejects_kind_mismatch() -> None:
+    document = geometry_document_from_json(
+        '{"schemaVersion":1,"id":"mismatch","title":"Mismatch","objects":['
+        '{"id":"B","label":"B","kind":"point","visible":true,"definition":{"type":"free","x":0,"y":0}},'
+        '{"id":"A","label":"A","kind":"point","visible":true,"definition":{"type":"free","x":1,"y":0}},'
+        '{"id":"D","label":"D","kind":"point","visible":true,"definition":{"type":"free","x":2,"y":1}},'
+        '{"id":"S","label":"S","kind":"segment","visible":true,'
+        '"definition":{"type":"between_points","pointA":"A","pointB":"D"}},'
+        '{"id":"V","label":"V","kind":"point","visible":true,"definition":{"type":"free","x":3,"y":0}},'
+        '{"id":"HP","label":"HP","kind":"point","visible":true,'
+        '"definition":{"type":"homothety_point","center":"B","object":"S","ratioPoint":"V"}}]}'
+    )
+    with pytest.raises(GeometryValidationError, match="must keep the scaled kind"):
+        GeometryGraph(document)

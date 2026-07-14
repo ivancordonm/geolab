@@ -83,7 +83,7 @@ export interface ConstructionToolResult {
   state: ConstructionToolState;
   createdObjects?: readonly GeometryObject[];
   removedObjectIds?: readonly string[];
-  selectedObjectId?: string;
+  selectedObjectId?: string | null;
 }
 
 export const TOOL_INSTRUCTIONS: Record<ConstructionTool, string> = {
@@ -233,7 +233,7 @@ export class ConstructionToolController {
 
   handleCanvasClick(world: Coordinate, document: GeometryDocument): ConstructionToolResult {
     if (this.stateValue.activeTool === "select") {
-      return { state: this.state };
+      return { state: this.state, selectedObjectId: null };
     }
 
     if (this.stateValue.activeTool === "point") {

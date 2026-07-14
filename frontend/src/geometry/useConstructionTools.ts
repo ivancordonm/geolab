@@ -18,7 +18,7 @@ interface UseConstructionToolsOptions {
     createdObjects: readonly GeometryObject[],
     removedObjectIds: readonly string[],
   ) => void;
-  onSelectObject: (objectId: string) => void;
+  onSelectObject: (objectId: string | null) => void;
 }
 
 export interface ConstructionToolsState extends ConstructionToolState {

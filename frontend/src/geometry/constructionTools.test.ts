@@ -356,6 +356,15 @@ describe("ConstructionToolController", () => {
     expect(result.createdObjects).toBeUndefined();
   });
 
+  it("clears the current selection when clicking empty canvas with the select tool", () => {
+    const controller = new ConstructionToolController();
+    controller.handleObjectClick("AB", baseDocument);
+
+    const result = controller.handleCanvasClick({ x: 1, y: 1 }, baseDocument);
+
+    expect(result.selectedObjectId).toBeNull();
+  });
+
   it("removes auto-created non-anchor points when finishing a vector polygon", () => {
     const controller = new ConstructionToolController();
     controller.activate("vector_polygon");

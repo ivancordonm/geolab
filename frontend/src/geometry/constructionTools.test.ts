@@ -87,6 +87,23 @@ describe("ConstructionToolController", () => {
     expectValidAdditions(baseDocument, result.createdObjects!);
   });
 
+  it("creates a point-ratio homothety of a complete transformable object", () => {
+    const controller = new ConstructionToolController();
+    controller.activate("homothety");
+
+    controller.handleObjectClick("A", baseDocument);
+    controller.handleObjectClick("AB", baseDocument);
+    const result = controller.handleObjectClick("C", baseDocument);
+
+    expect(result.createdObjects).toEqual([
+      expect.objectContaining({
+        kind: "line",
+        definition: { type: "homothety_point", center: "A", object: "AB", ratioPoint: "C" },
+      }),
+    ]);
+    expectValidAdditions(baseDocument, result.createdObjects!);
+  });
+
   it("reports a validation error instead of throwing for zero scaling of a non-point", () => {
     const controller = new ConstructionToolController();
     controller.activate("homothety_scalar");

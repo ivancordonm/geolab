@@ -295,17 +295,6 @@ export function ObjectList({
                           : "Independent"}
                       </small>
                     </span>
-                    <span
-                      className={`ml-auto shrink-0 text-[0.65rem] font-bold uppercase tracking-wide ${
-                        undefinedValue ? "text-danger-fg" : "text-success-fg"
-                      }`}
-                    >
-                      {undefinedValue
-                        ? "undefined"
-                        : object.kind === "measure" && value?.type === "scalar"
-                          ? formatMeasureValue(object, value.value)
-                          : object.kind}
-                    </span>
                   </button>
                 )}
 
@@ -316,6 +305,20 @@ export function ObjectList({
                     values={values}
                     onCommit={(ratio) => onUpdateHomothetyRatio(object.id, ratio)}
                   />
+                ) : null}
+
+                {editingFunctionId !== object.id ? (
+                  <span
+                    className={`shrink-0 self-center py-2 pr-2 text-[0.65rem] font-bold uppercase tracking-wide ${
+                      undefinedValue ? "text-danger-fg" : "text-success-fg"
+                    } ${object.visible ? "" : "opacity-40"}`}
+                  >
+                    {undefinedValue
+                      ? "undefined"
+                      : object.kind === "measure" && value?.type === "scalar"
+                        ? formatMeasureValue(object, value.value)
+                        : object.kind}
+                  </span>
                 ) : null}
 
                 {/* Botón tres puntos */}
@@ -426,7 +429,7 @@ function HomothetyRatioInput({
 
   return (
     <label
-      className="flex w-20 shrink-0 flex-col justify-center gap-1 border-l border-edge bg-surface-muted px-2 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted"
+      className="flex w-20 shrink-0 flex-col justify-center gap-1 bg-transparent px-2 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted"
       onClick={(event) => event.stopPropagation()}
     >
       Ratio

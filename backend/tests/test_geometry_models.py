@@ -285,3 +285,20 @@ def test_point_ratio_homothety_rejects_kind_mismatch() -> None:
     )
     with pytest.raises(GeometryValidationError, match="must keep the scaled kind"):
         GeometryGraph(document)
+
+
+TRANSFORMATIONS_FIXTURE_PATH = (
+    Path(__file__).resolve().parents[2] / "shared" / "fixtures" / "transformations.json"
+)
+
+
+def test_transformations_fixture_includes_point_ratio_homothety_on_a_segment() -> None:
+    fixture = json.loads(TRANSFORMATIONS_FIXTURE_PATH.read_text())
+    document = GeometryDocument.model_validate(fixture["document"])
+    values = evaluate_geometry_document(document)
+
+    assert values["HP"].model_dump() == {
+        "type": "segment",
+        "start": {"x": 2.0, "y": 2.0},
+        "end": {"x": 4.0, "y": -2.0},
+    }

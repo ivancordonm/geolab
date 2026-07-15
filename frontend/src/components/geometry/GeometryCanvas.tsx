@@ -4,13 +4,16 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import {
   clientToSvgScreen,
   clipImplicitLineToBounds,
+  getEffectiveGridStep,
   getWorldBounds,
   panViewport,
   screenToWorld,
+  snapToGrid,
   worldToScreen,
   zoomViewportAtScreenPoint,
 } from "../../geometry/viewport";
-import type { CanvasSize, Coordinate } from "../../geometry/viewport";
+import type { CanvasSize, Coordinate, GridSettings } from "../../geometry/viewport";
+import { DEFAULT_GRID_SETTINGS } from "../../geometry/useGridSettings";
 import type { ConstructionTool } from "../../geometry/constructionTools";
 import type {
   ArcValue,
@@ -53,6 +56,12 @@ interface GeometryCanvasProps {
   onPointerWorldChange: (world: Coordinate | null) => void;
   onSetLabelOffset?: (objectId: string, offsetX: number, offsetY: number) => void;
   panelOpen?: boolean;
+  gridSettings?: GridSettings;
+}
+
+function snapIfEnabled(point: Coordinate, settings: GridSettings, viewportScale: number): Coordinate {
+  if (!settings.snapToGrid) return point;
+  return snapToGrid(point, getEffectiveGridStep(settings, viewportScale), viewportScale);
 }
 
 export function GeometryCanvas({
@@ -73,6 +82,7 @@ export function GeometryCanvas({
   onPointerWorldChange,
   onSetLabelOffset,
   panelOpen = false,
+  gridSettings = DEFAULT_GRID_SETTINGS,
 }: GeometryCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const draggedPointRef = useRef<{ objectId: string; pointerId: number } | null>(null);
@@ -97,6 +107,12 @@ export function GeometryCanvas({
   // Always-current viewport ref avoids stale-closure issues during high-frequency pan moves.
   const viewportRef = useRef(viewport);
   viewportRef.current = viewport;
+
+  // Always-current grid settings ref, same rationale as viewportRef: lets the
+  // pointer handlers below read the latest settings without being recreated
+  // on every settings change.
+  const gridSettingsRef = useRef(gridSettings);
+  gridSettingsRef.current = gridSettings;
 
   // Medir el SVG al montar y cada vez que cambie de tamaño (ventana/panel).
   useEffect(() => {
@@ -203,7 +219,8 @@ export function GeometryCanvas({
       // Point drag (select tool + free point).
       const pointDrag = draggedPointRef.current;
       if (pointDrag !== null && pointDrag.pointerId === event.pointerId) {
-        onMoveFreePoint(pointDrag.objectId, world.x, world.y);
+        const target = snapIfEnabled(world, gridSettingsRef.current, viewportRef.current.scale);
+        onMoveFreePoint(pointDrag.objectId, target.x, target.y);
       }
 
       const objectDrag = draggedObjectRef.current;
@@ -284,12 +301,16 @@ export function GeometryCanvas({
         }
         if (svgRef.current !== null) svgRef.current.style.cursor = "";
         if (!canvasDrag.hasMoved) {
-          onCanvasClick(canvasDrag.worldAtDown);
+          const world =
+            activeTool !== "select"
+              ? snapIfEnabled(canvasDrag.worldAtDown, gridSettingsRef.current, viewportRef.current.scale)
+              : canvasDrag.worldAtDown;
+          onCanvasClick(world);
         }
         canvasDragRef.current = null;
       }
     },
-    [onCanvasClick, onEndFreePointMove],
+    [activeTool, onCanvasClick, onEndFreePointMove],
   );
 
   const handleWheel = useCallback(
@@ -320,6 +341,8 @@ export function GeometryCanvas({
     return () => svg.removeEventListener("wheel", handleWheel);
   }, [handleWheel]);
 
+  const effectiveStep = getEffectiveGridStep(gridSettings, viewport.scale);
+
   return (
     <div className="relative h-full w-full overflow-hidden bg-surface">
       <svg
@@ -336,7 +359,7 @@ export function GeometryCanvas({
         onPointerLeave={() => { onPointerWorldChange(null); if (svgRef.current) svgRef.current.style.cursor = ""; }}
       >
         <rect className="canvas-background" width={size.width} height={size.height} />
-        <Grid viewport={viewport} size={size} />
+        <Grid viewport={viewport} size={size} step={effectiveStep} showGrid={gridSettings.showGrid} />
         <g className="geometry-objects">
           {document.objects.filter((object) => object.kind === "polygon").map((object) =>
             renderGeometryObject(

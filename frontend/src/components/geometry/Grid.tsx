@@ -1,10 +1,12 @@
-import { chooseGridStep, getWorldBounds, worldToScreen } from "../../geometry/viewport";
+import { getWorldBounds, worldToScreen } from "../../geometry/viewport";
 import type { CanvasSize } from "../../geometry/viewport";
 import type { GeometryViewport } from "../../types/geometry";
 
 interface GridProps {
   viewport: GeometryViewport;
   size: CanvasSize;
+  step: number;
+  showGrid: boolean;
 }
 
 interface GridLine {
@@ -16,9 +18,8 @@ interface GridLine {
 const AXIS_MARGIN = 18;
 const TICK_HALF = 4;
 
-export function Grid({ viewport, size }: GridProps) {
+export function Grid({ viewport, size, step, showGrid }: GridProps) {
   const bounds = getWorldBounds(viewport, size);
-  const step = chooseGridStep(viewport.scale);
   const origin = worldToScreen({ x: 0, y: 0 }, viewport, size);
   const axisXVisible = origin.x >= 0 && origin.x <= size.width;
   const axisYVisible = origin.y >= 0 && origin.y <= size.height;
@@ -38,12 +39,14 @@ export function Grid({ viewport, size }: GridProps) {
 
   return (
     <g className="coordinate-grid" aria-hidden="true">
-      {verticalLines.map((line) => (
-        <GridVerticalLine key={line.key} line={line} height={size.height} />
-      ))}
-      {horizontalLines.map((line) => (
-        <GridHorizontalLine key={line.key} line={line} width={size.width} />
-      ))}
+      {showGrid &&
+        verticalLines.map((line) => (
+          <GridVerticalLine key={line.key} line={line} height={size.height} />
+        ))}
+      {showGrid &&
+        horizontalLines.map((line) => (
+          <GridHorizontalLine key={line.key} line={line} width={size.width} />
+        ))}
 
       {axisXVisible ? (
         <line className="axis-line" x1={origin.x} y1={0} x2={origin.x} y2={size.height} />

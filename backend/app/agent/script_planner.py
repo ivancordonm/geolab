@@ -51,7 +51,16 @@ COMMANDS (use these names EXACTLY, with the stated arity):
 - Circumcircle(P, Q, R)           circle through three points
 - Reflection(obj, mirror)         reflect a point/line/segment/circle/polygon over a line or point
 - Homothety(center, P, ratio)     ratio is a number OR a point name
-- Inversion(P, circle)            invert P in a circle
+- Inversion(obj, circle)          invert a point/line/circle/segment in a circle (the
+                                   result kind depends on the source and whether it
+                                   passes through the inversion center: a line not
+                                   through the center becomes a circle through the
+                                   center; a line through the center maps to itself;
+                                   a circle through the center becomes a line;
+                                   otherwise a circle stays a circle; a segment not
+                                   collinear with the center becomes an arc. Polygons
+                                   cannot be inverted from a script — this command
+                                   only accepts points, lines, circles, and segments.)
 - Translation(P, from, to)        translate P by vector from->to
 - Rotation(P, center, degrees)    degrees is a number
 

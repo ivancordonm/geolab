@@ -454,14 +454,24 @@ def create_homothety(
 @mcp.tool(annotations=CREATE)
 def create_inversion(
     object_id: str,
-    point: str,
+    source: str,
     circle: str,
     document: GeometryDocument | None = None,
     label: str | None = None,
 ) -> dict[str, Any]:
-    """Invert an existing point in an existing circle."""
+    """Invert an existing point, line, circle, segment, or polygon in a circle.
 
-    return _mutate(document, "create_inversion", {"objectId": object_id, "label": label, "point": point, "circle": circle})
+    The result kind depends on the source and the inversion circle: a point
+    always inverts to a point; a line not through the center inverts to a
+    circle through the center (a line through the center maps to itself); a
+    circle not through the center inverts to another circle (or, if it passes
+    through the center, to a line); a segment not collinear with the center
+    inverts to a circular arc (a segment collinear with the center inverts to
+    a segment); a polygon inverts edge-by-edge into several new arc/segment
+    objects (the first uses `object_id`/`label`, the rest are auto-named).
+    """
+
+    return _mutate(document, "create_inversion", {"objectId": object_id, "label": label, "source": source, "circle": circle})
 
 
 @mcp.tool(annotations=CREATE)

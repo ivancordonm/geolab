@@ -5,13 +5,16 @@ import {
   chooseGridStep,
   clientToSvgScreen,
   clipImplicitLineToBounds,
+  getEffectiveGridStep,
   getWorldBounds,
   MAX_VIEWPORT_SCALE,
   MIN_VIEWPORT_SCALE,
   screenToWorld,
+  snapToGrid,
   worldToScreen,
   zoomViewportAtScreenPoint,
 } from "./viewport";
+import type { GridSettings } from "./viewport";
 
 const viewport: GeometryViewport = { centerX: 2, centerY: 1, scale: 50 };
 const size = { width: 1000, height: 700 };
@@ -78,5 +81,47 @@ describe("viewport coordinates", () => {
     expect(chooseGridStep(72)).toBe(1);
     expect(chooseGridStep(30)).toBe(5);
     expect(chooseGridStep(140)).toBe(1);
+  });
+});
+
+describe("getEffectiveGridStep", () => {
+  it("delegates to chooseGridStep when stepMode is auto", () => {
+    const settings: GridSettings = {
+      showGrid: true,
+      snapToGrid: false,
+      stepMode: "auto",
+      manualStep: 1,
+    };
+    expect(getEffectiveGridStep(settings, 50)).toBe(chooseGridStep(50));
+  });
+
+  it("returns manualStep when stepMode is manual, ignoring viewport scale", () => {
+    const settings: GridSettings = {
+      showGrid: true,
+      snapToGrid: true,
+      stepMode: "manual",
+      manualStep: 2.5,
+    };
+    expect(getEffectiveGridStep(settings, 10)).toBe(2.5);
+    expect(getEffectiveGridStep(settings, 500)).toBe(2.5);
+  });
+});
+
+describe("snapToGrid", () => {
+  it("snaps both axes to the nearest grid node when within the pixel radius", () => {
+    expect(snapToGrid({ x: 2.02, y: 4.98 }, 1, 50)).toEqual({ x: 2, y: 5 });
+  });
+
+  it("leaves a coordinate unsnapped when it is farther than the radius from any grid node", () => {
+    expect(snapToGrid({ x: 2.3, y: 4.98 }, 1, 50)).toEqual({ x: 2.3, y: 5 });
+  });
+
+  it("shrinks the snap radius in world units as the viewport zooms in", () => {
+    expect(snapToGrid({ x: 2.05, y: 0 }, 1, 200)).toEqual({ x: 2.05, y: 0 });
+    expect(snapToGrid({ x: 2.02, y: 0 }, 1, 200)).toEqual({ x: 2, y: 0 });
+  });
+
+  it("accepts a custom snap radius in pixels", () => {
+    expect(snapToGrid({ x: 2.3, y: 0 }, 1, 50, 20)).toEqual({ x: 2, y: 0 });
   });
 });

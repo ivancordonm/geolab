@@ -209,11 +209,12 @@ export class ConstructionToolController {
     return this.state;
   }
 
-  cancel(): ConstructionToolState {
+  cancel(): ConstructionToolResult {
+    const removedObjectIds = [...this.createdDuringOperationIds];
     this.vectorPolygonCreatedPointIds.clear();
     this.createdDuringOperationIds = [];
     this.stateValue = { ...this.stateValue, selectedObjectIds: [], pointerWorld: null, error: null };
-    return this.state;
+    return { state: this.state, removedObjectIds };
   }
 
   setRegularPolygonSides(sides: number): ConstructionToolState {

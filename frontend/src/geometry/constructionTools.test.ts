@@ -266,11 +266,24 @@ describe("ConstructionToolController", () => {
     controller.activate("segment");
     controller.handleObjectClick("A", baseDocument);
 
-    const state = controller.cancel();
+    const result = controller.cancel();
 
-    expect(state.activeTool).toBe("segment");
-    expect(state.selectedObjectIds).toEqual([]);
-    expect(state.pointerWorld).toBeNull();
+    expect(result.state.activeTool).toBe("segment");
+    expect(result.state.selectedObjectIds).toEqual([]);
+    expect(result.state.pointerWorld).toBeNull();
+    expect(result.removedObjectIds).toEqual([]);
+  });
+
+  it("removes points auto-created on empty-spot clicks when the construction is cancelled", () => {
+    const controller = new ConstructionToolController();
+    controller.activate("circle");
+
+    const clickResult = controller.handleCanvasClick({ x: 5, y: 5 }, baseDocument);
+    const centerId = clickResult.createdObjects![0].id;
+
+    const cancelResult = controller.cancel();
+
+    expect(cancelResult.removedObjectIds).toEqual([centerId]);
   });
 
   it("rejects objects of the wrong kind without mutating the selection", () => {

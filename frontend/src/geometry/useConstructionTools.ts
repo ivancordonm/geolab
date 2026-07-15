@@ -63,8 +63,8 @@ export function useConstructionTools({
   }, []);
 
   const cancel = useCallback(() => {
-    setState(controllerRef.current.cancel());
-  }, []);
+    applyResult(controllerRef.current.cancel());
+  }, [applyResult]);
 
   const finish = useCallback(() => {
     applyResult(controllerRef.current.finish(document));
@@ -99,7 +99,7 @@ export function useConstructionTools({
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (event.key === "Escape") {
-        setState(controllerRef.current.cancel());
+        applyResult(controllerRef.current.cancel());
       } else if (event.key === "Enter") {
         applyResult(controllerRef.current.finish(document));
       }

@@ -47,10 +47,10 @@ interface IconProps {
 
 type ToolEntry =
   | { divider: true }
-  | { tool: ConstructionTool; label: string; icon: ComponentType<IconProps> };
+  | { tool: ConstructionTool; label: string; icon: ComponentType<IconProps>; shortcut?: string };
 
 const TOOLS: readonly ToolEntry[] = [
-  { tool: "select", label: "Select", icon: MousePointer2 },
+  { tool: "select", label: "Select", icon: MousePointer2, shortcut: "p" },
   { divider: true },
   { tool: "point", label: "Point", icon: Dot },
   { tool: "segment", label: "Segment", icon: Minus },
@@ -79,9 +79,18 @@ const TOOLS: readonly ToolEntry[] = [
   { tool: "vector_polygon", label: "Vector polygon", icon: Waypoints },
 ] as const;
 
+type NamedToolEntry = Extract<ToolEntry, { tool: ConstructionTool }>;
+
+export const SHORTCUT_TO_TOOL: Readonly<Record<string, ConstructionTool>> = Object.fromEntries(
+  TOOLS.filter((entry): entry is NamedToolEntry => "tool" in entry && entry.shortcut !== undefined).map(
+    (entry) => [entry.shortcut as string, entry.tool],
+  ),
+);
+
 interface TooltipState {
   label: string;
   instruction: string;
+  shortcut?: string;
   top: number;
   left: number;
 }
@@ -111,12 +120,17 @@ export function ConstructionToolbar({
     if (!editingHomothetyRatioRef.current) setHomothetyRatioText(String(homothetyRatio));
   }, [homothetyRatio]);
 
-  const showTooltip = (e: React.MouseEvent<HTMLButtonElement>, label: string, instruction: string) => {
+  const showTooltip = (
+    e: React.MouseEvent<HTMLButtonElement>,
+    label: string,
+    instruction: string,
+    shortcut?: string,
+  ) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const rawTop = rect.top + rect.height / 2;
     // Clamp so tooltip (≈50px tall) stays within the viewport
     const top = Math.max(30, Math.min(rawTop, window.innerHeight - 30));
-    setTooltip({ label, instruction, top, left: rect.right + 10 });
+    setTooltip({ label, instruction, shortcut, top, left: rect.right + 10 });
   };
 
   const hideTooltip = () => setTooltip(null);
@@ -135,7 +149,7 @@ export function ConstructionToolbar({
             if ("divider" in entry) {
               return <div key={`div-${i}`} className="my-0.5 h-px bg-edge" role="separator" />;
             }
-            const { tool, label, icon: Icon } = entry;
+            const { tool, label, icon: Icon, shortcut } = entry;
             const active = activeTool === tool;
             return (
               <button
@@ -143,8 +157,9 @@ export function ConstructionToolbar({
                 type="button"
                 aria-label={label}
                 aria-pressed={active}
+                aria-keyshortcuts={shortcut}
                 onClick={() => onActivateTool(tool)}
-                onMouseEnter={(e) => showTooltip(e, label, TOOL_INSTRUCTIONS[tool])}
+                onMouseEnter={(e) => showTooltip(e, label, TOOL_INSTRUCTIONS[tool], shortcut)}
                 onMouseLeave={hideTooltip}
                 className={`w-full flex items-center justify-center rounded-lg p-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${
                   active
@@ -260,7 +275,10 @@ export function ConstructionToolbar({
             style={{ position: "fixed", top: tooltip.top, left: tooltip.left, transform: "translateY(-50%)" }}
             className="pointer-events-none z-50 w-max max-w-52 rounded-lg border border-edge bg-surface px-3 py-2 shadow-card"
           >
-            <p className="text-xs font-semibold text-content">{tooltip.label}</p>
+            <p className="text-xs font-semibold text-content">
+              {tooltip.label}
+              {tooltip.shortcut !== undefined && ` (${tooltip.shortcut.toUpperCase()})`}
+            </p>
             <p className="mt-0.5 text-[11px] leading-snug text-muted">{tooltip.instruction}</p>
           </div>,
           document.body,

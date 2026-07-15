@@ -399,6 +399,38 @@ def test_create_inversion_tool_inverts_a_polygon_into_arcs() -> None:
     assert {result.kind for result in edge_results} <= {"segment", "arc"}
 
 
+def test_create_inversion_tool_rejects_polygon_when_a_non_last_edge_is_undefined() -> None:
+    """Regression test: a polygon vertex sitting exactly on the inversion
+    center makes that vertex's incident edges invert to `UndefinedValue`
+    (`edge_touches_center`). `_commit_many` must reject the whole batch even
+    when the degenerate edge is NOT the last object appended -- committing
+    only the last object's definedness previously let earlier undefined
+    edges slip through uncommitted-check but still committed."""
+    workspace = GeometryWorkspace()
+    registry = create_geometry_tool_registry(workspace)
+    execute(registry, "create_point", {"objectId": "B", "x": 0, "y": 0})
+    execute(registry, "create_point", {"objectId": "U", "x": 1, "y": 0})
+    execute(registry, "create_circle", {"objectId": "c1", "center": "B", "point": "U"})
+    # V1 coincides with the inversion center (0, 0); it is neither the first
+    # nor the last polygon vertex, so the undefined edges it touches (edge0:
+    # V0-V1, edge1: V1-V2) are appended to `objects` before the final,
+    # perfectly well-defined edge3 (V3-V0).
+    execute(registry, "create_point", {"objectId": "V0", "x": 5, "y": 0})
+    execute(registry, "create_point", {"objectId": "V1", "x": 0, "y": 0})
+    execute(registry, "create_point", {"objectId": "V2", "x": 5, "y": 5})
+    execute(registry, "create_point", {"objectId": "V3", "x": 0, "y": 5})
+    execute(registry, "create_polygon", {"objectId": "poly", "pointIds": ["V0", "V1", "V2", "V3"]})
+
+    with pytest.raises(ToolExecutionError, match="edge_touches_center"):
+        execute(registry, "create_inversion", {"objectId": "Bad", "source": "poly", "circle": "c1"})
+
+    access = workspace.graph_access_map()
+    assert "Bad" not in access.by_id
+    assert not any(
+        object_id.startswith("ivedge") or object_id.startswith("ivvertex") for object_id in access.by_id
+    )
+
+
 def test_create_inversion_tool_rejects_a_point_at_the_inversion_center() -> None:
     workspace = GeometryWorkspace()
     registry = create_geometry_tool_registry(workspace)

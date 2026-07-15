@@ -1157,16 +1157,20 @@ def _commit(workspace: GeometryWorkspace, obj: GeometryObject) -> MutationToolOu
 
 
 def _commit_many(workspace: GeometryWorkspace, objects: list[GeometryObject]) -> MutationToolOutput:
-    """Validate *objects* as one atomic addition and commit only if the primary
-    (last) object evaluates to a defined value."""
+    """Validate *objects* as one atomic addition and commit only if every
+    object in the batch evaluates to a defined value. This is intentionally
+    caller-agnostic: any object appended to the batch (not just the last one)
+    can be the one that turns out undefined, and the whole addition must be
+    rejected -- nothing committed -- if any of them are."""
 
     document = workspace.document_snapshot()
     candidate = document.model_copy(update={"objects": [*document.objects, *objects]}, deep=True)
     graph = GeometryGraph(GeometryDocument.model_validate(candidate.model_dump(by_alias=True)))
+    for obj in objects:
+        value = graph.values[obj.id]
+        if value.type == "undefined":
+            raise ToolExecutionError(f"{value.code}: {value.message}")
     primary = objects[-1]
-    value = graph.values[primary.id]
-    if value.type == "undefined":
-        raise ToolExecutionError(f"{value.code}: {value.message}")
     access = workspace.add_objects(objects)
     return MutationToolOutput(
         revision=access.revision,

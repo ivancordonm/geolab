@@ -207,8 +207,16 @@ class HomothetyPointDefinition(GeometryModel):
 
 class InversionInCircleDefinition(GeometryModel):
     type: Literal["inversion_in_circle"] = "inversion_in_circle"
-    point: str
+    object_id: str = Field(
+        validation_alias=AliasChoices("object", "point"),
+        serialization_alias="object",
+    )
     circle: str
+
+    @property
+    def point(self) -> str:
+        """Backward compatibility property for accessing object_id as point."""
+        return self.object_id
 
 
 class TranslationDefinition(GeometryModel):
@@ -350,7 +358,7 @@ class HomothetyPoint(GeometryObjectBase):
 
 
 class InversionInCircle(GeometryObjectBase):
-    kind: Literal["point"] = "point"
+    kind: Literal["point", "line", "segment", "circle", "arc"] = "point"
     definition: InversionInCircleDefinition
 
 

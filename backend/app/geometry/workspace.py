@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from threading import RLock
 from types import MappingProxyType
@@ -97,9 +98,14 @@ class GeometryWorkspace:
     def add_object(self, obj: GeometryObject) -> GraphAccessMap:
         """Validate a candidate document and commit only if the full graph is valid."""
 
+        return self.add_objects([obj])
+
+    def add_objects(self, objects: Sequence[GeometryObject]) -> GraphAccessMap:
+        """Validate a candidate document with all *objects* appended and commit atomically."""
+
         with self._lock:
             candidate = self._document.model_copy(
-                update={"objects": [*self._document.objects, obj]},
+                update={"objects": [*self._document.objects, *objects]},
                 deep=True,
             )
             # Re-validate Pydantic invariants skipped by model_copy(update=...).

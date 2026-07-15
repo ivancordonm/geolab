@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 from typing import Literal
 
-from app.geometry.engine import GeometryGraph
+from app.geometry.engine import GeometryGraph, infer_inversion_result_kind
 from app.geometry.function_expression import (
     FunctionExpressionError,
     normalize_function_expression,
@@ -21,6 +21,7 @@ from app.geometry.models import (
     Circle,
     CircleByCenterPointDefinition,
     CircleByCenterRadiusDefinition,
+    CircleValue,
     CircumscribedCircle,
     CircumscribedDefinition,
     Coordinate,
@@ -75,6 +76,7 @@ from app.geometry.models import (
     SlopeMeasureDefinition,
     TranslatedObject,
     TranslationDefinition,
+    UndefinedValue,
     VectorPolygonDefinition,
 )
 
@@ -625,10 +627,56 @@ def _build_object(
 
     if command == "Inversion":
         _require_arity(statement, 2)
-        pt = _resolve_point_argument(arguments[0], statement, symbols, objects, argument_position=1)
+        source = _resolve_reference(arguments[0], statement, symbols, argument_position=1)
         cr = _resolve_reference(arguments[1], statement, symbols, argument_position=2)
         _require_kind(cr, "circle", statement, 2)
-        return [InversionInCircle(id=statement.target, label=statement.target, definition=InversionInCircleDefinition(point=pt.id, circle=cr.id))]
+        if source.kind not in ("point", "line", "circle", "segment"):
+            _raise(
+                "invalid_reference_type",
+                f"Argument 1 of Inversion must reference a point, line, circle, or segment, "
+                f"but '{source.id}' is a {source.kind}",
+                statement.line,
+                statement.source_line,
+                source.id,
+            )
+        if source.kind == "point":
+            return [
+                InversionInCircle(
+                    id=statement.target,
+                    label=statement.target,
+                    definition=InversionInCircleDefinition(object_id=source.id, circle=cr.id),
+                )
+            ]
+        preview = GeometryDocument(id="_script_preview", title="_script_preview", objects=list(objects))
+        values = GeometryGraph(preview).values
+        source_value = values[source.id]
+        circle_value = values[cr.id]
+        if isinstance(circle_value, UndefinedValue):
+            _raise(
+                "invalid_argument",
+                f"'{cr.id}' is not a well-defined circle",
+                statement.line,
+                statement.source_line,
+                cr.id,
+            )
+        assert isinstance(circle_value, CircleValue)
+        declared_kind = infer_inversion_result_kind(source_value, circle_value)
+        if declared_kind is None:
+            _raise(
+                "invalid_argument",
+                f"'{source.id}' cannot be inverted (its current value is undefined)",
+                statement.line,
+                statement.source_line,
+                source.id,
+            )
+        return [
+            InversionInCircle(
+                id=statement.target,
+                label=statement.target,
+                kind=declared_kind,
+                definition=InversionInCircleDefinition(object_id=source.id, circle=cr.id),
+            )
+        ]
 
     if command == "Translation":
         _require_arity(statement, 3)

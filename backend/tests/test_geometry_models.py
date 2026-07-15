@@ -374,3 +374,35 @@ def test_transformations_fixture_includes_point_ratio_homothety_on_a_segment() -
         "start": {"x": 2.0, "y": 2.0},
         "end": {"x": 4.0, "y": -2.0},
     }
+
+
+def test_inversion_definition_reads_legacy_point_field() -> None:
+    from app.geometry.models import InversionInCircleDefinition
+
+    legacy = InversionInCircleDefinition.model_validate({"point": "P", "circle": "c1"})
+    assert legacy.object_id == "P"
+
+    current = InversionInCircleDefinition.model_validate({"object": "r", "circle": "c1"})
+    assert current.object_id == "r"
+
+    assert legacy.model_dump(by_alias=True)["object"] == "P"
+    assert "point" not in legacy.model_dump(by_alias=True)
+
+
+def test_inversion_in_circle_accepts_non_point_kinds() -> None:
+    from app.geometry.models import InversionInCircle, InversionInCircleDefinition
+
+    circle_result = InversionInCircle(
+        id="C1",
+        label="C1",
+        kind="circle",
+        definition=InversionInCircleDefinition(object_id="r", circle="c1"),
+    )
+    assert circle_result.kind == "circle"
+
+    default_kind = InversionInCircle(
+        id="Inv",
+        label="Inv",
+        definition=InversionInCircleDefinition(object_id="P", circle="c1"),
+    )
+    assert default_kind.kind == "point"

@@ -83,7 +83,7 @@ export function evaluateTransformationFamily(object: GeometryObject, values: Eva
     }
 
     case "inversion_in_circle": {
-      const pt = requireValue<PointValue>(values, object.id, def.point, "point");
+      const pt = requireValue<PointValue>(values, object.id, def.object ?? def.point!, "point");
       if (isUndefined(pt)) return pt;
       const cr = requireValue<CircleValue>(values, object.id, def.circle, "circle");
       if (isUndefined(cr)) return cr;

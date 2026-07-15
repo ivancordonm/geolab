@@ -45,7 +45,7 @@ from app.agent.models import (
     VectorPolygonConstructionInput,
 )
 from app.agent.registry import ToolDefinition, ToolExecutionError, ToolRegistry
-from app.geometry.engine import GeometryGraph
+from app.geometry.engine import GeometryGraph, infer_inversion_result_kind
 from app.geometry.function_expression import normalize_function_expression
 from app.geometry.rendering import render_graph_png, render_graph_svg
 from app.geometry.models import (
@@ -57,6 +57,7 @@ from app.geometry.models import (
     ArcThroughPointsDefinition,
     Circle,
     CircleByCenterPointDefinition,
+    CircleValue,
     CircumscribedCircle,
     CircumscribedDefinition,
     Coordinate,
@@ -89,6 +90,7 @@ from app.geometry.models import (
     Point,
     Polygon,
     PolygonDefinition,
+    PolygonValue,
     PolygonVertexDefinition,
     PolygonVertexPoint,
     ReflectionOverLine,
@@ -100,11 +102,13 @@ from app.geometry.models import (
     RotationDefinition,
     Segment,
     SegmentBetweenPointsDefinition,
+    SegmentValue,
     Slider,
     SliderDefinition,
     SlopeMeasureDefinition,
     TranslatedObject,
     TranslationDefinition,
+    UndefinedValue,
     VectorPolygonDefinition,
 )
 from app.geometry.script import ConstructionScriptError, evaluate_script
@@ -485,7 +489,7 @@ def create_geometry_tool_registry(workspace: GeometryWorkspace) -> ToolRegistry:
     registry.register(
         _definition(
             "create_inversion",
-            "Invert an existing point in an existing circle.",
+            "Invert an existing point/line/segment/circle/polygon in an existing circle.",
             InversionConstructionInput,
             MutationToolOutput,
             True,
@@ -1001,14 +1005,112 @@ def _create_inversion(workspace: GeometryWorkspace, raw_input: BaseModel) -> Mut
     input_model = InversionConstructionInput.model_validate(raw_input)
     access = workspace.graph_access_map()
     _ensure_name_available(access, input_model.object_id, input_model.label)
-    point = _resolve_kind(access, input_model.point, "point")
     circle = _resolve_kind(access, input_model.circle, "circle")
+    if isinstance(circle.value, UndefinedValue):
+        raise ToolExecutionError(f"Geometry object '{input_model.circle}' is not a well-defined circle")
+    assert isinstance(circle.value, CircleValue)
+    source = _resolve_transformable(access, input_model.source)
+
+    if source.object.kind == "polygon":
+        return _create_polygon_inversion(workspace, input_model, source, circle)
+
+    declared_kind = infer_inversion_result_kind(source.value, circle.value)
+    if declared_kind is None:
+        raise ToolExecutionError(f"Geometry object '{input_model.source}' cannot be inverted")
     obj = InversionInCircle(
         id=input_model.object_id,
         label=input_model.label or input_model.object_id,
-        definition=InversionInCircleDefinition(point=point.object.id, circle=circle.object.id),
+        kind=declared_kind,
+        definition=InversionInCircleDefinition(object_id=source.object.id, circle=circle.object.id),
     )
     return _commit_defined(workspace, obj)
+
+
+def _next_object_id(objects: list[GeometryObject], prefix: str) -> str:
+    occupied = {obj.id for obj in objects} | {obj.label for obj in objects}
+    index = 1
+    while f"{prefix}{index}" in occupied:
+        index += 1
+    return f"{prefix}{index}"
+
+
+def _polygon_vertex_ids(
+    document: GeometryDocument, polygon: GeometryObject
+) -> tuple[list[str], list[GeometryObject]]:
+    if polygon.definition.type == "polygon":
+        return list(polygon.definition.point_ids), []
+    value = GeometryGraph(document).values[polygon.id]
+    if not isinstance(value, PolygonValue):
+        raise ToolExecutionError(f"Unable to evaluate vertices of polygon '{polygon.id}'")
+    vertex_ids: list[str] = []
+    created: list[GeometryObject] = []
+    working = list(document.objects)
+    for index in range(len(value.vertices)):
+        vertex_id = _next_object_id(working, "ivvertex")
+        vertex = PolygonVertexPoint(
+            id=vertex_id,
+            label=vertex_id,
+            visible=False,
+            definition=PolygonVertexDefinition(polygon=polygon.id, index=index),
+        )
+        created.append(vertex)
+        working.append(vertex)
+        vertex_ids.append(vertex_id)
+    return vertex_ids, created
+
+
+def _create_polygon_inversion(
+    workspace: GeometryWorkspace,
+    input_model: InversionConstructionInput,
+    source: GraphObjectAccess,
+    circle: GraphObjectAccess,
+) -> MutationToolOutput:
+    if isinstance(circle.value, UndefinedValue):
+        raise ToolExecutionError(f"Geometry object '{input_model.circle}' is not a well-defined circle")
+    assert isinstance(circle.value, CircleValue)
+    document = workspace.document_snapshot()
+    vertex_ids, vertex_objects = _polygon_vertex_ids(document, source.object)
+    objects: list[GeometryObject] = list(vertex_objects)
+    working = [*document.objects, *vertex_objects]
+
+    for index, start_id in enumerate(vertex_ids):
+        end_id = vertex_ids[(index + 1) % len(vertex_ids)]
+        edge_id = _next_object_id(working, "ivedge")
+        edge = Segment(
+            id=edge_id,
+            label=edge_id,
+            visible=False,
+            definition=SegmentBetweenPointsDefinition(point_a=start_id, point_b=end_id),
+        )
+        objects.append(edge)
+        working.append(edge)
+        edge_value = GeometryGraph(document.model_copy(update={"objects": working})).values[edge_id]
+        if isinstance(edge_value, UndefinedValue):
+            raise ToolExecutionError(f"{edge_value.code}: {edge_value.message}")
+        assert isinstance(edge_value, SegmentValue)
+        declared_kind = infer_inversion_result_kind(edge_value, circle.value)
+        if declared_kind is None:
+            raise ToolExecutionError(f"Edge {index} of '{input_model.source}' cannot be inverted")
+        is_first = index == 0
+        result_id = input_model.object_id if is_first else _next_object_id(working, f"{input_model.object_id}_edge")
+        result = InversionInCircle(
+            id=result_id,
+            label=(input_model.label or input_model.object_id) if is_first else result_id,
+            kind=declared_kind,
+            definition=InversionInCircleDefinition(object_id=edge_id, circle=circle.object.id),
+        )
+        objects.append(result)
+        working.append(result)
+
+    output = _commit_many(workspace, objects)
+    # `_commit_many` reports `objects[-1]` (the last object in the batch) as
+    # `created_object`, which is correct for every other caller of
+    # `_commit_many` (they all pass a single-object or naturally-ordered
+    # batch). Here, though, the caller's requested `object_id` is assigned to
+    # the FIRST edge's inverted result (see `is_first` above), not the last
+    # one appended -- so report the object the caller actually asked for.
+    requested = next(obj for obj in objects if obj.id == input_model.object_id)
+    return output.model_copy(update={"created_object": requested})
 
 
 def _create_arc(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
@@ -1061,20 +1163,37 @@ def _commit(workspace: GeometryWorkspace, obj: GeometryObject) -> MutationToolOu
     return MutationToolOutput(
         revision=access.revision,
         created_object=obj,
+        created_objects=(obj,),
+        graph=graph_view_from_access_map(access),
+    )
+
+
+def _commit_many(workspace: GeometryWorkspace, objects: list[GeometryObject]) -> MutationToolOutput:
+    """Validate *objects* as one atomic addition and commit only if every
+    object in the batch evaluates to a defined value. This is intentionally
+    caller-agnostic: any object appended to the batch (not just the last one)
+    can be the one that turns out undefined, and the whole addition must be
+    rejected -- nothing committed -- if any of them are."""
+
+    document = workspace.document_snapshot()
+    candidate = document.model_copy(update={"objects": [*document.objects, *objects]}, deep=True)
+    graph = GeometryGraph(GeometryDocument.model_validate(candidate.model_dump(by_alias=True)))
+    for obj in objects:
+        value = graph.values[obj.id]
+        if value.type == "undefined":
+            raise ToolExecutionError(f"{value.code}: {value.message}")
+    primary = objects[-1]
+    access = workspace.add_objects(objects)
+    return MutationToolOutput(
+        revision=access.revision,
+        created_object=primary,
+        created_objects=tuple(objects),
         graph=graph_view_from_access_map(access),
     )
 
 
 def _commit_defined(workspace: GeometryWorkspace, obj: GeometryObject) -> MutationToolOutput:
-    candidate = workspace.document_snapshot().model_copy(
-        update={"objects": [*workspace.document_snapshot().objects, obj]},
-        deep=True,
-    )
-    graph = GeometryGraph(GeometryDocument.model_validate(candidate.model_dump(by_alias=True)))
-    value = graph.values[obj.id]
-    if value.type == "undefined":
-        raise ToolExecutionError(f"{value.code}: {value.message}")
-    return _commit(workspace, obj)
+    return _commit_many(workspace, [obj])
 
 
 def _ensure_name_available(access: GraphAccessMap, object_id: str, label: str | None) -> None:

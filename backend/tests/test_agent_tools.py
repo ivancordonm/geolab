@@ -7,6 +7,17 @@ import pytest
 from app.agent.models import GraphView
 from app.agent.registry import InvalidToolInputError, ToolExecutionError, UnknownToolError
 from app.agent.tools import create_geometry_tool_registry, graph_view_from_access_map
+from app.geometry.models import (
+    Circle,
+    CircleByCenterPointDefinition,
+    FreePointDefinition,
+    GeometryDocument,
+    IntersectionLL,
+    IntersectionLLDefinition,
+    Line,
+    LineThroughPointsDefinition,
+    Point,
+)
 from app.geometry.workspace import GeometryWorkspace
 
 EXPECTED_TOOLS = {
@@ -289,7 +300,7 @@ def test_transformation_tools_create_defined_objects() -> None:
     scaled = execute(registry, "create_homothety", {"objectId": "H", "center": "B", "point": "P", "ratio": 2})
     assert point_value(scaled, "H") == pytest.approx((4.0, 0.0))
 
-    inverted = execute(registry, "create_inversion", {"objectId": "Inv", "point": "P", "circle": "c1"})
+    inverted = execute(registry, "create_inversion", {"objectId": "Inv", "source": "P", "circle": "c1"})
     assert point_value(inverted, "Inv") == pytest.approx((0.5, 0.0))
 
 
@@ -356,3 +367,144 @@ def test_export_tools_return_svg_png_and_json() -> None:
     assert descriptors["export_svg"].mutates_geometry_state is False
     assert descriptors["export_png"].mutates_geometry_state is False
     assert descriptors["export_json"].mutates_geometry_state is False
+
+
+def test_create_inversion_tool_inverts_a_line_into_a_circle() -> None:
+    workspace = GeometryWorkspace()
+    registry = create_geometry_tool_registry(workspace)
+    execute(registry, "create_point", {"objectId": "B", "x": 0, "y": 0})
+    execute(registry, "create_point", {"objectId": "U", "x": 1, "y": 0})
+    execute(registry, "create_circle", {"objectId": "c1", "center": "B", "point": "U"})
+    execute(registry, "create_point", {"objectId": "E", "x": 1, "y": 2})
+    execute(registry, "create_point", {"objectId": "F", "x": 3, "y": 2})
+    execute(registry, "create_line", {"objectId": "r", "pointA": "E", "pointB": "F"})
+
+    output = execute(registry, "create_inversion", {"objectId": "C1", "source": "r", "circle": "c1"})
+
+    assert output.created_object.kind == "circle"  # type: ignore[attr-defined]
+    assert output.created_objects[-1].id == "C1"  # type: ignore[attr-defined]
+    graph = output.graph  # type: ignore[attr-defined]
+    value = graph.objects[graph.id_map["C1"]].value
+    assert value.type == "circle"
+    assert (value.center.x, value.center.y) == pytest.approx((0.0, 0.25))
+    assert value.radius == pytest.approx(0.25)
+
+
+def test_create_inversion_tool_inverts_a_polygon_into_arcs() -> None:
+    workspace = GeometryWorkspace()
+    registry = create_geometry_tool_registry(workspace)
+    execute(registry, "create_point", {"objectId": "B", "x": 5, "y": 5})
+    execute(registry, "create_point", {"objectId": "U", "x": 6, "y": 5})
+    execute(registry, "create_circle", {"objectId": "c1", "center": "B", "point": "U"})
+    execute(registry, "create_point", {"objectId": "A", "x": 0, "y": 0})
+    execute(registry, "create_point", {"objectId": "V2", "x": 4, "y": 0})
+    execute(registry, "create_point", {"objectId": "V3", "x": 2, "y": 3})
+    execute(registry, "create_polygon", {"objectId": "poly", "pointIds": ["A", "V2", "V3"]})
+
+    output = execute(registry, "create_inversion", {"objectId": "InvPoly", "source": "poly", "circle": "c1"})
+
+    assert len(output.created_objects) >= 3  # type: ignore[attr-defined]
+    edge_results = [obj for obj in output.created_objects if obj.definition.type == "inversion_in_circle"]  # type: ignore[attr-defined]
+    assert len(edge_results) == 3
+    assert edge_results[0].id == "InvPoly"
+    assert {result.kind for result in edge_results} <= {"segment", "arc"}
+    # Regression: `created_object` must report the caller-requested object
+    # (the first edge's inverted result, which carries the requested id),
+    # not `_commit_many`'s generic "last object in the batch" default (which
+    # here would be an auto-generated edge id like "InvPoly_edge2").
+    assert output.created_object.id == "InvPoly"  # type: ignore[attr-defined]
+
+
+def test_create_inversion_tool_rejects_polygon_when_a_non_last_edge_is_undefined() -> None:
+    """Regression test: a polygon vertex sitting exactly on the inversion
+    center makes that vertex's incident edges invert to `UndefinedValue`
+    (`edge_touches_center`). `_commit_many` must reject the whole batch even
+    when the degenerate edge is NOT the last object appended -- committing
+    only the last object's definedness previously let earlier undefined
+    edges slip through uncommitted-check but still committed."""
+    workspace = GeometryWorkspace()
+    registry = create_geometry_tool_registry(workspace)
+    execute(registry, "create_point", {"objectId": "B", "x": 0, "y": 0})
+    execute(registry, "create_point", {"objectId": "U", "x": 1, "y": 0})
+    execute(registry, "create_circle", {"objectId": "c1", "center": "B", "point": "U"})
+    # V1 coincides with the inversion center (0, 0); it is neither the first
+    # nor the last polygon vertex, so the undefined edges it touches (edge0:
+    # V0-V1, edge1: V1-V2) are appended to `objects` before the final,
+    # perfectly well-defined edge3 (V3-V0).
+    execute(registry, "create_point", {"objectId": "V0", "x": 5, "y": 0})
+    execute(registry, "create_point", {"objectId": "V1", "x": 0, "y": 0})
+    execute(registry, "create_point", {"objectId": "V2", "x": 5, "y": 5})
+    execute(registry, "create_point", {"objectId": "V3", "x": 0, "y": 5})
+    execute(registry, "create_polygon", {"objectId": "poly", "pointIds": ["V0", "V1", "V2", "V3"]})
+
+    with pytest.raises(ToolExecutionError, match="edge_touches_center"):
+        execute(registry, "create_inversion", {"objectId": "Bad", "source": "poly", "circle": "c1"})
+
+    access = workspace.graph_access_map()
+    assert "Bad" not in access.by_id
+    assert not any(
+        object_id.startswith("ivedge") or object_id.startswith("ivvertex") for object_id in access.by_id
+    )
+
+
+def test_create_inversion_tool_rejects_a_point_at_the_inversion_center() -> None:
+    workspace = GeometryWorkspace()
+    registry = create_geometry_tool_registry(workspace)
+    execute(registry, "create_point", {"objectId": "B", "x": 0, "y": 0})
+    execute(registry, "create_point", {"objectId": "U", "x": 1, "y": 0})
+    execute(registry, "create_circle", {"objectId": "c1", "center": "B", "point": "U"})
+
+    with pytest.raises(ToolExecutionError):
+        execute(registry, "create_inversion", {"objectId": "Bad", "source": "B", "circle": "c1"})
+
+
+def _degenerate_circle_document() -> GeometryDocument:
+    """A document whose 'c1' circle is centered on the intersection of two
+    parallel lines, so 'c1' evaluates to UndefinedValue. GeometryWorkspace's
+    constructor only structurally validates the document (no cycles/dangling
+    references), so this degenerate-but-structurally-valid document can be
+    used as the workspace's starting state -- unlike going through
+    `create_line_line_intersection`, which would reject committing the
+    undefined intersection point in the first place."""
+
+    return GeometryDocument(
+        id="current_graph",
+        title="Current construction",
+        objects=[
+            Point(id="A", label="A", definition=FreePointDefinition(x=0, y=0)),
+            Point(id="B", label="B", definition=FreePointDefinition(x=1, y=0)),
+            Point(id="C", label="C", definition=FreePointDefinition(x=0, y=1)),
+            Point(id="D", label="D", definition=FreePointDefinition(x=1, y=1)),
+            Line(id="l1", label="l1", definition=LineThroughPointsDefinition(point_a="A", point_b="B")),
+            Line(id="l2", label="l2", definition=LineThroughPointsDefinition(point_a="C", point_b="D")),
+            IntersectionLL(id="Bad", label="Bad", definition=IntersectionLLDefinition(line_a="l1", line_b="l2")),
+            Circle(id="c1", label="c1", definition=CircleByCenterPointDefinition(center="Bad", point="A")),
+        ],
+    )
+
+
+def test_create_inversion_tool_rejects_a_degenerate_inversion_circle() -> None:
+    """Regression test: `_create_inversion` must not crash with an
+    AssertionError when the circle argument's value is UndefinedValue (e.g.
+    its center is the intersection of two parallel lines)."""
+    workspace = GeometryWorkspace(_degenerate_circle_document())
+    registry = create_geometry_tool_registry(workspace)
+    execute(registry, "create_point", {"objectId": "E", "x": 1, "y": 2})
+    execute(registry, "create_point", {"objectId": "F", "x": 3, "y": 2})
+    execute(registry, "create_line", {"objectId": "r", "pointA": "E", "pointB": "F"})
+
+    with pytest.raises(ToolExecutionError, match="not a well-defined circle"):
+        execute(registry, "create_inversion", {"objectId": "Inv", "source": "r", "circle": "c1"})
+
+
+def test_create_polygon_inversion_tool_rejects_a_degenerate_inversion_circle() -> None:
+    """Same as above but through the polygon-source path
+    (`_create_polygon_inversion`), which has its own separate assert."""
+    workspace = GeometryWorkspace(_degenerate_circle_document())
+    registry = create_geometry_tool_registry(workspace)
+    execute(registry, "create_point", {"objectId": "V2", "x": 4, "y": 0})
+    execute(registry, "create_point", {"objectId": "V3", "x": 2, "y": 3})
+    execute(registry, "create_polygon", {"objectId": "poly", "pointIds": ["A", "V2", "V3"]})
+
+    with pytest.raises(ToolExecutionError, match="not a well-defined circle"):
+        execute(registry, "create_inversion", {"objectId": "InvPoly", "source": "poly", "circle": "c1"})

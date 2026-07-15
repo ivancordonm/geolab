@@ -11,12 +11,22 @@ import type {
   PolygonValue,
   PointValue,
   ScalarValue,
+  SegmentValue,
   UndefinedValue,
 } from "../types/geometry";
 import { normalizeFunctionExpression } from "./functionExpression";
 import { validateObjectGroups } from "./objectGroups";
 
 export const GEOMETRY_EPSILON = 1e-9;
+
+// Inversion is not kind-preserving (e.g. a line not through the inversion
+// center becomes a circle), unlike reflection/homothety/translation/rotation.
+const INVERSION_RESULT_KINDS: Record<string, readonly string[]> = {
+  point: ["point"],
+  line: ["line", "circle"],
+  circle: ["line", "circle"],
+  segment: ["segment", "arc"],
+};
 
 export class GeometryValidationError extends Error {
   constructor(message: string) {
@@ -70,7 +80,7 @@ export function getParentIds(object: GeometryObject): GeometryObjectId[] {
     case "homothety_point":
       return [object.definition.center, object.definition.object ?? object.definition.point!, object.definition.ratioPoint];
     case "inversion_in_circle":
-      return [object.definition.point, object.definition.circle];
+      return [object.definition.object ?? object.definition.point!, object.definition.circle];
     case "translation":
       return [object.definition.object ?? object.definition.point!, object.definition.from, object.definition.to];
     case "rotation":
@@ -358,8 +368,22 @@ export class GeometryGraph {
         }
         return;
       case "inversion_in_circle":
-        requireKind(def.point, "point");
-        requireKind(def.circle, "circle");
+        {
+          requireKind(def.circle, "circle");
+          const sourceId = def.object ?? def.point!;
+          const actual = this.objectsById.get(sourceId)?.kind;
+          const allowed = INVERSION_RESULT_KINDS[actual as keyof typeof INVERSION_RESULT_KINDS];
+          if (allowed === undefined) {
+            throw new GeometryValidationError(
+              `Object '${object.id}' requires parent '${sourceId}' to be invertible`,
+            );
+          }
+          if (!allowed.includes(object.kind)) {
+            throw new GeometryValidationError(
+              `Object '${object.id}' declared kind '${object.kind}' is not a possible inversion result for a ${actual}`,
+            );
+          }
+        }
         return;
       case "translation":
         {
@@ -689,22 +713,13 @@ export class GeometryGraph {
       }
 
       case "inversion_in_circle": {
-        const pt = this.requireValue<PointValue>(object.id, def.point, "point");
-        if (isUndefined(pt)) return pt;
         const cr = this.requireValue<CircleValue>(object.id, def.circle, "circle");
         if (isUndefined(cr)) return cr;
-        const dx = pt.x - cr.center.x;
-        const dy = pt.y - cr.center.y;
-        const d2 = dx * dx + dy * dy;
-        if (d2 <= GEOMETRY_EPSILON * GEOMETRY_EPSILON) {
-          return { type: "undefined", code: "point_at_center", message: "Inversion is undefined at the center of the circle" };
-        }
-        const r2 = cr.radius * cr.radius;
-        return {
-          type: "point",
-          x: cleanZero(cr.center.x + r2 * dx / d2),
-          y: cleanZero(cr.center.y + r2 * dy / d2),
-        };
+        const sourceId = def.object ?? def.point!;
+        const sourceKind = this.objectsById.get(sourceId)?.kind as EvaluatedValue["type"];
+        const source = this.requireValue<EvaluatedValue>(object.id, sourceId, sourceKind);
+        if (isUndefined(source)) return source;
+        return invertValue(source, cr, object.kind);
       }
 
       case "translation": {
@@ -1158,6 +1173,205 @@ export function referencePointForRatio(value: EvaluatedValue, center: PointValue
     }
     default:
       throw new GeometryValidationError(`Homothety is unsupported for evaluated type '${value.type}'`);
+  }
+}
+
+function asPointValue(value: EvaluatedValue, context: string): PointValue {
+  if (value.type !== "point") {
+    throw new GeometryValidationError(`Expected '${context}' to evaluate as a point`);
+  }
+  return value;
+}
+
+function asLineValue(value: EvaluatedValue, context: string): LineValue {
+  if (value.type !== "line") {
+    throw new GeometryValidationError(`Expected '${context}' to evaluate as a line`);
+  }
+  return value;
+}
+
+function invertPoint(point: PointValue, circle: CircleValue): PointValue | UndefinedValue {
+  const dx = point.x - circle.center.x;
+  const dy = point.y - circle.center.y;
+  const d2 = dx * dx + dy * dy;
+  if (d2 <= GEOMETRY_EPSILON * GEOMETRY_EPSILON) {
+    return { type: "undefined", code: "point_at_center", message: "Inversion is undefined at the center of the circle" };
+  }
+  const r2 = circle.radius * circle.radius;
+  return { type: "point", x: cleanZero(circle.center.x + (r2 * dx) / d2), y: cleanZero(circle.center.y + (r2 * dy) / d2) };
+}
+
+function invertLine(line: LineValue, circle: CircleValue, declaredKind: string): EvaluatedValue {
+  const signedDistance = line.a * circle.center.x + line.b * circle.center.y + line.c;
+  if (Math.abs(signedDistance) <= GEOMETRY_EPSILON) {
+    if (declaredKind !== "line") {
+      return { type: "undefined", code: "line_through_center", message: "A line through the inversion center maps to itself, not a circle" };
+    }
+    return { type: "line", a: line.a, b: line.b, c: line.c };
+  }
+  if (declaredKind !== "circle") {
+    return { type: "undefined", code: "not_through_center", message: "Only a line through the inversion center inverts to a line" };
+  }
+  const foot: PointValue = {
+    type: "point",
+    x: circle.center.x - line.a * signedDistance,
+    y: circle.center.y - line.b * signedDistance,
+  };
+  const invertedFoot = invertPoint(foot, circle);
+  if (isUndefined(invertedFoot)) return invertedFoot;
+  const centerX = (circle.center.x + invertedFoot.x) / 2;
+  const centerY = (circle.center.y + invertedFoot.y) / 2;
+  const radius = Math.hypot(centerX - circle.center.x, centerY - circle.center.y);
+  return { type: "circle", center: { x: cleanZero(centerX), y: cleanZero(centerY) }, radius: cleanZero(radius) };
+}
+
+function invertCircle(source: CircleValue, circle: CircleValue, declaredKind: string): EvaluatedValue {
+  const dx = source.center.x - circle.center.x;
+  const dy = source.center.y - circle.center.y;
+  const centerDistance = Math.hypot(dx, dy);
+
+  if (centerDistance <= GEOMETRY_EPSILON) {
+    if (declaredKind !== "circle") {
+      return { type: "undefined", code: "concentric_source", message: "A circle concentric with the inversion circle maps to another concentric circle" };
+    }
+    return { type: "circle", center: circle.center, radius: cleanZero((circle.radius * circle.radius) / source.radius) };
+  }
+
+  if (Math.abs(centerDistance - source.radius) <= GEOMETRY_EPSILON) {
+    if (declaredKind !== "line") {
+      return { type: "undefined", code: "circle_through_center", message: "A circle through the inversion center maps to a line, not a circle" };
+    }
+    const sourceCenterPoint: PointValue = { type: "point", x: source.center.x, y: source.center.y };
+    const invertedCenter = invertPoint(sourceCenterPoint, circle);
+    if (isUndefined(invertedCenter)) return invertedCenter;
+    const midX = (circle.center.x + invertedCenter.x) / 2;
+    const midY = (circle.center.y + invertedCenter.y) / 2;
+    return canonicalLine(dx, dy, -(dx * midX + dy * midY));
+  }
+
+  if (declaredKind !== "circle") {
+    return { type: "undefined", code: "not_through_center", message: "Only a circle through the inversion center inverts to a line" };
+  }
+  const centerLineValue = lineThroughPoints(
+    { type: "point", x: circle.center.x, y: circle.center.y },
+    { type: "point", x: source.center.x, y: source.center.y },
+  );
+  if (isUndefined(centerLineValue)) return centerLineValue;
+  const centerLine = asLineValue(centerLineValue, "inversion center line");
+  const firstValue = intersectLineCircle(centerLine, source, 1, undefined);
+  if (isUndefined(firstValue)) return firstValue;
+  const first = asPointValue(firstValue, "first center-line intersection");
+  const secondValue = intersectLineCircle(centerLine, source, 2, undefined);
+  if (isUndefined(secondValue)) return secondValue;
+  const second = asPointValue(secondValue, "second center-line intersection");
+  const invertedFirst = invertPoint(first, circle);
+  if (isUndefined(invertedFirst)) return invertedFirst;
+  const invertedSecond = invertPoint(second, circle);
+  if (isUndefined(invertedSecond)) return invertedSecond;
+  // `first`/`second` are diametrically opposite on the source circle (the
+  // center-line passes through its center), so their images are
+  // diametrically opposite on the result circle too.
+  const resultCenterX = (invertedFirst.x + invertedSecond.x) / 2;
+  const resultCenterY = (invertedFirst.y + invertedSecond.y) / 2;
+  const radius = Math.hypot(resultCenterX - invertedFirst.x, resultCenterY - invertedFirst.y);
+  return { type: "circle", center: { x: cleanZero(resultCenterX), y: cleanZero(resultCenterY) }, radius: cleanZero(radius) };
+}
+
+function isSamePoint(a: PointValue, b: PointValue): boolean {
+  return Math.hypot(a.x - b.x, a.y - b.y) <= GEOMETRY_EPSILON;
+}
+
+function pointOnSegment(point: PointValue, start: PointValue, end: PointValue): boolean {
+  return (
+    point.x >= Math.min(start.x, end.x) - GEOMETRY_EPSILON &&
+    point.x <= Math.max(start.x, end.x) + GEOMETRY_EPSILON &&
+    point.y >= Math.min(start.y, end.y) - GEOMETRY_EPSILON &&
+    point.y <= Math.max(start.y, end.y) + GEOMETRY_EPSILON
+  );
+}
+
+function invertSegment(segment: SegmentValue, circle: CircleValue, declaredKind: string): EvaluatedValue {
+  const start: PointValue = { type: "point", x: segment.start.x, y: segment.start.y };
+  const end: PointValue = { type: "point", x: segment.end.x, y: segment.end.y };
+  const center: PointValue = { type: "point", x: circle.center.x, y: circle.center.y };
+  if (isSamePoint(start, center) || isSamePoint(end, center)) {
+    return { type: "undefined", code: "edge_touches_center", message: "Inversion of a segment touching the inversion center is undefined" };
+  }
+  const invertedStart = invertPoint(start, circle);
+  if (isUndefined(invertedStart)) return invertedStart;
+  const invertedEnd = invertPoint(end, circle);
+  if (isUndefined(invertedEnd)) return invertedEnd;
+
+  const cross = (start.x - center.x) * (end.y - center.y) - (start.y - center.y) * (end.x - center.x);
+  if (Math.abs(cross) <= GEOMETRY_EPSILON) {
+    if (pointOnSegment(center, start, end)) {
+      return { type: "undefined", code: "edge_crosses_center", message: "Inversion of a segment crossing the inversion center is undefined" };
+    }
+    if (declaredKind !== "segment") {
+      return { type: "undefined", code: "collinear_with_center", message: "A segment collinear with the inversion center inverts to a segment, not an arc" };
+    }
+    return {
+      type: "segment",
+      start: { x: invertedStart.x, y: invertedStart.y },
+      end: { x: invertedEnd.x, y: invertedEnd.y },
+    };
+  }
+
+  if (declaredKind !== "arc") {
+    return { type: "undefined", code: "not_collinear_with_center", message: "Only a segment collinear with the inversion center inverts to a segment" };
+  }
+  const midpoint: PointValue = { type: "point", x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+  const invertedMid = invertPoint(midpoint, circle);
+  if (isUndefined(invertedMid)) return invertedMid;
+  const circumscribed = circleFromThreePoints(invertedStart, invertedMid, invertedEnd);
+  if (isUndefined(circumscribed)) return circumscribed;
+  return {
+    type: "arc",
+    center: circumscribed.center,
+    radius: circumscribed.radius,
+    start: { x: invertedStart.x, y: invertedStart.y },
+    mid: { x: invertedMid.x, y: invertedMid.y },
+    end: { x: invertedEnd.x, y: invertedEnd.y },
+  };
+}
+
+function invertValue(source: EvaluatedValue, circle: CircleValue, declaredKind: string): EvaluatedValue {
+  switch (source.type) {
+    case "point":
+      return invertPoint(source, circle);
+    case "line":
+      return invertLine(source, circle, declaredKind);
+    case "circle":
+      return invertCircle(source, circle, declaredKind);
+    case "segment":
+      return invertSegment(source, circle, declaredKind);
+    default:
+      return { type: "undefined", code: "not_invertible", message: `Cannot invert a value of type '${source.type}'` };
+  }
+}
+
+export function inferInversionResultKind(sourceValue: EvaluatedValue, circleValue: CircleValue): string | undefined {
+  switch (sourceValue.type) {
+    case "point":
+      return "point";
+    case "line": {
+      const signedDistance = sourceValue.a * circleValue.center.x + sourceValue.b * circleValue.center.y + sourceValue.c;
+      return Math.abs(signedDistance) <= GEOMETRY_EPSILON ? "line" : "circle";
+    }
+    case "circle": {
+      const dx = sourceValue.center.x - circleValue.center.x;
+      const dy = sourceValue.center.y - circleValue.center.y;
+      const centerDistance = Math.hypot(dx, dy);
+      return Math.abs(centerDistance - sourceValue.radius) <= GEOMETRY_EPSILON ? "line" : "circle";
+    }
+    case "segment": {
+      const cx = circleValue.center.x;
+      const cy = circleValue.center.y;
+      const cross = (sourceValue.start.x - cx) * (sourceValue.end.y - cy) - (sourceValue.start.y - cy) * (sourceValue.end.x - cx);
+      return Math.abs(cross) <= GEOMETRY_EPSILON ? "segment" : "arc";
+    }
+    default:
+      return undefined;
   }
 }
 

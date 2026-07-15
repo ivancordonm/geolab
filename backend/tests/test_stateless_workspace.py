@@ -19,8 +19,10 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 
+import pytest
 from fastapi.testclient import TestClient
 
+from app.geometry.workspace import GeometryWorkspace
 from app.main import app
 
 client = TestClient(app)
@@ -91,3 +93,28 @@ def test_concurrent_execute_tool_calls_build_independent_documents() -> None:
     for seed, document in zip([1, 2, 3, 4], final_documents):
         ids = [obj["id"] for obj in document["objects"]]
         assert ids == [f"seed{seed}_p{index}" for index in range(5)]
+
+
+def test_add_objects_commits_all_or_nothing() -> None:
+    from app.geometry.models import FreePointDefinition, Point
+
+    workspace = GeometryWorkspace()
+    a = Point(id="A", label="A", definition=FreePointDefinition(x=0, y=0))
+    b = Point(id="B", label="B", definition=FreePointDefinition(x=1, y=1))
+    access = workspace.add_objects([a, b])
+
+    assert set(access.by_id) == {"A", "B"}
+    assert workspace.document_snapshot().objects == [a, b]
+
+
+def test_add_objects_rejects_the_whole_batch_on_invalid_reference() -> None:
+    from app.geometry.models import FreePointDefinition, Line, LineThroughPointsDefinition, Point
+
+    workspace = GeometryWorkspace()
+    a = Point(id="A", label="A", definition=FreePointDefinition(x=0, y=0))
+    bad_line = Line(id="l", label="l", definition=LineThroughPointsDefinition(point_a="A", point_b="missing"))
+
+    with pytest.raises(Exception):
+        workspace.add_objects([a, bad_line])
+
+    assert workspace.document_snapshot().objects == []

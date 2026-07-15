@@ -124,4 +124,8 @@ describe("snapToGrid", () => {
   it("accepts a custom snap radius in pixels", () => {
     expect(snapToGrid({ x: 2.3, y: 0 }, 1, 50, 20)).toEqual({ x: 2, y: 0 });
   });
+
+  it("snaps to multiples of a non-1 step", () => {
+    expect(snapToGrid({ x: 3.9, y: 0 }, 2, 50)).toEqual({ x: 4, y: 0 });
+  });
 });

@@ -16,7 +16,15 @@ function readStoredSettings(): GridSettings {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (raw === null) return DEFAULT_GRID_SETTINGS;
     const parsed = JSON.parse(raw);
-    return { ...DEFAULT_GRID_SETTINGS, ...parsed };
+    return {
+      showGrid: typeof parsed.showGrid === "boolean" ? parsed.showGrid : DEFAULT_GRID_SETTINGS.showGrid,
+      snapToGrid: typeof parsed.snapToGrid === "boolean" ? parsed.snapToGrid : DEFAULT_GRID_SETTINGS.snapToGrid,
+      stepMode: parsed.stepMode === "manual" ? "manual" : DEFAULT_GRID_SETTINGS.stepMode,
+      manualStep:
+        typeof parsed.manualStep === "number" && Number.isFinite(parsed.manualStep) && parsed.manualStep > 0
+          ? parsed.manualStep
+          : DEFAULT_GRID_SETTINGS.manualStep,
+    };
   } catch {
     return DEFAULT_GRID_SETTINGS;
   }

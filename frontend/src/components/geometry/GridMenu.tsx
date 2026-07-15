@@ -136,7 +136,7 @@ export function GridMenu({ settings, onChange }: GridMenuProps) {
                 <span className="text-xs text-content">Manual:</span>
                 <input
                   type="number"
-                  min="0"
+                  min="0.1"
                   step="0.1"
                   disabled={settings.stepMode !== "manual"}
                   value={manualStepText}

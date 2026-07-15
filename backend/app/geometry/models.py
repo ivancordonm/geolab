@@ -213,11 +213,6 @@ class InversionInCircleDefinition(GeometryModel):
     )
     circle: str
 
-    @property
-    def point(self) -> str:
-        """Backward compatibility property for accessing object_id as point."""
-        return self.object_id
-
 
 class TranslationDefinition(GeometryModel):
     type: Literal["translation"] = "translation"

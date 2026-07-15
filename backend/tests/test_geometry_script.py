@@ -777,3 +777,28 @@ Inv = Inversion(poly, c1)"""
         evaluate_script(script)
 
     assert error_info.value.diagnostic.code == "invalid_reference_type"
+
+
+def test_inversion_with_a_degenerate_inversion_circle_raises_a_diagnostic() -> None:
+    """Regression test: the inversion circle's center is the intersection of
+    two parallel lines, so 'Bad' -- and therefore 'c1' -- evaluate to
+    UndefinedValue. Inverting a non-point source against such a circle must
+    fail with a ConstructionScriptError diagnostic, not an AssertionError."""
+    script = """A = Point(0, 0)
+B = Point(1, 0)
+C = Point(0, 1)
+D = Point(1, 1)
+l1 = Line(A, B)
+l2 = Line(C, D)
+Bad = Intersection(l1, l2)
+c1 = Circle(Bad, A)
+E = Point(1, 2)
+F = Point(3, 2)
+r = Line(E, F)
+Inv = Inversion(r, c1)"""
+
+    with pytest.raises(ConstructionScriptError) as error_info:
+        evaluate_script(script)
+
+    assert error_info.value.diagnostic.code == "invalid_argument"
+    assert "c1" in error_info.value.diagnostic.message

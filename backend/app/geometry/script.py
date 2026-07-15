@@ -76,6 +76,7 @@ from app.geometry.models import (
     SlopeMeasureDefinition,
     TranslatedObject,
     TranslationDefinition,
+    UndefinedValue,
     VectorPolygonDefinition,
 )
 
@@ -650,6 +651,14 @@ def _build_object(
         values = GeometryGraph(preview).values
         source_value = values[source.id]
         circle_value = values[cr.id]
+        if isinstance(circle_value, UndefinedValue):
+            _raise(
+                "invalid_argument",
+                f"'{cr.id}' is not a well-defined circle",
+                statement.line,
+                statement.source_line,
+                cr.id,
+            )
         assert isinstance(circle_value, CircleValue)
         declared_kind = infer_inversion_result_kind(source_value, circle_value)
         if declared_kind is None:

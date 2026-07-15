@@ -1006,6 +1006,8 @@ def _create_inversion(workspace: GeometryWorkspace, raw_input: BaseModel) -> Mut
     access = workspace.graph_access_map()
     _ensure_name_available(access, input_model.object_id, input_model.label)
     circle = _resolve_kind(access, input_model.circle, "circle")
+    if isinstance(circle.value, UndefinedValue):
+        raise ToolExecutionError(f"Geometry object '{input_model.circle}' is not a well-defined circle")
     assert isinstance(circle.value, CircleValue)
     source = _resolve_transformable(access, input_model.source)
 
@@ -1063,6 +1065,8 @@ def _create_polygon_inversion(
     source: GraphObjectAccess,
     circle: GraphObjectAccess,
 ) -> MutationToolOutput:
+    if isinstance(circle.value, UndefinedValue):
+        raise ToolExecutionError(f"Geometry object '{input_model.circle}' is not a well-defined circle")
     assert isinstance(circle.value, CircleValue)
     document = workspace.document_snapshot()
     vertex_ids, vertex_objects = _polygon_vertex_ids(document, source.object)
@@ -1098,7 +1102,15 @@ def _create_polygon_inversion(
         objects.append(result)
         working.append(result)
 
-    return _commit_many(workspace, objects)
+    output = _commit_many(workspace, objects)
+    # `_commit_many` reports `objects[-1]` (the last object in the batch) as
+    # `created_object`, which is correct for every other caller of
+    # `_commit_many` (they all pass a single-object or naturally-ordered
+    # batch). Here, though, the caller's requested `object_id` is assigned to
+    # the FIRST edge's inverted result (see `is_first` above), not the last
+    # one appended -- so report the object the caller actually asked for.
+    requested = next(obj for obj in objects if obj.id == input_model.object_id)
+    return output.model_copy(update={"created_object": requested})
 
 
 def _create_arc(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:

@@ -1,5 +1,5 @@
 {
-  "script": "A = Point(1, 1)\nB = Point(0, 0)\nC = Point(0, 2)\nD = Point(2, -1)\nP = Point(2, 0)\nU = Point(1, 0)\naxis = Line(B, C)\nR = Reflection(A, axis)\nRP = Reflection(A, B)\nT = Translation(A, B, D)\nG = Rotation(A, B, 90)\nH = Homothety(B, P, 2)\nc1 = Circle(B, U)\nInv = Inversion(P, c1)\nV = Point(3, 0)\nS2 = Segment(A, D)\nHP = Homothety(B, S2, V)\nE = Point(1, 2)\nF = Point(3, 2)\nrLine = Line(E, F)\nC1 = Inversion(rLine, c1)\n",
+  "script": "A = Point(1, 1)\nB = Point(0, 0)\nC = Point(0, 2)\nD = Point(2, -1)\nP = Point(2, 0)\nU = Point(1, 0)\naxis = Line(B, C)\nR = Reflection(A, axis)\nRP = Reflection(A, B)\nT = Translation(A, B, D)\nG = Rotation(A, B, 90)\nH = Homothety(B, P, 2)\nc1 = Circle(B, U)\nInv = Inversion(P, c1)\nV = Point(3, 0)\nS2 = Segment(A, D)\nHP = Homothety(B, S2, V)\nE = Point(1, 2)\nF = Point(3, 2)\nrLine = Line(E, F)\nC1 = Inversion(rLine, c1)\nW = Point(4, 0)\nCirc2 = Circle(V, W)\nC2 = Inversion(Circ2, c1)\nSeg2 = Segment(E, F)\nC3 = Inversion(Seg2, c1)\n",
   "document": {
     "schemaVersion": 1,
     "id": "doc_transformations",
@@ -260,6 +260,66 @@
           "object": "rLine",
           "circle": "c1"
         }
+      },
+      {
+        "id": "W",
+        "label": "W",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 4.0,
+          "y": 0.0
+        }
+      },
+      {
+        "id": "Circ2",
+        "label": "Circ2",
+        "visible": true,
+        "style": null,
+        "kind": "circle",
+        "definition": {
+          "type": "center_through_point",
+          "center": "V",
+          "point": "W"
+        }
+      },
+      {
+        "id": "C2",
+        "label": "C2",
+        "visible": true,
+        "style": null,
+        "kind": "circle",
+        "definition": {
+          "type": "inversion_in_circle",
+          "object": "Circ2",
+          "circle": "c1"
+        }
+      },
+      {
+        "id": "Seg2",
+        "label": "Seg2",
+        "visible": true,
+        "style": null,
+        "kind": "segment",
+        "definition": {
+          "type": "between_points",
+          "pointA": "E",
+          "pointB": "F"
+        }
+      },
+      {
+        "id": "C3",
+        "label": "C3",
+        "visible": true,
+        "style": null,
+        "kind": "arc",
+        "definition": {
+          "type": "inversion_in_circle",
+          "object": "Seg2",
+          "circle": "c1"
+        }
       }
     ],
     "groups": [],
@@ -395,6 +455,58 @@
         "y": 0.25
       },
       "radius": 0.25
+    },
+    "W": {
+      "type": "point",
+      "x": 4.0,
+      "y": 0.0
+    },
+    "Circ2": {
+      "type": "circle",
+      "center": {
+        "x": 3.0,
+        "y": 0.0
+      },
+      "radius": 1.0
+    },
+    "C2": {
+      "type": "circle",
+      "center": {
+        "x": 0.375,
+        "y": 0.0
+      },
+      "radius": 0.125
+    },
+    "Seg2": {
+      "type": "segment",
+      "start": {
+        "x": 1.0,
+        "y": 2.0
+      },
+      "end": {
+        "x": 3.0,
+        "y": 2.0
+      }
+    },
+    "C3": {
+      "type": "arc",
+      "center": {
+        "x": 0.0,
+        "y": 0.25
+      },
+      "radius": 0.25000000000000017,
+      "start": {
+        "x": 0.2,
+        "y": 0.4
+      },
+      "mid": {
+        "x": 0.25,
+        "y": 0.25
+      },
+      "end": {
+        "x": 0.23076923076923078,
+        "y": 0.15384615384615385
+      }
     }
   }
 }

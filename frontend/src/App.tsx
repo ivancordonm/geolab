@@ -15,7 +15,7 @@ import { useAuth } from "./auth/useAuth";
 import { useSharing } from "./app/useSharing";
 import { AssistantPanel } from "./components/assistant/AssistantPanel";
 import { AuthControl } from "./components/auth/AuthControl";
-import { ConstructionToolbar } from "./components/geometry/ConstructionToolbar";
+import { ConstructionToolbar, SHORTCUT_TO_TOOL } from "./components/geometry/ConstructionToolbar";
 import { GeometryCanvas } from "./components/geometry/GeometryCanvas";
 import { ObjectList } from "./components/panel/ObjectList";
 import { ScriptEditor } from "./components/panel/ScriptEditor";
@@ -211,6 +211,14 @@ export function App() {
         handleDeleteObject(selectedObjectId);
         return;
       }
+      if (!event.metaKey && !event.ctrlKey && !event.altKey && !isEditableTarget(event.target)) {
+        const tool = SHORTCUT_TO_TOOL[event.key.toLowerCase()];
+        if (tool !== undefined) {
+          event.preventDefault();
+          constructionTools.activateTool(tool);
+          return;
+        }
+      }
       if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "z") return;
       event.preventDefault();
       if (event.shiftKey) {
@@ -221,7 +229,7 @@ export function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [geometry, handleDeleteObject, selectedObjectId]);
+  }, [constructionTools, geometry, handleDeleteObject, selectedObjectId]);
 
   const handleClear = useCallback(() => {
     clearDocument();

@@ -88,6 +88,7 @@ export function App() {
   const [runningScript, setRunningScript] = useState(false);
   const [scriptError, setScriptError] = useState<ScriptErrorDetail | null>(null);
   const [scriptOutput, setScriptOutput] = useState<string | null>(null);
+  const [scriptText, setScriptText] = useState(DEFAULT_CONSTRUCTION_SCRIPT);
   const [persistenceNotice, setPersistenceNotice] = useState<{
     message: string | null;
     error: string | null;
@@ -269,11 +270,13 @@ export function App() {
 
   const handleExportScript = useCallback(() => {
     try {
+      const script = documentToScript(currentDocument());
       downloadTextFile(
-        documentToScript(currentDocument()),
+        script,
         `${safeFilename(geometry.document.title)}.geolab.txt`,
         "text/plain",
       );
+      setScriptText(script);
       setPersistenceNotice({ message: "Construction script export created.", error: null });
     } catch (error) {
       reportPersistenceError(asError(error, "Unable to export script."));
@@ -588,7 +591,7 @@ export function App() {
                 icon: <Code2 size={16} />,
                 panel: (
                   <ScriptEditor
-                    initialScript={DEFAULT_CONSTRUCTION_SCRIPT}
+                    initialScript={scriptText}
                     running={runningScript}
                     error={scriptError}
                     output={scriptOutput}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Trash2 } from "lucide-react";
 
@@ -20,6 +20,10 @@ export function ScriptEditor({
   onRunScript,
 }: ScriptEditorProps) {
   const [script, setScript] = useState(initialScript);
+
+  useEffect(() => {
+    setScript(initialScript);
+  }, [initialScript]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();

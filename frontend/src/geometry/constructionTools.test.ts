@@ -528,6 +528,99 @@ describe("useGeometryState", () => {
     expect(result.current.values.has("M")).toBe(false);
   });
 
+  it("toggles and deletes a construction group atomically", () => {
+    const document: GeometryDocument = {
+      schemaVersion: 1,
+      id: "group-state",
+      title: "Group state",
+      objects: [
+        freePoint("A", 0, 0),
+        freePoint("B", 2, 0),
+        { id: "c1", label: "c1", kind: "circle", visible: true, definition: { type: "center_through_point", center: "A", point: "B" } },
+        { id: "helper", label: "helper", kind: "line", visible: false, definition: { type: "through_points", pointA: "A", pointB: "B" } },
+      ],
+      groups: [{
+        id: "g1",
+        label: "Circle",
+        members: [
+          { objectId: "A", role: "input" },
+          { objectId: "B", role: "input" },
+          { objectId: "c1", role: "primary" },
+          { objectId: "helper", role: "helper" },
+        ],
+      }],
+    };
+    const { result } = renderHook(() => useGeometryState(document));
+
+    act(() => result.current.toggleObjectGroupVisibility("g1"));
+    expect(result.current.document.objects.every((object) => !object.visible)).toBe(true);
+    act(() => result.current.toggleObjectGroupVisibility("g1"));
+    expect(result.current.document.objects.filter((object) => object.id !== "helper").every((object) => object.visible)).toBe(true);
+    expect(result.current.document.objects.find((object) => object.id === "helper")?.visible).toBe(false);
+
+    act(() => result.current.removeObjectGroup("g1"));
+    expect(result.current.document.objects).toEqual([]);
+    expect(result.current.document.groups).toBeUndefined();
+
+    act(() => result.current.undo());
+    expect(result.current.document.objects).toHaveLength(4);
+    expect(result.current.document.groups?.[0].id).toBe("g1");
+  });
+
+  it("dissolves a group when deleting a child also removes its primary", () => {
+    const document: GeometryDocument = {
+      schemaVersion: 1,
+      id: "group-child-delete",
+      title: "Group child delete",
+      objects: [
+        freePoint("A", 0, 0),
+        freePoint("B", 2, 0),
+        { id: "c1", label: "c1", kind: "circle", visible: true, definition: { type: "center_through_point", center: "A", point: "B" } },
+      ],
+      groups: [{ id: "g1", label: "Circle", members: [
+        { objectId: "A", role: "input" },
+        { objectId: "B", role: "input" },
+        { objectId: "c1", role: "primary" },
+      ] }],
+    };
+    const { result } = renderHook(() => useGeometryState(document));
+    act(() => result.current.removeObject("A"));
+    expect(result.current.document.objects.map((object) => object.id)).toEqual(["B"]);
+    expect(result.current.document.groups).toBeUndefined();
+  });
+
+});
+
+describe("construction groups", () => {
+  it("groups points created across clicks under the completed circle", () => {
+    const controller = new ConstructionToolController();
+    controller.activate("circle");
+    const first = controller.handleCanvasClick({ x: 0, y: 0 }, baseDocument);
+    const document = { ...baseDocument, objects: [...baseDocument.objects, ...first.createdObjects!] };
+    const second = controller.handleCanvasClick({ x: 2, y: 0 }, document);
+
+    expect(second.createdGroup).toEqual({
+      id: "g1",
+      label: "Circle",
+      members: [
+        { objectId: first.createdObjects![0].id, role: "input" },
+        { objectId: second.createdObjects![0].id, role: "input" },
+        { objectId: second.createdObjects![1].id, role: "primary" },
+      ],
+    });
+  });
+
+  it("does not adopt existing inputs into a group", () => {
+    const controller = new ConstructionToolController();
+    controller.activate("circle");
+    controller.handleObjectClick("A", baseDocument);
+    const result = controller.handleCanvasClick({ x: 2, y: 0 }, baseDocument);
+    expect(result.createdGroup?.members.map((member) => member.objectId)).toEqual([
+      result.createdObjects![0].id,
+      result.createdObjects![1].id,
+    ]);
+    expect(result.createdGroup?.members.some((member) => member.objectId === "A")).toBe(false);
+  });
 });
 
 function freePoint(id: string, x: number, y: number): GeometryObject {

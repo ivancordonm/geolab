@@ -5,11 +5,13 @@ import type {
   GeometryDocument,
   GeometryObject,
   GeometryObjectId,
+  GeometryObjectGroup,
   GeometryStyle,
   GeometryViewport,
 } from "../types/geometry";
 import { GeometryGraph, getParentIds } from "./engine";
 import { translateObjectDocument } from "./objectTranslation";
+import { normalizeObjectGroups } from "./objectGroups";
 
 export interface GeometryState {
   document: GeometryDocument;
@@ -26,16 +28,19 @@ export interface GeometryState {
   applyObjectChanges: (
     createdObjects: readonly GeometryObject[],
     removedObjectIds: readonly GeometryObjectId[],
+    createdGroup?: GeometryObjectGroup,
   ) => void;
   replaceDocument: (document: GeometryDocument) => void;
   setDocumentTitle: (title: string) => void;
   toggleObjectVisibility: (objectId: GeometryObjectId) => void;
+  toggleObjectGroupVisibility: (groupId: string) => void;
   setObjectLabel: (objectId: GeometryObjectId, label: string) => void;
   setObjectColor: (objectId: GeometryObjectId, color: string | null) => void;
   setObjectStyle: (objectId: GeometryObjectId, patch: Partial<GeometryStyle>) => void;
   updateFunctionExpression: (objectId: GeometryObjectId, expression: string) => void;
   updateHomothetyRatio: (objectId: GeometryObjectId, ratio: number) => void;
   removeObject: (objectId: GeometryObjectId) => void;
+  removeObjectGroup: (groupId: string) => void;
   setObjectLabelOffset: (objectId: GeometryObjectId, x: number, y: number) => void;
   setViewport: (viewport: GeometryViewport) => void;
   resetViewport: () => void;
@@ -179,17 +184,23 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
   const applyObjectChanges = useCallback((
     createdObjects: readonly GeometryObject[],
     removedObjectIds: readonly GeometryObjectId[],
+    createdGroup?: GeometryObjectGroup,
   ) => {
-    if (createdObjects.length === 0 && removedObjectIds.length === 0) return;
+    if (createdObjects.length === 0 && removedObjectIds.length === 0 && createdGroup === undefined) return;
     recordDocumentChange();
     const removedIds = new Set(removedObjectIds);
     const currentDocument = graphRef.current!.document;
+    const objects = [
+      ...currentDocument.objects.filter((object) => !removedIds.has(object.id)),
+      ...createdObjects,
+    ];
+    const survivingIds = new Set(objects.map((object) => object.id));
+    const groups = normalizeObjectGroups(currentDocument.groups, survivingIds) ?? [];
+    if (createdGroup !== undefined) groups.push(createdGroup);
     const candidate: GeometryDocument = {
       ...currentDocument,
-      objects: [
-        ...currentDocument.objects.filter((object) => !removedIds.has(object.id)),
-        ...createdObjects,
-      ],
+      objects,
+      groups: groups.length > 0 ? groups : undefined,
     };
     applyDocument(candidate);
   }, [applyDocument, recordDocumentChange]);
@@ -228,6 +239,24 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
       ),
     };
     applyDocument(nextDocument);
+  }, [applyDocument, recordDocumentChange]);
+
+  const toggleObjectGroupVisibility = useCallback((groupId: string) => {
+    const currentDocument = graphRef.current!.document;
+    const group = currentDocument.groups?.find((candidate) => candidate.id === groupId);
+    if (group === undefined) return;
+    const memberById = new Map(group.members.map((member) => [member.objectId, member]));
+    const normalMembers = currentDocument.objects.filter((object) => memberById.get(object.id)?.role !== "helper" && memberById.has(object.id));
+    const shouldShow = !normalMembers.some((object) => object.visible);
+    recordDocumentChange();
+    applyDocument({
+      ...currentDocument,
+      objects: currentDocument.objects.map((object) => {
+        const member = memberById.get(object.id);
+        if (member === undefined) return object;
+        return { ...object, visible: shouldShow && member.role !== "helper" };
+      }),
+    });
   }, [applyDocument, recordDocumentChange]);
 
   const setObjectLabel = useCallback((objectId: GeometryObjectId, label: string) => {
@@ -329,11 +358,38 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
     if (!currentDocument.objects.some((object) => removedIds.has(object.id))) return;
     recordDocumentChange();
 
+    const objects = currentDocument.objects.filter((object) => !removedIds.has(object.id));
     const nextDocument: GeometryDocument = {
       ...currentDocument,
-      objects: currentDocument.objects.filter((object) => !removedIds.has(object.id)),
+      objects,
+      groups: normalizeObjectGroups(currentDocument.groups, new Set(objects.map((object) => object.id))),
     };
     applyDocument(nextDocument);
+  }, [applyDocument, recordDocumentChange]);
+
+  const removeObjectGroup = useCallback((groupId: string) => {
+    const currentDocument = graphRef.current!.document;
+    const group = currentDocument.groups?.find((candidate) => candidate.id === groupId);
+    if (group === undefined) return;
+    const removedIds = new Set(group.members.map((member) => member.objectId));
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const object of currentDocument.objects) {
+        if (removedIds.has(object.id)) continue;
+        if (getParentIds(object).some((parentId) => removedIds.has(parentId))) {
+          removedIds.add(object.id);
+          changed = true;
+        }
+      }
+    }
+    recordDocumentChange();
+    const objects = currentDocument.objects.filter((object) => !removedIds.has(object.id));
+    applyDocument({
+      ...currentDocument,
+      objects,
+      groups: normalizeObjectGroups(currentDocument.groups, new Set(objects.map((object) => object.id))),
+    });
   }, [applyDocument, recordDocumentChange]);
 
   const setObjectLabelOffset = useCallback((objectId: GeometryObjectId, x: number, y: number) => {
@@ -393,12 +449,14 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
     replaceDocument,
     setDocumentTitle,
     toggleObjectVisibility,
+    toggleObjectGroupVisibility,
     setObjectLabel,
     setObjectColor,
     setObjectStyle,
     updateFunctionExpression,
     updateHomothetyRatio,
     removeObject,
+    removeObjectGroup,
     setObjectLabelOffset,
     setViewport,
     resetViewport,

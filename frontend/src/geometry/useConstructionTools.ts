@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { GeometryDocument, GeometryObject } from "../types/geometry";
+import type { GeometryDocument, GeometryObject, GeometryObjectGroup } from "../types/geometry";
 import type { Coordinate } from "./viewport";
 import {
   ConstructionToolController,
@@ -17,6 +17,7 @@ interface UseConstructionToolsOptions {
   onApplyObjectChanges: (
     createdObjects: readonly GeometryObject[],
     removedObjectIds: readonly string[],
+    createdGroup?: GeometryObjectGroup,
   ) => void;
   onSelectObject: (objectId: string | null) => void;
 }
@@ -48,7 +49,7 @@ export function useConstructionTools({
       const createdObjects = result.createdObjects ?? [];
       const removedObjectIds = result.removedObjectIds ?? [];
       if (createdObjects.length > 0 || removedObjectIds.length > 0) {
-        onApplyObjectChanges(createdObjects, removedObjectIds);
+        onApplyObjectChanges(createdObjects, removedObjectIds, result.createdGroup);
       }
       if (result.selectedObjectId !== undefined) {
         onSelectObject(result.selectedObjectId);

@@ -7,6 +7,7 @@ import type {
   EvaluationMap,
   GeometryDocument,
   GeometryObject,
+  GeometryObjectGroup,
   HomothetyScalar,
   HomothetyPoint,
   IntersectionCC,
@@ -30,6 +31,7 @@ import type {
 } from "../types/geometry";
 import type { Coordinate } from "./viewport";
 import { GEOMETRY_EPSILON, GeometryGraph } from "./engine";
+import { nextObjectGroupId } from "./objectGroups";
 
 export type ConstructionTool =
   | "select"
@@ -84,6 +86,7 @@ export interface ConstructionToolResult {
   createdObjects?: readonly GeometryObject[];
   removedObjectIds?: readonly string[];
   selectedObjectId?: string | null;
+  createdGroup?: GeometryObjectGroup;
 }
 
 export const TOOL_INSTRUCTIONS: Record<ConstructionTool, string> = {
@@ -147,8 +150,35 @@ function formatKind(required: RequiredKind): string {
   return required;
 }
 
+function toolLabel(tool: ConstructionTool): string {
+  const labels: Partial<Record<ConstructionTool, string>> = {
+    segment: "Segment",
+    line: "Line",
+    circle: "Circle",
+    midpoint: "Midpoint",
+    parallel: "Parallel line",
+    perpendicular: "Perpendicular line",
+    intersection: "Intersection",
+    perp_bisector: "Perpendicular bisector",
+    angle_bisector: "Angle bisector",
+    circumcircle: "Circumcircle",
+    reflect_line: "Reflection",
+    reflect_point: "Reflection",
+    homothety: "Homothety",
+    homothety_scalar: "Homothety",
+    inversion: "Inversion",
+    translation: "Translation",
+    rotation: "Rotation",
+    polygon: "Polygon",
+    regular_polygon: "Regular polygon",
+    vector_polygon: "Vector polygon",
+  };
+  return labels[tool] ?? "Construction";
+}
+
 export class ConstructionToolController {
   private vectorPolygonCreatedPointIds = new Set<string>();
+  private createdDuringOperationIds: string[] = [];
 
   private stateValue: ConstructionToolState = {
     activeTool: "select",
@@ -166,6 +196,7 @@ export class ConstructionToolController {
 
   activate(tool: ConstructionTool): ConstructionToolState {
     this.vectorPolygonCreatedPointIds.clear();
+    this.createdDuringOperationIds = [];
     this.stateValue = {
       activeTool: tool,
       selectedObjectIds: [],
@@ -180,6 +211,7 @@ export class ConstructionToolController {
 
   cancel(): ConstructionToolState {
     this.vectorPolygonCreatedPointIds.clear();
+    this.createdDuringOperationIds = [];
     this.stateValue = { ...this.stateValue, selectedObjectIds: [], pointerWorld: null, error: null };
     return this.state;
   }
@@ -216,12 +248,14 @@ export class ConstructionToolController {
     }
     const constructions = createConstruction(tool, selected, document);
     const removedObjectIds = this.vectorPolygonAuxiliaryPointIds(tool, selected);
+    const createdGroup = this.finishGroup(tool, constructions, document, removedObjectIds);
     this.vectorPolygonCreatedPointIds.clear();
     this.stateValue = { ...this.stateValue, selectedObjectIds: [], pointerWorld: null, error: null };
     return {
       state: this.state,
       createdObjects: constructions,
       removedObjectIds,
+      createdGroup,
       selectedObjectId: constructions[constructions.length - 1]?.id,
     };
   }
@@ -254,6 +288,7 @@ export class ConstructionToolController {
     if (activeTool === "polygon" || activeTool === "vector_polygon") {
       const label = nextPointLabel(document);
       const newPoint: Point = { id: label, label, kind: "point", visible: true, definition: { type: "free", x: world.x, y: world.y } };
+      this.trackCreated(newPoint.id);
       if (activeTool === "vector_polygon") {
         this.vectorPolygonCreatedPointIds.add(newPoint.id);
       }
@@ -265,6 +300,7 @@ export class ConstructionToolController {
     if (activeTool === "regular_polygon") {
       const label = nextPointLabel(document);
       const newPoint: Point = { id: label, label, kind: "point", visible: true, definition: { type: "free", x: world.x, y: world.y } };
+      this.trackCreated(newPoint.id);
       const selected = [...this.stateValue.selectedObjectIds, newPoint.id];
       if (selected.length < 2) {
         this.stateValue = { ...this.stateValue, selectedObjectIds: selected, error: null };
@@ -272,8 +308,9 @@ export class ConstructionToolController {
       }
       const candidateDoc: GeometryDocument = { ...document, objects: [...document.objects, newPoint] };
       const constructions = createConstruction(activeTool, selected, candidateDoc, this.stateValue.regularPolygonSides);
+      const createdGroup = this.finishGroup(activeTool, constructions, candidateDoc);
       this.stateValue = { ...this.stateValue, selectedObjectIds: [], pointerWorld: null, error: null };
-      return { state: this.state, createdObjects: [newPoint, ...constructions], selectedObjectId: constructions[constructions.length - 1]?.id };
+      return { state: this.state, createdObjects: [newPoint, ...constructions], createdGroup, selectedObjectId: constructions[constructions.length - 1]?.id };
     }
 
     const requirements = MULTI_STEP_REQUIREMENTS[this.stateValue.activeTool];
@@ -296,6 +333,7 @@ export class ConstructionToolController {
       visible: true,
       definition: { type: "free", x: world.x, y: world.y },
     };
+    this.trackCreated(newPoint.id);
 
     const selected = [...this.stateValue.selectedObjectIds, newPoint.id];
 
@@ -316,10 +354,12 @@ export class ConstructionToolController {
       this.stateValue.rotationAngle,
       this.stateValue.homothetyRatio,
     );
+    const createdGroup = this.finishGroup(this.stateValue.activeTool, constructions, candidateDoc);
     this.stateValue = { ...this.stateValue, selectedObjectIds: [], pointerWorld: null, error: null };
     return {
       state: this.state,
       createdObjects: [newPoint, ...constructions],
+      createdGroup,
       selectedObjectId: constructions[constructions.length - 1]?.id,
     };
   }
@@ -347,12 +387,14 @@ export class ConstructionToolController {
       if (accumulated.length >= 3 && accumulated[0] === objectId) {
         const constructions = createConstruction(activeTool2, [...accumulated], document);
         const removedObjectIds = this.vectorPolygonAuxiliaryPointIds(activeTool2, accumulated);
+        const createdGroup = this.finishGroup(activeTool2, constructions, document, removedObjectIds);
         this.vectorPolygonCreatedPointIds.clear();
         this.stateValue = { ...this.stateValue, selectedObjectIds: [], pointerWorld: null, error: null };
         return {
           state: this.state,
           createdObjects: constructions,
           removedObjectIds,
+          createdGroup,
           selectedObjectId: constructions[constructions.length - 1]?.id,
         };
       }
@@ -374,8 +416,9 @@ export class ConstructionToolController {
         return { state: this.state, selectedObjectId: objectId };
       }
       const constructions = createConstruction(activeTool2, selected2, document, this.stateValue.regularPolygonSides);
+      const createdGroup = this.finishGroup(activeTool2, constructions, document);
       this.stateValue = { ...this.stateValue, selectedObjectIds: [], pointerWorld: null, error: null };
-      return { state: this.state, createdObjects: constructions, selectedObjectId: constructions[constructions.length - 1]?.id };
+      return { state: this.state, createdObjects: constructions, createdGroup, selectedObjectId: constructions[constructions.length - 1]?.id };
     }
 
     const requirements = MULTI_STEP_REQUIREMENTS[this.stateValue.activeTool];
@@ -409,10 +452,12 @@ export class ConstructionToolController {
       this.stateValue.rotationAngle,
       this.stateValue.homothetyRatio,
     );
+    const createdGroup = this.finishGroup(this.stateValue.activeTool, constructions, document);
     this.stateValue = { ...this.stateValue, selectedObjectIds: [], pointerWorld: null, error: null };
     return {
       state: this.state,
       createdObjects: constructions,
+      createdGroup,
       selectedObjectId: constructions[constructions.length - 1]?.id,
     };
   }
@@ -420,6 +465,40 @@ export class ConstructionToolController {
   private fail(message: string): ConstructionToolResult {
     this.stateValue = { ...this.stateValue, error: message };
     return { state: this.state };
+  }
+
+  private trackCreated(objectId: string): void {
+    if (!this.createdDuringOperationIds.includes(objectId)) this.createdDuringOperationIds.push(objectId);
+  }
+
+  private finishGroup(
+    tool: ConstructionTool,
+    constructions: readonly GeometryObject[],
+    document: GeometryDocument,
+    removedObjectIds: readonly string[] = [],
+  ): GeometryObjectGroup | undefined {
+    const removed = new Set(removedObjectIds);
+    const inputIds = this.createdDuringOperationIds.filter((id) => !removed.has(id));
+    const multiPrimary = tool === "intersection" || tool === "inversion";
+    const primaryIds = new Set(
+      multiPrimary
+        ? constructions.filter((object) => object.visible).map((object) => object.id)
+        : constructions.length > 0 ? [constructions[constructions.length - 1].id] : [],
+    );
+    const members = [
+      ...inputIds.map((objectId) => ({ objectId, role: "input" as const })),
+      ...constructions.map((object) => ({
+        objectId: object.id,
+        role: primaryIds.has(object.id) ? "primary" as const : "helper" as const,
+      })),
+    ];
+    this.createdDuringOperationIds = [];
+    if (members.length < 2 || primaryIds.size === 0) return undefined;
+    return {
+      id: nextObjectGroupId(document),
+      label: toolLabel(tool),
+      members,
+    };
   }
 
   private vectorPolygonAuxiliaryPointIds(

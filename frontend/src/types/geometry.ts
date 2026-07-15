@@ -255,11 +255,23 @@ export interface GeometryViewport {
   scale: number;
 }
 
+export type GeometryGroupMemberRole = "primary" | "input" | "helper";
+
+export interface GeometryObjectGroup {
+  id: string;
+  label: string;
+  members: Array<{
+    objectId: GeometryObjectId;
+    role: GeometryGroupMemberRole;
+  }>;
+}
+
 export interface GeometryDocument {
   schemaVersion: typeof GEOMETRY_SCHEMA_VERSION;
   id: string;
   title: string;
   objects: GeometryObject[];
+  groups?: GeometryObjectGroup[];
   viewport?: GeometryViewport;
   metadata?: Record<string, string>;
 }

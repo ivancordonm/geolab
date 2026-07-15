@@ -14,6 +14,7 @@ import type {
   UndefinedValue,
 } from "../types/geometry";
 import { normalizeFunctionExpression } from "./functionExpression";
+import { validateObjectGroups } from "./objectGroups";
 
 export const GEOMETRY_EPSILON = 1e-9;
 
@@ -107,6 +108,11 @@ export class GeometryGraph {
 
   constructor(document: GeometryDocument) {
     this.documentState = cloneGeometryDocument(document);
+    try {
+      validateObjectGroups(this.documentState);
+    } catch (error) {
+      throw new GeometryValidationError(error instanceof Error ? error.message : "Invalid geometry groups");
+    }
     this.objectsById = new Map();
     this.parentsById = new Map();
     this.dependantsById = new Map();

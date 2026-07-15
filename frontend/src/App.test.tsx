@@ -89,6 +89,31 @@ describe("script editor flow", () => {
     expect(screen.getByLabelText("9 objects")).toBeInTheDocument();
   });
 
+  it("loads the script in the script editor when exporting a script", async () => {
+    vi.stubGlobal("URL", {
+      createObjectURL: vi.fn(() => "blob:mock"),
+      revokeObjectURL: vi.fn(),
+    });
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("tab", { name: "Script" }));
+    
+    // Clear the script so we can check that it gets updated/filled on export
+    await user.click(screen.getByRole("button", { name: "Clear script" }));
+    expect(screen.getByLabelText("Construction script")).toHaveValue("");
+
+    // Open the Actions menu and export the script
+    await user.click(screen.getByRole("button", { name: "Construction actions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Export Script" }));
+
+    // Verify it is filled with the exported script
+    const editor = screen.getByLabelText("Construction script") as HTMLTextAreaElement;
+    expect(editor).not.toHaveValue("");
+    expect(editor.value).toContain("A = Point(-2, -1)");
+    expect(editor.value).toContain("Circle(A, C)");
+  });
+
   it("restores the last locally saved construction on page load", () => {
     saveDocument({
       schemaVersion: 1,

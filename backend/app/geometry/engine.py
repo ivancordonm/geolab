@@ -111,7 +111,7 @@ def get_parent_ids(obj: GeometryObject) -> list[str]:
     if isinstance(definition, HomothetyPointDefinition):
         return [definition.center, definition.object_id, definition.ratio_point]
     if isinstance(definition, InversionInCircleDefinition):
-        return [definition.point, definition.circle]
+        return [definition.object_id, definition.circle]
     if isinstance(definition, TranslationDefinition):
         return [definition.object_id, definition.from_, definition.to]
     if isinstance(definition, RotationDefinition):
@@ -137,6 +137,18 @@ def get_parent_ids(obj: GeometryObject) -> list[str]:
     if isinstance(definition, SlopeMeasureDefinition):
         return [definition.line]
     raise GeometryValidationError(f"Unsupported definition for object '{obj.id}'")
+
+
+# Inversion is not kind-preserving (e.g. a line not through the inversion
+# center becomes a circle), unlike Reflection/Homothety/Translation/Rotation.
+# The declared `kind` is picked once at construction time by
+# `infer_inversion_result_kind` and re-validated here at every evaluation.
+_INVERSION_RESULT_KINDS: dict[str, frozenset[str]] = {
+    "point": frozenset({"point"}),
+    "line": frozenset({"line", "circle"}),
+    "circle": frozenset({"line", "circle"}),
+    "segment": frozenset({"segment", "arc"}),
+}
 
 
 class GeometryGraph:
@@ -307,8 +319,18 @@ class GeometryGraph:
                 )
             require_kind(definition.ratio_point, "point")
         elif isinstance(definition, InversionInCircleDefinition):
-            require_kind(definition.point, "point")
             require_kind(definition.circle, "circle")
+            actual = self._objects_by_id[definition.object_id].kind
+            allowed = _INVERSION_RESULT_KINDS.get(actual)
+            if allowed is None:
+                raise GeometryValidationError(
+                    f"Object '{obj.id}' requires parent '{definition.object_id}' to be invertible"
+                )
+            if obj.kind not in allowed:
+                raise GeometryValidationError(
+                    f"Object '{obj.id}' declared kind '{obj.kind}' is not a possible "
+                    f"inversion result for a {actual}"
+                )
         elif isinstance(definition, TranslationDefinition):
             actual = self._objects_by_id[definition.object_id].kind
             if actual not in {"point", "line", "segment", "circle", "polygon"}:
@@ -606,21 +628,15 @@ class GeometryGraph:
             return _scale_value(source, ctr, k)
 
         if isinstance(definition, InversionInCircleDefinition):
-            pt = self._require_value(obj.id, definition.point, "point")
-            if isinstance(pt, UndefinedValue):
-                return pt
             cr = self._require_value(obj.id, definition.circle, "circle")
             if isinstance(cr, UndefinedValue):
                 return cr
-            assert isinstance(pt, PointValue)
             assert isinstance(cr, CircleValue)
-            dx = pt.x - cr.center.x
-            dy = pt.y - cr.center.y
-            d2 = dx * dx + dy * dy
-            if d2 <= GEOMETRY_EPSILON * GEOMETRY_EPSILON:
-                return UndefinedValue(code="point_at_center", message="Inversion is undefined at the center of the circle")
-            r2 = cr.radius * cr.radius
-            return PointValue(x=_clean_zero(cr.center.x + r2 * dx / d2), y=_clean_zero(cr.center.y + r2 * dy / d2))
+            source_kind = self._objects_by_id[definition.object_id].kind
+            source = self._require_value(obj.id, definition.object_id, source_kind)
+            if isinstance(source, UndefinedValue):
+                return source
+            return _invert_value(source, cr, obj.kind)
 
         if isinstance(definition, TranslationDefinition):
             source = self._require_value(obj.id, definition.object_id, obj.kind)
@@ -1088,6 +1104,226 @@ def _angle_bisector(arm_a: PointValue, vertex: PointValue, arm_b: PointValue) ->
         dir_x = -day / na
         dir_y = dax / na
     return _canonical_line(-dir_y, dir_x, dir_y * vertex.x - dir_x * vertex.y)
+
+
+def _invert_point(point: PointValue, circle: CircleValue) -> EvaluatedValue:
+    dx = point.x - circle.center.x
+    dy = point.y - circle.center.y
+    d2 = dx * dx + dy * dy
+    if d2 <= GEOMETRY_EPSILON * GEOMETRY_EPSILON:
+        return UndefinedValue(code="point_at_center", message="Inversion is undefined at the center of the circle")
+    r2 = circle.radius * circle.radius
+    return PointValue(x=_clean_zero(circle.center.x + r2 * dx / d2), y=_clean_zero(circle.center.y + r2 * dy / d2))
+
+
+def _invert_line(line: LineValue, circle: CircleValue, declared_kind: str) -> EvaluatedValue:
+    signed_distance = line.a * circle.center.x + line.b * circle.center.y + line.c
+    if abs(signed_distance) <= GEOMETRY_EPSILON:
+        if declared_kind != "line":
+            return UndefinedValue(
+                code="line_through_center",
+                message="A line through the inversion center maps to itself, not a circle",
+            )
+        return LineValue(a=line.a, b=line.b, c=line.c)
+    if declared_kind != "circle":
+        return UndefinedValue(
+            code="not_through_center",
+            message="Only a line through the inversion center inverts to a line",
+        )
+    foot = PointValue(
+        x=circle.center.x - line.a * signed_distance,
+        y=circle.center.y - line.b * signed_distance,
+    )
+    inverted_foot = _invert_point(foot, circle)
+    if isinstance(inverted_foot, UndefinedValue):
+        return inverted_foot
+    assert isinstance(inverted_foot, PointValue)
+    center_x = (circle.center.x + inverted_foot.x) / 2
+    center_y = (circle.center.y + inverted_foot.y) / 2
+    radius = hypot(center_x - circle.center.x, center_y - circle.center.y)
+    return CircleValue(center=Coordinate(x=_clean_zero(center_x), y=_clean_zero(center_y)), radius=_clean_zero(radius))
+
+
+def _invert_circle(source: CircleValue, circle: CircleValue, declared_kind: str) -> EvaluatedValue:
+    dx = source.center.x - circle.center.x
+    dy = source.center.y - circle.center.y
+    center_distance = hypot(dx, dy)
+
+    if center_distance <= GEOMETRY_EPSILON:
+        if declared_kind != "circle":
+            return UndefinedValue(
+                code="concentric_source",
+                message="A circle concentric with the inversion circle maps to another concentric circle",
+            )
+        return CircleValue(
+            center=circle.center, radius=_clean_zero(circle.radius * circle.radius / source.radius)
+        )
+
+    if abs(center_distance - source.radius) <= GEOMETRY_EPSILON:
+        if declared_kind != "line":
+            return UndefinedValue(
+                code="circle_through_center",
+                message="A circle through the inversion center maps to a line, not a circle",
+            )
+        inverted_center = _invert_point(source.center, circle)
+        if isinstance(inverted_center, UndefinedValue):
+            return inverted_center
+        assert isinstance(inverted_center, PointValue)
+        mid_x = (circle.center.x + inverted_center.x) / 2
+        mid_y = (circle.center.y + inverted_center.y) / 2
+        # The image line is perpendicular to the O-sourceCenter axis, so that
+        # axis direction (dx, dy) is directly the image line's normal.
+        return _canonical_line(dx, dy, -(dx * mid_x + dy * mid_y))
+
+    if declared_kind != "circle":
+        return UndefinedValue(
+            code="not_through_center",
+            message="Only a circle through the inversion center inverts to a line",
+        )
+    center_line = _line_through_points(
+        PointValue(x=circle.center.x, y=circle.center.y), PointValue(x=source.center.x, y=source.center.y)
+    )
+    if isinstance(center_line, UndefinedValue):
+        return center_line
+    assert isinstance(center_line, LineValue)
+    first = _intersect_line_circle(center_line, source, 1, None)
+    if isinstance(first, UndefinedValue):
+        return first
+    second = _intersect_line_circle(center_line, source, 2, None)
+    if isinstance(second, UndefinedValue):
+        return second
+    assert isinstance(first, PointValue)
+    assert isinstance(second, PointValue)
+    inverted_first = _invert_point(first, circle)
+    if isinstance(inverted_first, UndefinedValue):
+        return inverted_first
+    inverted_second = _invert_point(second, circle)
+    if isinstance(inverted_second, UndefinedValue):
+        return inverted_second
+    assert isinstance(inverted_first, PointValue)
+    assert isinstance(inverted_second, PointValue)
+    # `first`/`second` are diametrically opposite on the source circle (the
+    # center-line passes through its center), so their images are
+    # diametrically opposite on the result circle too.
+    result_center_x = (inverted_first.x + inverted_second.x) / 2
+    result_center_y = (inverted_first.y + inverted_second.y) / 2
+    radius = hypot(result_center_x - inverted_first.x, result_center_y - inverted_first.y)
+    return CircleValue(
+        center=Coordinate(x=_clean_zero(result_center_x), y=_clean_zero(result_center_y)),
+        radius=_clean_zero(radius),
+    )
+
+
+def _is_same_point(a: PointValue, b: PointValue) -> bool:
+    return hypot(a.x - b.x, a.y - b.y) <= GEOMETRY_EPSILON
+
+
+def _point_on_segment(point: PointValue, start: PointValue, end: PointValue) -> bool:
+    return (
+        point.x >= min(start.x, end.x) - GEOMETRY_EPSILON
+        and point.x <= max(start.x, end.x) + GEOMETRY_EPSILON
+        and point.y >= min(start.y, end.y) - GEOMETRY_EPSILON
+        and point.y <= max(start.y, end.y) + GEOMETRY_EPSILON
+    )
+
+
+def _invert_segment(segment: SegmentValue, circle: CircleValue, declared_kind: str) -> EvaluatedValue:
+    start = PointValue(x=segment.start.x, y=segment.start.y)
+    end = PointValue(x=segment.end.x, y=segment.end.y)
+    center = PointValue(x=circle.center.x, y=circle.center.y)
+    if _is_same_point(start, center) or _is_same_point(end, center):
+        return UndefinedValue(
+            code="edge_touches_center", message="Inversion of a segment touching the inversion center is undefined"
+        )
+    inverted_start = _invert_point(start, circle)
+    if isinstance(inverted_start, UndefinedValue):
+        return inverted_start
+    inverted_end = _invert_point(end, circle)
+    if isinstance(inverted_end, UndefinedValue):
+        return inverted_end
+    assert isinstance(inverted_start, PointValue)
+    assert isinstance(inverted_end, PointValue)
+
+    cross = (start.x - center.x) * (end.y - center.y) - (start.y - center.y) * (end.x - center.x)
+    if abs(cross) <= GEOMETRY_EPSILON:
+        if _point_on_segment(center, start, end):
+            return UndefinedValue(
+                code="edge_crosses_center",
+                message="Inversion of a segment crossing the inversion center is undefined",
+            )
+        if declared_kind != "segment":
+            return UndefinedValue(
+                code="collinear_with_center",
+                message="A segment collinear with the inversion center inverts to a segment, not an arc",
+            )
+        return SegmentValue(
+            start=Coordinate(x=inverted_start.x, y=inverted_start.y),
+            end=Coordinate(x=inverted_end.x, y=inverted_end.y),
+        )
+
+    if declared_kind != "arc":
+        return UndefinedValue(
+            code="not_collinear_with_center",
+            message="Only a segment collinear with the inversion center inverts to a segment",
+        )
+    midpoint = PointValue(x=(start.x + end.x) / 2, y=(start.y + end.y) / 2)
+    inverted_mid = _invert_point(midpoint, circle)
+    if isinstance(inverted_mid, UndefinedValue):
+        return inverted_mid
+    assert isinstance(inverted_mid, PointValue)
+    circumscribed = _circumscribed_circle(inverted_start, inverted_mid, inverted_end)
+    if isinstance(circumscribed, UndefinedValue):
+        return circumscribed
+    assert isinstance(circumscribed, CircleValue)
+    return ArcValue(
+        center=circumscribed.center,
+        radius=circumscribed.radius,
+        start=Coordinate(x=inverted_start.x, y=inverted_start.y),
+        mid=Coordinate(x=inverted_mid.x, y=inverted_mid.y),
+        end=Coordinate(x=inverted_end.x, y=inverted_end.y),
+    )
+
+
+def _invert_value(source: EvaluatedValue, circle: CircleValue, declared_kind: str) -> EvaluatedValue:
+    if isinstance(source, PointValue):
+        return _invert_point(source, circle)
+    if isinstance(source, LineValue):
+        return _invert_line(source, circle, declared_kind)
+    if isinstance(source, CircleValue):
+        return _invert_circle(source, circle, declared_kind)
+    if isinstance(source, SegmentValue):
+        return _invert_segment(source, circle, declared_kind)
+    return UndefinedValue(code="not_invertible", message=f"Cannot invert a value of type '{source.type}'")
+
+
+def infer_inversion_result_kind(source_value: EvaluatedValue, circle_value: CircleValue) -> str | None:
+    """Pick the `InversionInCircle.kind` for a new Inversion object from live values.
+
+    Returns `None` if `source_value` cannot be inverted at all (e.g. a polygon,
+    or `undefined`). `_invert_value` re-derives the same branch at every future
+    evaluation, so a later drag that changes the branch (e.g. a line originally
+    not through the inversion center is dragged onto it) degrades the object to
+    `UndefinedValue` instead of silently mislabeling it.
+    """
+    if isinstance(source_value, PointValue):
+        return "point"
+    if isinstance(source_value, LineValue):
+        signed_distance = (
+            source_value.a * circle_value.center.x + source_value.b * circle_value.center.y + source_value.c
+        )
+        return "line" if abs(signed_distance) <= GEOMETRY_EPSILON else "circle"
+    if isinstance(source_value, CircleValue):
+        dx = source_value.center.x - circle_value.center.x
+        dy = source_value.center.y - circle_value.center.y
+        center_distance = hypot(dx, dy)
+        return "line" if abs(center_distance - source_value.radius) <= GEOMETRY_EPSILON else "circle"
+    if isinstance(source_value, SegmentValue):
+        cx, cy = circle_value.center.x, circle_value.center.y
+        cross = (source_value.start.x - cx) * (source_value.end.y - cy) - (
+            source_value.start.y - cy
+        ) * (source_value.end.x - cx)
+        return "segment" if abs(cross) <= GEOMETRY_EPSILON else "arc"
+    return None
 
 
 def _circumscribed_circle(pA: PointValue, pB: PointValue, pC: PointValue) -> EvaluatedValue:

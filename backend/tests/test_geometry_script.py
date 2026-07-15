@@ -673,3 +673,105 @@ A = Point(0, 0)
     assert "A" in ids
     # The anonymous point must have received a different label.
     assert len(set(ids)) == 2
+
+
+def test_inversion_of_line_not_through_center_is_a_circle() -> None:
+    script = """B = Point(0, 0)
+U = Point(1, 0)
+c1 = Circle(B, U)
+E = Point(1, 2)
+F = Point(3, 2)
+r = Line(E, F)
+C1 = Inversion(r, c1)"""
+
+    document, values = evaluate_script(script)
+
+    result = document.objects[-1]
+    assert result.kind == "circle"
+    assert result.definition.type == "inversion_in_circle"
+    assert result.definition.object_id == "r"
+    assert values["C1"].model_dump() == {
+        "type": "circle",
+        "center": {"x": 0.0, "y": 0.25},
+        "radius": 0.25,
+    }
+
+
+def test_inversion_of_line_through_center_is_the_same_line() -> None:
+    script = """B = Point(0, 0)
+U = Point(1, 0)
+c1 = Circle(B, U)
+E = Point(0, 1)
+F = Point(0, 2)
+r = Line(E, F)
+C1 = Inversion(r, c1)"""
+
+    document, values = evaluate_script(script)
+
+    assert document.objects[-1].kind == "line"
+    assert values["C1"].model_dump() == pytest.approx({"type": "line", "a": 1.0, "b": 0.0, "c": 0.0})
+
+
+def test_inversion_of_circle_not_through_center_is_a_circle() -> None:
+    script = """B = Point(0, 0)
+U = Point(1, 0)
+c1 = Circle(B, U)
+G = Point(3, 0)
+H = Point(4, 0)
+c2 = Circle(G, H)
+C2 = Inversion(c2, c1)"""
+
+    document, values = evaluate_script(script)
+
+    assert document.objects[-1].kind == "circle"
+    assert values["C2"].model_dump() == pytest.approx(
+        {"type": "circle", "center": {"x": 0.375, "y": 0.0}, "radius": 0.125}
+    )
+
+
+def test_inversion_of_circle_through_center_is_a_line() -> None:
+    script = """B = Point(0, 0)
+U = Point(1, 0)
+c1 = Circle(B, U)
+K = Point(2, 0)
+c2 = Circle(K, B)
+L1 = Inversion(c2, c1)"""
+
+    document, values = evaluate_script(script)
+
+    assert document.objects[-1].kind == "line"
+    value = values["L1"]
+    assert value.type == "line"
+    assert value.a == pytest.approx(1.0)
+    assert value.b == pytest.approx(0.0)
+    assert value.c == pytest.approx(-0.25)
+
+
+def test_inversion_of_segment_not_collinear_with_center_is_an_arc() -> None:
+    script = """B = Point(0, 0)
+U = Point(1, 0)
+c1 = Circle(B, U)
+E = Point(1, 2)
+F = Point(3, 2)
+s = Segment(E, F)
+A1 = Inversion(s, c1)"""
+
+    document, values = evaluate_script(script)
+
+    assert document.objects[-1].kind == "arc"
+    assert values["A1"].type == "arc"
+
+
+def test_inversion_rejects_a_polygon_in_script_grammar() -> None:
+    script = """A = Point(0, 0)
+B = Point(4, 0)
+C = Point(2, 3)
+U = Point(1, 0)
+c1 = Circle(A, U)
+poly = Polygon(A, B, C)
+Inv = Inversion(poly, c1)"""
+
+    with pytest.raises(ConstructionScriptError) as error_info:
+        evaluate_script(script)
+
+    assert error_info.value.diagnostic.code == "invalid_reference_type"

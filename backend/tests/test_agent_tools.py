@@ -289,7 +289,7 @@ def test_transformation_tools_create_defined_objects() -> None:
     scaled = execute(registry, "create_homothety", {"objectId": "H", "center": "B", "point": "P", "ratio": 2})
     assert point_value(scaled, "H") == pytest.approx((4.0, 0.0))
 
-    inverted = execute(registry, "create_inversion", {"objectId": "Inv", "point": "P", "circle": "c1"})
+    inverted = execute(registry, "create_inversion", {"objectId": "Inv", "source": "P", "circle": "c1"})
     assert point_value(inverted, "Inv") == pytest.approx((0.5, 0.0))
 
 
@@ -356,3 +356,55 @@ def test_export_tools_return_svg_png_and_json() -> None:
     assert descriptors["export_svg"].mutates_geometry_state is False
     assert descriptors["export_png"].mutates_geometry_state is False
     assert descriptors["export_json"].mutates_geometry_state is False
+
+
+def test_create_inversion_tool_inverts_a_line_into_a_circle() -> None:
+    workspace = GeometryWorkspace()
+    registry = create_geometry_tool_registry(workspace)
+    execute(registry, "create_point", {"objectId": "B", "x": 0, "y": 0})
+    execute(registry, "create_point", {"objectId": "U", "x": 1, "y": 0})
+    execute(registry, "create_circle", {"objectId": "c1", "center": "B", "point": "U"})
+    execute(registry, "create_point", {"objectId": "E", "x": 1, "y": 2})
+    execute(registry, "create_point", {"objectId": "F", "x": 3, "y": 2})
+    execute(registry, "create_line", {"objectId": "r", "pointA": "E", "pointB": "F"})
+
+    output = execute(registry, "create_inversion", {"objectId": "C1", "source": "r", "circle": "c1"})
+
+    assert output.created_object.kind == "circle"  # type: ignore[attr-defined]
+    assert output.created_objects[-1].id == "C1"  # type: ignore[attr-defined]
+    graph = output.graph  # type: ignore[attr-defined]
+    value = graph.objects[graph.id_map["C1"]].value
+    assert value.type == "circle"
+    assert (value.center.x, value.center.y) == pytest.approx((0.0, 0.25))
+    assert value.radius == pytest.approx(0.25)
+
+
+def test_create_inversion_tool_inverts_a_polygon_into_arcs() -> None:
+    workspace = GeometryWorkspace()
+    registry = create_geometry_tool_registry(workspace)
+    execute(registry, "create_point", {"objectId": "B", "x": 5, "y": 5})
+    execute(registry, "create_point", {"objectId": "U", "x": 6, "y": 5})
+    execute(registry, "create_circle", {"objectId": "c1", "center": "B", "point": "U"})
+    execute(registry, "create_point", {"objectId": "A", "x": 0, "y": 0})
+    execute(registry, "create_point", {"objectId": "V2", "x": 4, "y": 0})
+    execute(registry, "create_point", {"objectId": "V3", "x": 2, "y": 3})
+    execute(registry, "create_polygon", {"objectId": "poly", "pointIds": ["A", "V2", "V3"]})
+
+    output = execute(registry, "create_inversion", {"objectId": "InvPoly", "source": "poly", "circle": "c1"})
+
+    assert len(output.created_objects) >= 3  # type: ignore[attr-defined]
+    edge_results = [obj for obj in output.created_objects if obj.definition.type == "inversion_in_circle"]  # type: ignore[attr-defined]
+    assert len(edge_results) == 3
+    assert edge_results[0].id == "InvPoly"
+    assert {result.kind for result in edge_results} <= {"segment", "arc"}
+
+
+def test_create_inversion_tool_rejects_a_point_at_the_inversion_center() -> None:
+    workspace = GeometryWorkspace()
+    registry = create_geometry_tool_registry(workspace)
+    execute(registry, "create_point", {"objectId": "B", "x": 0, "y": 0})
+    execute(registry, "create_point", {"objectId": "U", "x": 1, "y": 0})
+    execute(registry, "create_circle", {"objectId": "c1", "center": "B", "point": "U"})
+
+    with pytest.raises(ToolExecutionError):
+        execute(registry, "create_inversion", {"objectId": "Bad", "source": "B", "circle": "c1"})

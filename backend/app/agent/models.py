@@ -207,7 +207,7 @@ class HomothetyConstructionInput(GeometryModel):
 class InversionConstructionInput(GeometryModel):
     object_id: str
     label: str | None = None
-    point: str
+    source: str
     circle: str
 
 
@@ -235,6 +235,7 @@ class EvaluateScriptToolInput(GeometryModel):
 class MutationToolOutput(GeometryModel):
     revision: int
     created_object: GeometryObject
+    created_objects: tuple[GeometryObject, ...] = ()
     graph: GraphView
 
 

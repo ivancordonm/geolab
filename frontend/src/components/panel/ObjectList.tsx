@@ -353,6 +353,21 @@ export function ObjectList({
                         startEditingFunction(object.id, object.definition.expression);
                       }
                     }}
+                    onDoubleClick={(e) => {
+                      if (
+                        onSetObjectLabel !== undefined ||
+                        onSetObjectColor !== undefined ||
+                        onSetObjectStyle !== undefined ||
+                        onDeleteObject !== undefined
+                      ) {
+                        e.stopPropagation();
+                        if (menu?.objectId === object.id) {
+                          setMenu(null);
+                        } else {
+                          openMenu(object.id, e.currentTarget);
+                        }
+                      }
+                    }}
                     className={`flex min-w-0 flex-1 items-center gap-2.5 py-2 text-left transition-opacity focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand-500 ${
                       object.visible ? "" : "opacity-40"
                     }`}

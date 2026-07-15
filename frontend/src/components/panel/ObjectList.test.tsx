@@ -225,4 +225,29 @@ describe("ObjectList", () => {
     expect(onDeleteGroup).toHaveBeenCalledWith("g1");
   });
 
+  it("opens the edit menu and triggers actions when double-clicking the object card", async () => {
+    const user = userEvent.setup();
+    const graph = new GeometryGraph(exampleGeometryDocument);
+    const onDeleteObject = vi.fn();
+
+    render(
+      <ObjectList
+        document={graph.document}
+        values={graph.values}
+        selectedObjectId={null}
+        onSelectObject={() => undefined}
+        onToggleVisibility={() => undefined}
+        onSetObjectLabel={() => undefined}
+        onDeleteObject={onDeleteObject}
+      />,
+    );
+
+    const selectA = screen.getByText("A").closest("button");
+    expect(selectA).not.toBeNull();
+    await user.dblClick(selectA!);
+    await user.click(screen.getByRole("button", { name: "Delete object" }));
+
+    expect(onDeleteObject).toHaveBeenCalledWith("A");
+  });
+
 });

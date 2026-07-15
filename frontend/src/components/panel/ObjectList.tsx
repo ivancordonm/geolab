@@ -592,7 +592,6 @@ interface ObjectMenuProps {
 function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle, onDelete, ref }: ObjectMenuProps) {
   const [label, setLabel] = useState(object.label);
   const inputRef = useRef<HTMLInputElement>(null);
-  const colorInputRef = useRef<HTMLInputElement>(null);
 
   // Posición ajustada al viewport (se mide la altura real tras montar)
   const [box, setBox] = useState<{ top: number; left: number; maxHeight: number | undefined }>({
@@ -617,23 +616,11 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
 
   const currentColor = object.style?.color ?? null;
   const isCustomColor = currentColor !== null && !PALETTE_VALUES.has(currentColor);
-  const [showCustomInput, setShowCustomInput] = useState(isCustomColor);
-  const [customHex, setCustomHex] = useState(isCustomColor ? currentColor : "");
   const currentStrokeWidth = object.style?.strokeWidth ?? null;
   const currentStrokeDash = object.style?.strokeDash ?? "solid";
   const hasStroke = object.kind !== "point";
 
-  useEffect(() => {
-    if (isCustomColor) {
-      setCustomHex(currentColor);
-      setShowCustomInput(true);
-    } else {
-      setCustomHex("");
-      setShowCustomInput(false);
-    }
-  }, [currentColor, isCustomColor]);
-
-  // Recalcular posición cuando el contenido cambia de tamaño (input hex, secciones de trazo)
+  // Recalcular posición cuando el contenido cambia de tamaño.
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -645,14 +632,7 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
         ? Math.max(margin, window.innerHeight - height - margin)
         : y;
     setBox({ top, left: x, maxHeight });
-  }, [x, y, showCustomInput, hasStroke, ref]);
-
-  const applyCustomHex = (raw: string) => {
-    const hex = raw.trim();
-    if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
-      onSetColor?.(hex);
-    }
-  };
+  }, [x, y, hasStroke, ref]);
 
   return createPortal(
     <div
@@ -713,7 +693,7 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
               aria-label="Automático"
               aria-pressed={currentColor === null}
               title="Automático"
-              onClick={() => { onSetColor(null); setShowCustomInput(false); setCustomHex(""); }}
+              onClick={() => onSetColor(null)}
               className={`h-5 w-5 rounded-full border-2 text-[0.5rem] font-bold leading-none transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-500 ${
                 currentColor === null ? "border-content bg-surface-muted text-content" : "border-dashed border-edge text-muted"
               }`}
@@ -731,7 +711,7 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
                   aria-label={colorLabel}
                   aria-pressed={active}
                   title={colorLabel}
-                  onClick={() => { onSetColor(value); setShowCustomInput(false); setCustomHex(""); }}
+                  onClick={() => onSetColor(value)}
                   className={`h-5 w-5 rounded-full border-2 transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-500 ${
                     active ? "border-content" : "border-transparent"
                   }`}
@@ -740,30 +720,9 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
               );
             })}
 
-            {/* Hidden native color picker */}
-            <input
-              ref={colorInputRef}
-              type="color"
-              value={currentColor && /^#[0-9a-fA-F]{6}$/.test(currentColor) ? currentColor : "#3b82f6"}
-              onChange={(e) => {
-                const newColor = e.target.value;
-                setCustomHex(newColor);
-                onSetColor?.(newColor);
-              }}
-              style={{ display: "none" }}
-            />
-
-            {/* Botón para abrir el selector de color personalizado */}
-            <button
-              type="button"
-              title="Color personalizado"
-              aria-label="Color personalizado"
-              aria-pressed={showCustomInput}
-              onClick={() => {
-                setShowCustomInput(true);
-                colorInputRef.current?.click();
-              }}
-              className={`h-5 w-5 rounded-full border-2 transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-500 ${
+            {/* El input permanece clicable: un input display:none no abre el diálogo nativo en todos los navegadores. */}
+            <div
+              className={`relative h-5 w-5 rounded-full border-2 transition-transform hover:scale-110 ${
                 isCustomColor ? "border-content" : "border-transparent"
               }`}
               style={
@@ -772,37 +731,19 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
                   : {
                       background:
                         "conic-gradient(#ef4444 0deg 60deg, #3b82f6 60deg 120deg, #22c55e 120deg 180deg, #eab308 180deg 240deg, #8b5cf6 240deg 300deg, #ec4899 300deg 360deg)",
-                    }
+                  }
               }
-            />
-          </div>
-
-          {/* Campo hex inline, se muestra al pulsar el icono arcoíris */}
-          {showCustomInput && (
-            <div className="mt-2 flex items-center gap-1.5">
-              <button
-                type="button"
-                title="Abrir selector de color"
-                aria-label="Abrir selector de color"
-                onClick={() => colorInputRef.current?.click()}
-                className="h-5 w-5 shrink-0 rounded-full border border-edge transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-500"
-                style={{ background: /^#[0-9a-fA-F]{6}$/.test(customHex) ? customHex : "transparent" }}
-              />
+            >
               <input
-                type="text"
-                value={customHex}
-                placeholder="#rrggbb"
-                maxLength={7}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setCustomHex(v);
-                  applyCustomHex(v);
-                }}
-                onKeyDown={(e) => { if (e.key === "Enter") applyCustomHex(customHex); }}
-                className="min-w-0 flex-1 rounded-lg border border-edge bg-surface-muted px-2 py-1 font-mono text-xs text-content focus:border-brand-400 focus:outline-2 focus:outline-offset-1 focus:outline-brand-500/30"
+                type="color"
+                value={currentColor && /^#[0-9a-fA-F]{6}$/.test(currentColor) ? currentColor : "#3b82f6"}
+                aria-label="Color personalizado"
+                title="Color personalizado"
+                onChange={(event) => onSetColor(event.target.value)}
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-500"
               />
             </div>
-          )}
+          </div>
         </div>
       )}
 

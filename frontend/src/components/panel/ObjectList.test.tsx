@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -82,6 +82,32 @@ describe("ObjectList", () => {
     await user.click(screen.getByRole("button", { name: "Delete object" }));
 
     expect(onDeleteObject).toHaveBeenCalledWith("A");
+  });
+
+  it("uses the native color picker instead of a hexadecimal text field", async () => {
+    const user = userEvent.setup();
+    const graph = new GeometryGraph(exampleGeometryDocument);
+    const onSetObjectColor = vi.fn();
+
+    render(
+      <ObjectList
+        document={graph.document}
+        values={graph.values}
+        selectedObjectId={null}
+        onSelectObject={() => undefined}
+        onToggleVisibility={() => undefined}
+        onSetObjectLabel={() => undefined}
+        onSetObjectColor={onSetObjectColor}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Edit A" }));
+    const picker = screen.getByLabelText("Color personalizado");
+
+    expect(picker).toHaveAttribute("type", "color");
+    expect(screen.queryByPlaceholderText("#rrggbb")).not.toBeInTheDocument();
+    fireEvent.change(picker, { target: { value: "#123456" } });
+    expect(onSetObjectColor).toHaveBeenCalledWith("A", "#123456");
   });
 
   it("submits one-line object commands from the Objects panel", async () => {

@@ -724,9 +724,11 @@ C2 = Inversion(c2, c1)"""
     document, values = evaluate_script(script)
 
     assert document.objects[-1].kind == "circle"
-    assert values["C2"].model_dump() == pytest.approx(
-        {"type": "circle", "center": {"x": 0.375, "y": 0.0}, "radius": 0.125}
-    )
+    value = values["C2"]
+    assert value.type == "circle"
+    assert value.center.x == pytest.approx(0.375)
+    assert value.center.y == pytest.approx(0.0)
+    assert value.radius == pytest.approx(0.125)
 
 
 def test_inversion_of_circle_through_center_is_a_line() -> None:

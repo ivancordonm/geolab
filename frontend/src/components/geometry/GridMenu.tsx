@@ -15,6 +15,9 @@ interface MenuPos {
 }
 
 const MENU_WIDTH = 220;
+// Panel content is ~6 rows tall; used to keep it on-screen when the trigger
+// sits near the bottom of the viewport (it lives in a tall vertical toolbar).
+const MENU_HEIGHT_ESTIMATE = 250;
 
 export function GridMenu({ settings, onChange }: GridMenuProps) {
   const [open, setOpen] = useState(false);
@@ -50,7 +53,8 @@ export function GridMenu({ settings, onChange }: GridMenuProps) {
     if (!open && triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
       const left = Math.min(rect.right + 8, window.innerWidth - MENU_WIDTH - 8);
-      setPos({ top: rect.top, left });
+      const top = Math.max(8, Math.min(rect.top, window.innerHeight - MENU_HEIGHT_ESTIMATE - 8));
+      setPos({ top, left });
     }
     setOpen((value) => !value);
   };

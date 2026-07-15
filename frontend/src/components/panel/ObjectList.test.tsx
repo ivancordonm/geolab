@@ -190,4 +190,39 @@ describe("ObjectList", () => {
     expect(screen.getByLabelText("Ratio for H")).toHaveValue(2);
   });
 
+  it("renders, collapses, and delegates actions for a construction group", async () => {
+    const user = userEvent.setup();
+    const document = {
+      schemaVersion: 1 as const,
+      id: "grouped-circle",
+      title: "Grouped circle",
+      objects: [
+        { id: "A", label: "A", kind: "point" as const, visible: true, definition: { type: "free" as const, x: 0, y: 0 } },
+        { id: "B", label: "B", kind: "point" as const, visible: true, definition: { type: "free" as const, x: 2, y: 0 } },
+        { id: "c1", label: "c1", kind: "circle" as const, visible: true, definition: { type: "center_through_point" as const, center: "A", point: "B" } },
+      ],
+      groups: [{ id: "g1", label: "Circle", members: [
+        { objectId: "A", role: "input" as const },
+        { objectId: "B", role: "input" as const },
+        { objectId: "c1", role: "primary" as const },
+      ] }],
+    };
+    const graph = new GeometryGraph(document);
+    const onToggleGroupVisibility = vi.fn();
+    const onDeleteGroup = vi.fn();
+    render(<ObjectList document={graph.document} values={graph.values} selectedObjectId={null} onSelectObject={() => undefined} onToggleVisibility={() => undefined} onToggleGroupVisibility={onToggleGroupVisibility} onDeleteObject={() => undefined} onDeleteGroup={onDeleteGroup} />);
+
+    expect(screen.getByText("c1")).toBeInTheDocument();
+    expect(screen.getByText("A").closest("li")).toHaveClass("ml-5");
+    await user.click(screen.getByRole("button", { name: "Collapse c1" }));
+    expect(screen.queryByText("A")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Expand c1" }));
+    expect(screen.getByText("A")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Hide c1" }));
+    expect(onToggleGroupVisibility).toHaveBeenCalledWith("g1");
+    await user.click(screen.getByRole("button", { name: "Edit c1" }));
+    await user.click(screen.getByRole("button", { name: "Delete object" }));
+    expect(onDeleteGroup).toHaveBeenCalledWith("g1");
+  });
+
 });

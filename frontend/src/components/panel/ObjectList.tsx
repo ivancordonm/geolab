@@ -1,9 +1,9 @@
-import { Check, MoreVertical, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, MoreVertical, Trash2, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { getParentIds, referencePointForRatio } from "../../geometry/engine";
-import type { EvaluationMap, GeometryDocument, GeometryObject, GeometryStyle, StrokeDash } from "../../types/geometry";
+import type { EvaluationMap, GeometryDocument, GeometryObject, GeometryObjectGroup, GeometryStyle, StrokeDash } from "../../types/geometry";
 
 interface ObjectListProps {
   document: GeometryDocument;
@@ -11,12 +11,14 @@ interface ObjectListProps {
   selectedObjectId: string | null;
   onSelectObject: (objectId: string) => void;
   onToggleVisibility: (objectId: string) => void;
+  onToggleGroupVisibility?: (groupId: string) => void;
   onSetObjectLabel?: (objectId: string, label: string) => void;
   onSetObjectColor?: (objectId: string, color: string | null) => void;
   onSetObjectStyle?: (objectId: string, patch: Partial<GeometryStyle>) => void;
   onUpdateFunctionExpression?: (objectId: string, expression: string) => void;
   onUpdateHomothetyRatio?: (objectId: string, ratio: number) => void;
   onDeleteObject?: (objectId: string) => void;
+  onDeleteGroup?: (groupId: string) => void;
   onSubmitCommand?: (command: string) => Promise<void> | void;
 }
 
@@ -65,12 +67,14 @@ export function ObjectList({
   selectedObjectId,
   onSelectObject,
   onToggleVisibility,
+  onToggleGroupVisibility,
   onSetObjectLabel,
   onSetObjectColor,
   onSetObjectStyle,
   onUpdateFunctionExpression,
   onUpdateHomothetyRatio,
   onDeleteObject,
+  onDeleteGroup,
   onSubmitCommand,
 }: ObjectListProps) {
   const labelsById = new Map(document.objects.map((object) => [object.id, object.label]));
@@ -82,6 +86,23 @@ export function ObjectList({
   const [editingFunctionId, setEditingFunctionId] = useState<string | null>(null);
   const [editingExpression, setEditingExpression] = useState("");
   const editInputRef = useRef<HTMLInputElement>(null);
+  const storageKey = `geolab.object-groups.collapsed.v1:${document.id}`;
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => readCollapsedGroups(storageKey));
+
+  useEffect(() => {
+    const validIds = new Set((document.groups ?? []).map((group) => group.id));
+    setCollapsedGroups((current) => new Set([...current].filter((id) => validIds.has(id))));
+  }, [document.groups]);
+
+  useEffect(() => {
+    try { window.localStorage.setItem(storageKey, JSON.stringify([...collapsedGroups])); } catch { /* unavailable storage */ }
+  }, [collapsedGroups, storageKey]);
+
+  const toggleCollapsed = (groupId: string) => setCollapsedGroups((current) => {
+    const next = new Set(current);
+    if (next.has(groupId)) next.delete(groupId); else next.add(groupId);
+    return next;
+  });
 
   // Close menu on outside click
   useEffect(() => {
@@ -139,6 +160,34 @@ export function ObjectList({
   };
 
   const menuObject = menu ? document.objects.find((o) => o.id === menu.objectId) : null;
+  const groupByObjectId = new Map<string, GeometryObjectGroup>();
+  for (const group of document.groups ?? []) {
+    for (const member of group.members) groupByObjectId.set(member.objectId, group);
+  }
+  type PresentationRow =
+    | { type: "synthetic"; group: GeometryObjectGroup }
+    | { type: "object"; object: GeometryObject; group?: GeometryObjectGroup; root: boolean; child: boolean };
+  const presentationRows: PresentationRow[] = [];
+  const emittedGroups = new Set<string>();
+  for (const object of document.objects) {
+    const group = groupByObjectId.get(object.id);
+    if (group === undefined) {
+      presentationRows.push({ type: "object", object, root: false, child: false });
+      continue;
+    }
+    if (emittedGroups.has(group.id)) continue;
+    emittedGroups.add(group.id);
+    const primaryIds = group.members.filter((member) => member.role === "primary").map((member) => member.objectId);
+    const memberObjects = group.members.map((member) => document.objects.find((candidate) => candidate.id === member.objectId)).filter((candidate): candidate is GeometryObject => candidate !== undefined);
+    if (primaryIds.length > 1) {
+      presentationRows.push({ type: "synthetic", group });
+      if (!collapsedGroups.has(group.id)) memberObjects.forEach((member) => presentationRows.push({ type: "object", object: member, group, root: false, child: true }));
+    } else {
+      const primary = memberObjects.find((member) => member.id === primaryIds[0]);
+      if (primary !== undefined) presentationRows.push({ type: "object", object: primary, group, root: true, child: false });
+      if (!collapsedGroups.has(group.id)) memberObjects.filter((member) => member.id !== primary?.id).forEach((member) => presentationRows.push({ type: "object", object: member, group, root: false, child: true }));
+    }
+  }
 
   return (
     <section className="p-4" aria-labelledby="objects-heading">
@@ -203,28 +252,52 @@ export function ObjectList({
         </p>
       ) : (
         <ol className="m-0 flex list-none flex-col gap-1 p-0">
-          {document.objects.map((object) => {
+          {presentationRows.map((row) => {
+            if (row.type === "synthetic") {
+              const visible = row.group.members.some((member) => member.role !== "helper" && document.objects.find((object) => object.id === member.objectId)?.visible);
+              const collapsed = collapsedGroups.has(row.group.id);
+              return (
+                <li key={`group:${row.group.id}`} className="flex items-center rounded-lg border border-edge bg-surface-muted px-2 py-2">
+                  <button type="button" aria-label={`${collapsed ? "Expand" : "Collapse"} ${row.group.label}`} aria-expanded={!collapsed} onClick={() => toggleCollapsed(row.group.id)} className="mr-1 rounded p-1 text-muted hover:text-content">
+                    {collapsed ? <ChevronRight size={15} aria-hidden /> : <ChevronDown size={15} aria-hidden />}
+                  </button>
+                  <button type="button" aria-label={`${visible ? "Hide" : "Show"} ${row.group.label}`} aria-pressed={visible} onClick={() => onToggleGroupVisibility?.(row.group.id)} className={`mr-2 h-3 w-3 rounded-full bg-brand-500 ${visible ? "opacity-100" : "opacity-30"}`} />
+                  <strong className="min-w-0 flex-1 truncate text-sm font-semibold text-content">{row.group.label}</strong>
+                  <span className="mr-2 text-[0.65rem] font-bold uppercase tracking-wide text-muted">GROUP</span>
+                  {onDeleteGroup !== undefined ? <button type="button" aria-label={`Delete ${row.group.label}`} onClick={() => onDeleteGroup(row.group.id)} className="rounded p-1 text-muted hover:text-danger-fg"><Trash2 size={14} aria-hidden /></button> : null}
+                </li>
+              );
+            }
+            const { object } = row;
             const dependencies = getParentIds(object).map((id) => labelsById.get(id) ?? id);
             const value = values.get(object.id);
             const selected = object.id === selectedObjectId;
             const undefinedValue = value?.type === "undefined";
+            const visibilityActive = row.root && row.group !== undefined
+              ? row.group.members.some((member) => member.role !== "helper" && document.objects.find((candidate) => candidate.id === member.objectId)?.visible)
+              : object.visible;
             return (
               <li
                 key={object.id}
-                className={`flex items-stretch overflow-hidden rounded-lg border transition-colors ${
+                className={`flex items-stretch overflow-hidden rounded-lg border transition-colors ${row.child ? "ml-5 border-edge bg-surface-muted " : ""}${
                   selected
                     ? "border-brand-400 bg-accent-soft"
                     : "border-transparent hover:bg-surface-muted"
                 }`}
               >
+                {row.root && row.group !== undefined ? (
+                  <button type="button" aria-label={`${collapsedGroups.has(row.group.id) ? "Expand" : "Collapse"} ${object.label}`} aria-expanded={!collapsedGroups.has(row.group.id)} onClick={() => toggleCollapsed(row.group!.id)} className="flex items-center pl-1.5 text-muted hover:text-content">
+                    {collapsedGroups.has(row.group.id) ? <ChevronRight size={15} aria-hidden /> : <ChevronDown size={15} aria-hidden />}
+                  </button>
+                ) : null}
                 {/* Punto como toggle de visibilidad */}
                 <button
                   type="button"
-                  aria-label={`${object.visible ? "Hide" : "Show"} ${object.label}`}
-                  aria-pressed={object.visible}
-                  onClick={() => onToggleVisibility(object.id)}
+                  aria-label={`${visibilityActive ? "Hide" : "Show"} ${object.label}`}
+                  aria-pressed={visibilityActive}
+                  onClick={() => row.root && row.group !== undefined ? onToggleGroupVisibility?.(row.group.id) : onToggleVisibility(object.id)}
                   className={`flex items-center pl-2.5 pr-1.5 transition-opacity focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand-500 ${
-                    object.visible ? "opacity-100" : "opacity-30"
+                    visibilityActive ? "opacity-100" : "opacity-30"
                   }`}
                 >
                   <span
@@ -377,7 +450,13 @@ export function ObjectList({
           onDelete={
             onDeleteObject
               ? () => {
-                  onDeleteObject(menu.objectId);
+                  const group = groupByObjectId.get(menu.objectId);
+                  const isPrimary = group?.members.some((member) => member.objectId === menu.objectId && member.role === "primary") ?? false;
+                  if (group !== undefined && isPrimary && group.members.filter((member) => member.role === "primary").length === 1 && onDeleteGroup !== undefined) {
+                    onDeleteGroup(group.id);
+                  } else {
+                    onDeleteObject(menu.objectId);
+                  }
                   setMenu(null);
                 }
               : undefined
@@ -386,6 +465,15 @@ export function ObjectList({
       )}
     </section>
   );
+}
+
+function readCollapsedGroups(storageKey: string): Set<string> {
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(storageKey) ?? "[]");
+    return new Set(Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === "string") : []);
+  } catch {
+    return new Set();
+  }
 }
 
 function isHomothety(object: GeometryObject): boolean {

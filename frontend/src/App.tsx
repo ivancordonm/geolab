@@ -29,6 +29,7 @@ import { exampleGeometryDocument } from "./geometry/example";
 import { parseFunctionObjectCommand } from "./geometry/functionExpression";
 import { useConstructionTools } from "./geometry/useConstructionTools";
 import { useGeometryState } from "./geometry/useGeometryState";
+import { groupForObject, mergeCommandDocument } from "./geometry/objectGroups";
 import {
   clearDocument,
   documentToScript,
@@ -146,7 +147,17 @@ export function App() {
   });
 
   const handleDeleteObject = useCallback((objectId: string) => {
-    geometry.removeObject(objectId);
+    const group = groupForObject(geometry.document, objectId);
+    const isOnlyPrimary = group?.members.filter((member) => member.role === "primary").length === 1
+      && group.members.some((member) => member.objectId === objectId && member.role === "primary");
+    if (group !== undefined && isOnlyPrimary) geometry.removeObjectGroup(group.id);
+    else geometry.removeObject(objectId);
+    constructionTools.cancel();
+    setSelectedObjectId(null);
+  }, [constructionTools, geometry]);
+
+  const handleDeleteGroup = useCallback((groupId: string) => {
+    geometry.removeObjectGroup(groupId);
     constructionTools.cancel();
     setSelectedObjectId(null);
   }, [constructionTools, geometry]);
@@ -179,7 +190,11 @@ export function App() {
       documentId: geometry.document.id,
       title: geometry.document.title,
     });
-    geometry.replaceDocument({ ...response.document, viewport: geometry.viewport });
+    const mergedDocument = mergeCommandDocument(geometry.document, response.document);
+    geometry.replaceDocument({
+      ...mergedDocument,
+      viewport: geometry.viewport,
+    });
     constructionTools.cancel();
     const lastObject = response.document.objects.at(-1);
     setSelectedObjectId(lastObject?.id ?? null);
@@ -541,17 +556,20 @@ export function App() {
                 icon: <Shapes size={16} />,
                 panel: (
                   <ObjectList
+                    key={geometry.document.id}
                     document={geometry.document}
                     values={geometry.values}
                     selectedObjectId={selectedObjectId}
                     onSelectObject={setSelectedObjectId}
                     onToggleVisibility={geometry.toggleObjectVisibility}
+                    onToggleGroupVisibility={geometry.toggleObjectGroupVisibility}
                     onSetObjectLabel={geometry.setObjectLabel}
                     onSetObjectColor={geometry.setObjectColor}
                     onSetObjectStyle={geometry.setObjectStyle}
                     onUpdateFunctionExpression={geometry.updateFunctionExpression}
                     onUpdateHomothetyRatio={geometry.updateHomothetyRatio}
                     onDeleteObject={handleDeleteObject}
+                    onDeleteGroup={handleDeleteGroup}
                     onSubmitCommand={handleSubmitObjectCommand}
                   />
                 ),

@@ -17,6 +17,7 @@ import { AssistantPanel } from "./components/assistant/AssistantPanel";
 import { AuthControl } from "./components/auth/AuthControl";
 import { ConstructionToolbar, SHORTCUT_TO_TOOL } from "./components/geometry/ConstructionToolbar";
 import { GeometryCanvas } from "./components/geometry/GeometryCanvas";
+import { GridMenu } from "./components/geometry/GridMenu";
 import { ObjectList } from "./components/panel/ObjectList";
 import { ScriptEditor } from "./components/panel/ScriptEditor";
 import { CloudDocumentsPanel } from "./components/persistence/CloudDocumentsPanel";
@@ -29,6 +30,7 @@ import { exampleGeometryDocument } from "./geometry/example";
 import { parseFunctionObjectCommand } from "./geometry/functionExpression";
 import { useConstructionTools } from "./geometry/useConstructionTools";
 import { useGeometryState } from "./geometry/useGeometryState";
+import { useGridSettings } from "./geometry/useGridSettings";
 import { groupForObject, mergeCommandDocument } from "./geometry/objectGroups";
 import {
   clearDocument,
@@ -60,6 +62,7 @@ c1 = Circle(A, C)`;
 
 export function App() {
   const { theme, toggleTheme } = useTheme();
+  const { settings: gridSettings, setSettings: setGridSettings } = useGridSettings();
   const auth = useAuth();
   const signOut = auth.signOut;
   const handleUnauthorized = useCallback(() => void signOut(), [signOut]);
@@ -400,6 +403,7 @@ export function App() {
       >
         <RotateCcw size={18} aria-hidden />
       </button>
+      <GridMenu settings={gridSettings} onChange={setGridSettings} />
       <AuthControl
         user={auth.user}
         onCredential={(idToken) => void auth.signIn(idToken)}
@@ -469,6 +473,7 @@ export function App() {
           onPointerWorldChange={constructionTools.updatePointer}
           onSetLabelOffset={geometry.setObjectLabelOffset}
           panelOpen={panelOpen}
+          gridSettings={gridSettings}
         />
       </div>
 

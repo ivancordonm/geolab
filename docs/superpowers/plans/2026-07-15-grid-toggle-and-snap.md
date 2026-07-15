@@ -347,6 +347,20 @@ starts the JSX (line 323 today):
   return (
 ```
 
+Add a small module-level helper right before the `GeometryCanvas` function
+definition (before `export function GeometryCanvas({` at line 58), so both
+pointer handlers below can share it without duplicating the
+snap-or-pass-through logic:
+
+```ts
+function snapIfEnabled(point: Coordinate, settings: GridSettings, viewportScale: number): Coordinate {
+  if (!settings.snapToGrid) return point;
+  return snapToGrid(point, getEffectiveGridStep(settings, viewportScale), viewportScale);
+}
+
+export function GeometryCanvas({
+```
+
 - [ ] **Step 3: Apply snapping when dragging a free point**
 
 In `handlePointerMove` (around line 204-207), replace:
@@ -363,10 +377,7 @@ with:
 ```ts
       const pointDrag = draggedPointRef.current;
       if (pointDrag !== null && pointDrag.pointerId === event.pointerId) {
-        const settings = gridSettingsRef.current;
-        const target = settings.snapToGrid
-          ? snapToGrid(world, getEffectiveGridStep(settings, viewportRef.current.scale), viewportRef.current.scale)
-          : world;
+        const target = snapIfEnabled(world, gridSettingsRef.current, viewportRef.current.scale);
         onMoveFreePoint(pointDrag.objectId, target.x, target.y);
       }
 ```
@@ -385,15 +396,10 @@ with:
 
 ```ts
         if (!canvasDrag.hasMoved) {
-          const settings = gridSettingsRef.current;
-          const shouldSnap = settings.snapToGrid && activeTool !== "select";
-          const world = shouldSnap
-            ? snapToGrid(
-                canvasDrag.worldAtDown,
-                getEffectiveGridStep(settings, viewportRef.current.scale),
-                viewportRef.current.scale,
-              )
-            : canvasDrag.worldAtDown;
+          const world =
+            activeTool !== "select"
+              ? snapIfEnabled(canvasDrag.worldAtDown, gridSettingsRef.current, viewportRef.current.scale)
+              : canvasDrag.worldAtDown;
           onCanvasClick(world);
         }
 ```

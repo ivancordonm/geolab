@@ -54,6 +54,78 @@ def test_shared_document_parses_and_serializes_with_camel_case_fields() -> None:
     assert serialized_payload["objects"][3]["definition"]["pointA"] == "A"
 
 
+def test_object_groups_round_trip_with_camel_case_member_ids() -> None:
+    payload = {
+        "schemaVersion": 1,
+        "id": "grouped",
+        "title": "Grouped circle",
+        "objects": [
+            {"id": "A", "label": "A", "kind": "point", "definition": {"type": "free", "x": 0, "y": 0}},
+            {"id": "B", "label": "B", "kind": "point", "definition": {"type": "free", "x": 1, "y": 0}},
+            {"id": "c1", "label": "c1", "kind": "circle", "definition": {"type": "center_through_point", "center": "A", "point": "B"}},
+        ],
+        "groups": [
+            {
+                "id": "g1",
+                "label": "Circle",
+                "members": [
+                    {"objectId": "A", "role": "input"},
+                    {"objectId": "B", "role": "input"},
+                    {"objectId": "c1", "role": "primary"},
+                ],
+            }
+        ],
+    }
+
+    document = GeometryDocument.model_validate(payload)
+    serialized = json.loads(geometry_document_to_json(document))
+
+    assert serialized["schemaVersion"] == 1
+    assert serialized["groups"] == payload["groups"]
+    assert geometry_document_from_json(json.dumps(serialized)) == document
+
+
+@pytest.mark.parametrize(
+    ("groups", "message"),
+    [
+        (
+            [{"id": "g1", "label": "Circle", "members": [{"objectId": "A", "role": "input"}, {"objectId": "missing", "role": "primary"}]}],
+            "must reference an existing object",
+        ),
+        (
+            [{"id": "g1", "label": "Circle", "members": [{"objectId": "A", "role": "input"}, {"objectId": "B", "role": "input"}]}],
+            "at least one primary",
+        ),
+        (
+            [{"id": "g1", "label": "Circle", "members": [{"objectId": "A", "role": "primary"}, {"objectId": "A", "role": "input"}]}],
+            "member object ids must be unique",
+        ),
+        (
+            [
+                {"id": "g1", "label": "First", "members": [{"objectId": "A", "role": "primary"}, {"objectId": "B", "role": "input"}]},
+                {"id": "g2", "label": "Second", "members": [{"objectId": "A", "role": "primary"}, {"objectId": "c1", "role": "input"}]},
+            ],
+            "at most one group",
+        ),
+    ],
+)
+def test_invalid_object_groups_are_rejected(groups: list[dict[str, Any]], message: str) -> None:
+    payload = {
+        "schemaVersion": 1,
+        "id": "invalid-group",
+        "title": "Invalid group",
+        "objects": [
+            {"id": "A", "label": "A", "kind": "point", "definition": {"type": "free", "x": 0, "y": 0}},
+            {"id": "B", "label": "B", "kind": "point", "definition": {"type": "free", "x": 1, "y": 0}},
+            {"id": "c1", "label": "c1", "kind": "circle", "definition": {"type": "center_through_point", "center": "A", "point": "B"}},
+        ],
+        "groups": groups,
+    }
+
+    with pytest.raises(ValidationError, match=message):
+        GeometryDocument.model_validate(payload)
+
+
 FIXTURES_DIR = Path(__file__).resolve().parents[2] / "shared" / "fixtures"
 
 

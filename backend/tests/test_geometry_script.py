@@ -1,7 +1,8 @@
 import pytest
 
+import app.geometry.script as script_module
 from app.geometry.engine import GeometryGraph
-from app.geometry.models import geometry_document_from_json, geometry_document_to_json
+from app.geometry.models import Point, geometry_document_from_json, geometry_document_to_json
 from app.geometry.script import ConstructionScriptError, evaluate_script, parse_script
 
 VALID_SCRIPT = """# A triangle with dependent constructions
@@ -241,6 +242,52 @@ def test_segment_from_two_inline_coordinates_produces_three_objects() -> None:
     assert seg_def.type == "between_points"
     assert seg_def.point_a == point_ids[0]
     assert seg_def.point_b == point_ids[1]
+    assert [group.model_dump(by_alias=True) for group in document.groups] == [
+        {
+            "id": "g1",
+            "label": "Segment",
+            "members": [
+                {"objectId": point_ids[0], "role": "input"},
+                {"objectId": point_ids[1], "role": "input"},
+                {"objectId": "s", "role": "primary"},
+            ],
+        }
+    ]
+
+
+def test_only_inline_points_created_by_the_statement_join_its_group() -> None:
+    document, _ = evaluate_script("A = Point(5, 0)\nc = Circle((0, 0), A)")
+
+    assert len(document.groups) == 1
+    assert [(member.object_id, member.role) for member in document.groups[0].members] == [
+        ("B", "input"),
+        ("c", "primary"),
+    ]
+
+
+def test_statements_using_only_existing_inputs_do_not_create_groups() -> None:
+    document, _ = evaluate_script(
+        "A = Point(0, 0)\nB = Point(1, 0)\nc = Circle(A, B)"
+    )
+
+    assert document.groups == []
+
+
+def test_multiple_primary_outputs_are_recorded_in_one_statement_group(monkeypatch) -> None:
+    def build_multiple(statement, symbols, objects):
+        return [
+            Point(id=statement.target, label=statement.target, definition={"type": "free", "x": 0, "y": 0}),
+            Point(id="second", label="second", definition={"type": "free", "x": 1, "y": 0}),
+        ]
+
+    monkeypatch.setattr(script_module, "_build_object", build_multiple)
+
+    document, _ = evaluate_script("first = Point(0, 0)")
+
+    assert [(member.object_id, member.role) for member in document.groups[0].members] == [
+        ("first", "primary"),
+        ("second", "primary"),
+    ]
 
 
 def test_line_from_two_inline_coordinates() -> None:

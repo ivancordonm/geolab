@@ -29,6 +29,8 @@ from app.geometry.models import (
     FunctionExpressionDefinition,
     FunctionGraph,
     GeometryDocument,
+    GeometryObjectGroup,
+    GeometryObjectGroupMember,
     GeometryObject,
     GeometryViewport,
     HomothetyPoint,
@@ -301,6 +303,7 @@ def evaluate_script(
 
     objects: list[GeometryObject] = []
     symbols: dict[str, GeometryObject] = {}
+    groups: list[GeometryObjectGroup] = []
 
     for statement in statements:
         if statement.command not in SUPPORTED_COMMANDS:
@@ -319,6 +322,7 @@ def evaluate_script(
                 statement.source_line,
             )
 
+        statement_object_start = len(objects)
         try:
             built = _build_object(statement, symbols, objects)
         except FunctionExpressionError as error:
@@ -328,15 +332,33 @@ def evaluate_script(
                 statement.line,
                 statement.source_line,
             )
+        # Point arguments written as coordinate tuples are appended by _build_object.
+        # They are inputs created by this statement rather than pre-existing parents.
+        inline_inputs = objects[statement_object_start:]
+
         # _build_object returns a list to support multi-output commands (intersections).
         for obj in built:
             objects.append(obj)
             symbols[obj.id] = obj
 
+        new_members = [
+            *(GeometryObjectGroupMember(object_id=obj.id, role="input") for obj in inline_inputs),
+            *(GeometryObjectGroupMember(object_id=obj.id, role="primary") for obj in built),
+        ]
+        if len(new_members) >= 2:
+            groups.append(
+                GeometryObjectGroup(
+                    id=_next_group_id({group.id for group in groups}),
+                    label=statement.command,
+                    members=new_members,
+                )
+            )
+
     document = GeometryDocument(
         id=document_id,
         title=title,
         objects=objects,
+        groups=groups,
         viewport=GeometryViewport(),
     )
     graph = GeometryGraph(document)
@@ -354,6 +376,15 @@ def evaluate_script(
                 statement.source_line,
             )
     return graph.document, graph.values
+
+
+def _next_group_id(occupied: set[str]) -> str:
+    """Return the first available stable ``gN`` identifier."""
+
+    index = 1
+    while f"g{index}" in occupied:
+        index += 1
+    return f"g{index}"
 
 
 def _build_object(

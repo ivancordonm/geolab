@@ -500,11 +500,49 @@ class GeometryViewport(GeometryModel):
     scale: float = Field(default=50, gt=0)
 
 
+GeometryObjectGroupRole: TypeAlias = Literal["primary", "input", "helper"]
+
+
+class GeometryObjectGroupMember(GeometryModel):
+    object_id: str
+    role: GeometryObjectGroupRole
+
+    @field_validator("object_id")
+    @classmethod
+    def object_id_must_not_be_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("must not be blank")
+        return value
+
+
+class GeometryObjectGroup(GeometryModel):
+    id: str
+    label: str
+    members: list[GeometryObjectGroupMember] = Field(min_length=2)
+
+    @field_validator("id", "label")
+    @classmethod
+    def value_must_not_be_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("must not be blank")
+        return value
+
+    @model_validator(mode="after")
+    def members_must_be_unique_and_include_a_primary(self) -> GeometryObjectGroup:
+        member_ids = [member.object_id for member in self.members]
+        if len(member_ids) != len(set(member_ids)):
+            raise ValueError("geometry group member object ids must be unique")
+        if not any(member.role == "primary" for member in self.members):
+            raise ValueError("geometry groups must include at least one primary member")
+        return self
+
+
 class GeometryDocument(GeometryModel):
     schema_version: Literal[1] = GEOMETRY_SCHEMA_VERSION
     id: str
     title: str
     objects: list[GeometryObject]
+    groups: list[GeometryObjectGroup] = Field(default_factory=list)
     viewport: GeometryViewport | None = None
     metadata: dict[str, str] | None = None
 
@@ -523,6 +561,24 @@ class GeometryDocument(GeometryModel):
             raise ValueError("geometry object ids must be unique")
         if len(labels) != len(set(labels)):
             raise ValueError("geometry object labels must be unique")
+
+        group_ids = [group.id for group in self.groups]
+        if len(group_ids) != len(set(group_ids)):
+            raise ValueError("geometry group ids must be unique")
+
+        object_ids = set(ids)
+        grouped_object_ids: set[str] = set()
+        for group in self.groups:
+            for member in group.members:
+                if member.object_id not in object_ids:
+                    raise ValueError(
+                        f"geometry group member '{member.object_id}' must reference an existing object"
+                    )
+                if member.object_id in grouped_object_ids:
+                    raise ValueError(
+                        f"geometry object '{member.object_id}' must belong to at most one group"
+                    )
+                grouped_object_ids.add(member.object_id)
         return self
 
 

@@ -63,9 +63,9 @@ type SegmentObject = Extract<GeometryObject, { kind: "segment" }>;
 type PolygonObject = Extract<GeometryObject, { kind: "polygon" }>;
 type ReflectableObject = Extract<GeometryObject, { kind: "point" | "line" | "segment" | "circle" | "polygon" }>;
 type ReflectionObject = ReflectionOverLine | ReflectionOverPoint;
-type SourceLineObject = Exclude<LineObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar | HomothetyPoint>;
-type SourceCircleObject = Exclude<CircleObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar | HomothetyPoint>;
-type SourceSegmentObject = Exclude<SegmentObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar | HomothetyPoint>;
+type SourceLineObject = Exclude<LineObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar | HomothetyPoint | InversionInCircle>;
+type SourceCircleObject = Exclude<CircleObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar | HomothetyPoint | InversionInCircle>;
+type SourceSegmentObject = Exclude<SegmentObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar | HomothetyPoint | InversionInCircle>;
 type SourcePolygonObject = Exclude<PolygonObject, ReflectionObject | RotatedObject | TranslatedObject | HomothetyScalar | HomothetyPoint>;
 
 export interface ConstructionToolState {
@@ -1126,7 +1126,7 @@ function createInversionPoint(
   circleId: string,
   visible = true,
   prefix = "iv",
-): InversionInCircle {
+): InversionInCircle<"point"> {
   const id = nextObjectId(document, prefix);
   return {
     id,

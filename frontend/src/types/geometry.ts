@@ -148,9 +148,14 @@ export type HomothetyPoint = {
   [K in ReflectableKind]: HomothetyPointForKind<K>;
 }[ReflectableKind];
 
-export interface InversionInCircle extends GeometryObjectBase {
-  kind: "point";
-  definition: { type: "inversion_in_circle"; point: GeometryObjectId; circle: GeometryObjectId };
+export type InversionResultKind = "point" | "line" | "segment" | "circle" | "arc";
+
+/** `point` is retained only to read documents saved before Inversion supported non-point objects. */
+export interface InversionInCircle<K extends InversionResultKind = InversionResultKind> extends GeometryObjectBase {
+  kind: K;
+  definition:
+    | { type: "inversion_in_circle"; object: GeometryObjectId; circle: GeometryObjectId; point?: GeometryObjectId }
+    | { type: "inversion_in_circle"; point: GeometryObjectId; circle: GeometryObjectId; object?: GeometryObjectId };
 }
 
 export interface TranslatedObject<K extends ReflectableKind = ReflectableKind> extends GeometryObjectBase {
@@ -230,7 +235,11 @@ export type GeometryObject =
   | ReflectionOverPoint<"polygon">
   | HomothetyScalar
   | HomothetyPoint
-  | InversionInCircle
+  | InversionInCircle<"point">
+  | InversionInCircle<"line">
+  | InversionInCircle<"segment">
+  | InversionInCircle<"circle">
+  | InversionInCircle<"arc">
   | TranslatedObject<"point">
   | TranslatedObject<"line">
   | TranslatedObject<"segment">

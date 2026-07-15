@@ -765,3 +765,97 @@ describe("measures conformance", () => {
     expect(() => new GeometryGraph(invalid)).toThrow(GeometryValidationError);
   });
 });
+
+function freePoint(id: string, x: number, y: number) {
+  return { id, label: id, kind: "point" as const, visible: true, definition: { type: "free" as const, x, y } };
+}
+
+describe("generalized inversion", () => {
+  const baseDocument: GeometryDocument = {
+    schemaVersion: 1,
+    id: "inversion-tests",
+    title: "Inversion",
+    objects: [
+      freePoint("B", 0, 0),
+      freePoint("U", 1, 0),
+      {
+        id: "c1",
+        label: "c1",
+        kind: "circle",
+        visible: true,
+        definition: { type: "center_through_point", center: "B", point: "U" },
+      },
+    ],
+  };
+
+  it("inverts a line not through the center into a circle", () => {
+    const document: GeometryDocument = {
+      ...baseDocument,
+      objects: [
+        ...baseDocument.objects,
+        freePoint("E", 1, 2),
+        freePoint("F", 3, 2),
+        { id: "r", label: "r", kind: "line", visible: true, definition: { type: "through_points", pointA: "E", pointB: "F" } },
+        {
+          id: "C1",
+          label: "C1",
+          kind: "circle",
+          visible: true,
+          definition: { type: "inversion_in_circle", object: "r", circle: "c1" },
+        },
+      ],
+    };
+
+    const values = evaluateGeometryDocument(document);
+    const result = values.get("C1");
+    expect(result).toEqual({ type: "circle", center: { x: 0, y: 0.25 }, radius: 0.25 });
+  });
+
+  it("keeps a line through the center as itself", () => {
+    const document: GeometryDocument = {
+      ...baseDocument,
+      objects: [
+        ...baseDocument.objects,
+        freePoint("E", 0, 1),
+        freePoint("F", 0, 2),
+        { id: "r", label: "r", kind: "line", visible: true, definition: { type: "through_points", pointA: "E", pointB: "F" } },
+        {
+          id: "C1",
+          label: "C1",
+          kind: "line",
+          visible: true,
+          definition: { type: "inversion_in_circle", object: "r", circle: "c1" },
+        },
+      ],
+    };
+
+    const values = evaluateGeometryDocument(document);
+    const result = values.get("C1");
+    expect(result?.type).toBe("line");
+    if (result?.type === "line") {
+      expect(result.a).toBeCloseTo(1, 12);
+      expect(result.b).toBeCloseTo(0, 12);
+      expect(result.c).toBeCloseTo(0, 12);
+    }
+  });
+
+  it("reads the legacy `point` field on inversion_in_circle", () => {
+    const document: GeometryDocument = {
+      ...baseDocument,
+      objects: [
+        ...baseDocument.objects,
+        {
+          id: "Inv",
+          label: "Inv",
+          kind: "point",
+          visible: true,
+          // Legacy shape: `point` instead of `object`.
+          definition: { type: "inversion_in_circle", point: "U", circle: "c1" } as never,
+        },
+      ],
+    };
+
+    const values = evaluateGeometryDocument(document);
+    expect(values.get("Inv")).toEqual({ type: "point", x: 1, y: 0 });
+  });
+});

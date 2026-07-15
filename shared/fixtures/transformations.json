@@ -1,5 +1,5 @@
 {
-  "script": "A = Point(1, 1)\nB = Point(0, 0)\nC = Point(0, 2)\nD = Point(2, -1)\nP = Point(2, 0)\nU = Point(1, 0)\naxis = Line(B, C)\nR = Reflection(A, axis)\nRP = Reflection(A, B)\nT = Translation(A, B, D)\nG = Rotation(A, B, 90)\nH = Homothety(B, P, 2)\nc1 = Circle(B, U)\nInv = Inversion(P, c1)\nV = Point(3, 0)\nS2 = Segment(A, D)\nHP = Homothety(B, S2, V)\n",
+  "script": "A = Point(1, 1)\nB = Point(0, 0)\nC = Point(0, 2)\nD = Point(2, -1)\nP = Point(2, 0)\nU = Point(1, 0)\naxis = Line(B, C)\nR = Reflection(A, axis)\nRP = Reflection(A, B)\nT = Translation(A, B, D)\nG = Rotation(A, B, 90)\nH = Homothety(B, P, 2)\nc1 = Circle(B, U)\nInv = Inversion(P, c1)\nV = Point(3, 0)\nS2 = Segment(A, D)\nHP = Homothety(B, S2, V)\nE = Point(1, 2)\nF = Point(3, 2)\nrLine = Line(E, F)\nC1 = Inversion(rLine, c1)\n",
   "document": {
     "schemaVersion": 1,
     "id": "doc_transformations",
@@ -172,7 +172,7 @@
         "kind": "point",
         "definition": {
           "type": "inversion_in_circle",
-          "point": "P",
+          "object": "P",
           "circle": "c1"
         }
       },
@@ -212,8 +212,57 @@
           "object": "S2",
           "ratioPoint": "V"
         }
+      },
+      {
+        "id": "E",
+        "label": "E",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 1.0,
+          "y": 2.0
+        }
+      },
+      {
+        "id": "F",
+        "label": "F",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 3.0,
+          "y": 2.0
+        }
+      },
+      {
+        "id": "rLine",
+        "label": "rLine",
+        "visible": true,
+        "style": null,
+        "kind": "line",
+        "definition": {
+          "type": "through_points",
+          "pointA": "E",
+          "pointB": "F"
+        }
+      },
+      {
+        "id": "C1",
+        "label": "C1",
+        "visible": true,
+        "style": null,
+        "kind": "circle",
+        "definition": {
+          "type": "inversion_in_circle",
+          "object": "rLine",
+          "circle": "c1"
+        }
       }
     ],
+    "groups": [],
     "viewport": {
       "centerX": 0.0,
       "centerY": 0.0,
@@ -322,6 +371,30 @@
         "x": 4.0,
         "y": -2.0
       }
+    },
+    "E": {
+      "type": "point",
+      "x": 1.0,
+      "y": 2.0
+    },
+    "F": {
+      "type": "point",
+      "x": 3.0,
+      "y": 2.0
+    },
+    "rLine": {
+      "type": "line",
+      "a": 0.0,
+      "b": 1.0,
+      "c": -2.0
+    },
+    "C1": {
+      "type": "circle",
+      "center": {
+        "x": 0.0,
+        "y": 0.25
+      },
+      "radius": 0.25
     }
   }
 }

@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 
 import { TOOL_INSTRUCTIONS, type ConstructionTool } from "../../geometry/constructionTools";
+import { ToolGroupButton, type GroupToolOption } from "./ToolGroupButton";
 
 interface ConstructionToolbarProps {
   activeTool: ConstructionTool;
@@ -40,14 +41,10 @@ interface ConstructionToolbarProps {
   controls?: ReactNode;
 }
 
-interface IconProps {
-  size?: number | string;
-  "aria-hidden"?: boolean;
-}
-
 type ToolEntry =
   | { divider: true }
-  | { tool: ConstructionTool; label: string; icon: ComponentType<IconProps>; shortcut?: string };
+  | GroupToolOption
+  | { group: string; label: string; instruction: string; tools: readonly GroupToolOption[] };
 
 const TOOLS: readonly ToolEntry[] = [
   { tool: "select", label: "Select", icon: MousePointer2, shortcut: "p" },
@@ -74,17 +71,30 @@ const TOOLS: readonly ToolEntry[] = [
   { tool: "translation", label: "Translation", icon: Move },
   { tool: "rotation", label: "Rotate", icon: RotateCw },
   { divider: true },
-  { tool: "polygon", label: "Polygon", icon: Pentagon },
-  { tool: "regular_polygon", label: "Regular polygon", icon: Star },
-  { tool: "vector_polygon", label: "Vector polygon", icon: Waypoints },
+  {
+    group: "polygons",
+    label: "Polygons",
+    instruction: "Choose a polygon tool",
+    tools: [
+      { tool: "polygon", label: "Polygon", icon: Pentagon },
+      { tool: "regular_polygon", label: "Regular polygon", icon: Star },
+      { tool: "vector_polygon", label: "Vector polygon", icon: Waypoints },
+    ],
+  },
 ] as const;
 
-type NamedToolEntry = Extract<ToolEntry, { tool: ConstructionTool }>;
+function flattenEntries(entries: readonly ToolEntry[]): GroupToolOption[] {
+  return entries.flatMap((entry) => {
+    if ("divider" in entry) return [];
+    if ("group" in entry) return [...entry.tools];
+    return [entry];
+  });
+}
 
 export const SHORTCUT_TO_TOOL: Readonly<Record<string, ConstructionTool>> = Object.fromEntries(
-  TOOLS.filter((entry): entry is NamedToolEntry => "tool" in entry && entry.shortcut !== undefined).map(
-    (entry) => [entry.shortcut as string, entry.tool],
-  ),
+  flattenEntries(TOOLS)
+    .filter((entry) => entry.shortcut !== undefined)
+    .map((entry) => [entry.shortcut as string, entry.tool]),
 );
 
 interface TooltipState {
@@ -148,6 +158,20 @@ export function ConstructionToolbar({
           {TOOLS.map((entry, i) => {
             if ("divider" in entry) {
               return <div key={`div-${i}`} className="my-0.5 h-px bg-edge" role="separator" />;
+            }
+            if ("group" in entry) {
+              return (
+                <ToolGroupButton
+                  key={`group-${entry.group}`}
+                  label={entry.label}
+                  instruction={entry.instruction}
+                  tools={entry.tools}
+                  activeTool={activeTool}
+                  onActivateTool={onActivateTool}
+                  onShowTooltip={showTooltip}
+                  onHideTooltip={hideTooltip}
+                />
+              );
             }
             const { tool, label, icon: Icon, shortcut } = entry;
             const active = activeTool === tool;

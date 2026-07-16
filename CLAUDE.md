@@ -138,6 +138,39 @@ Script evaluation is atomic. A syntax error, semantic error, or validation failu
 
 Run a subset with pytest flags: `pytest -k "line" -v` finds all tests with "line" in the name.
 
+### Grouping toolbar tools (reusable pattern)
+
+The construction toolbar (`frontend/src/components/geometry/ConstructionToolbar.tsx`) supports generic tool grouping: related tools can share a single flyout-triggered button to save vertical space. **All groupings are data-only edits** — no component changes required.
+
+**How it works:**
+- `ToolGroupButton` component (`frontend/src/components/geometry/ToolGroupButton.tsx`) renders the trigger (showing the last-used tool's icon) and manages the portal flyout (outside-click/Escape dismissal, ARIA menu keyboard contract).
+- The toolbar's `TOOLS` array accepts a `group` variant: `{ group: "id", label: "Display name", instruction: "Tooltip text", tools: [...] }`.
+- The group entry replaces flat entries in `TOOLS`; `SHORTCUT_TO_TOOL` is computed by flattening groups, so shortcuts inside groups keep working.
+
+**To add a new group:**
+
+1. Pick an icon from lucide-react for the group trigger.
+2. In `ConstructionToolbar.tsx`, find the section of `TOOLS` with the tools you want to group.
+3. Replace those flat entries with a single `group` entry, exactly like the "Polygons" example (lines 139-145 in the current file):
+   ```tsx
+   {
+     group: "groupid",
+     label: "Display Name",
+     instruction: "Tooltip instruction",
+     tools: [
+       { tool: "tool_1", label: "Tool 1", icon: Icon1 },
+       { tool: "tool_2", label: "Tool 2", icon: Icon2 },
+     ],
+   },
+   ```
+4. Update imports at the top to add any new lucide icons.
+5. Write 2 tests in `ConstructionToolbar.test.tsx` (mirroring the "Polygons" tests, lines 79-100):
+   - One that clicks the group button, selects a tool, and verifies `onActivateTool` was called.
+   - One that verifies the tool-specific input (e.g., "Sides" for regular_polygon) still appears when active.
+6. Run `npx vitest run src/components/geometry/ConstructionToolbar.test.tsx && npm run typecheck`.
+
+**Example:** PR #15 groups `polygon`, `regular_polygon`, `vector_polygon` under a "Polygons" button; this pattern can be reused for any related tools (e.g., transformation tools, annotation tools, etc.). See `docs/superpowers/specs/2026-07-16-toolbar-tool-groups-design.md` and `docs/superpowers/plans/2026-07-16-toolbar-tool-groups.md` for the full design and implementation reference.
+
 ## Important implementation notes
 
 ### Geometry tolerances

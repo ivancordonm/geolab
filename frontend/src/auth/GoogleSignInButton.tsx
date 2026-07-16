@@ -52,12 +52,12 @@ export function GoogleSignInButton({ onCredential }: GoogleSignInButtonProps) {
       window.google.accounts.id.initialize({
         client_id: googleClientId,
         callback: (response) => onCredentialRef.current(response.credential),
-        use_fedcm_for_button: true,
+        use_fedcm_for_button: false,
       });
       window.google.accounts.id.renderButton(containerRef.current, {
         theme: "outline",
         size: "large",
-        type: "icon",
+        type: "standard",
       });
     };
 
@@ -114,7 +114,7 @@ export function GoogleSignInButton({ onCredential }: GoogleSignInButtonProps) {
           d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
         />
       </svg>
-      <div ref={containerRef} className="gsi-host absolute inset-0 overflow-hidden opacity-0" />
+      <div ref={containerRef} aria-label="Sign in with Google" />
     </div>
   );
 }

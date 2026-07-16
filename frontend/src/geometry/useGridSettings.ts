@@ -6,6 +6,7 @@ const STORAGE_KEY = "geolab-grid-settings";
 
 export const DEFAULT_GRID_SETTINGS: GridSettings = {
   showGrid: true,
+  showAxes: true,
   snapToGrid: false,
   stepMode: "auto",
   manualStep: 1,
@@ -18,6 +19,7 @@ function readStoredSettings(): GridSettings {
     const parsed = JSON.parse(raw);
     return {
       showGrid: typeof parsed.showGrid === "boolean" ? parsed.showGrid : DEFAULT_GRID_SETTINGS.showGrid,
+      showAxes: typeof parsed.showAxes === "boolean" ? parsed.showAxes : DEFAULT_GRID_SETTINGS.showAxes,
       snapToGrid: typeof parsed.snapToGrid === "boolean" ? parsed.snapToGrid : DEFAULT_GRID_SETTINGS.snapToGrid,
       stepMode: parsed.stepMode === "manual" ? "manual" : DEFAULT_GRID_SETTINGS.stepMode,
       manualStep:

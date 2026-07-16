@@ -88,6 +88,7 @@ describe("getEffectiveGridStep", () => {
   it("delegates to chooseGridStep when stepMode is auto", () => {
     const settings: GridSettings = {
       showGrid: true,
+      showAxes: true,
       snapToGrid: false,
       stepMode: "auto",
       manualStep: 1,
@@ -98,6 +99,7 @@ describe("getEffectiveGridStep", () => {
   it("returns manualStep when stepMode is manual, ignoring viewport scale", () => {
     const settings: GridSettings = {
       showGrid: true,
+      showAxes: true,
       snapToGrid: true,
       stepMode: "manual",
       manualStep: 2.5,

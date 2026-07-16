@@ -27,7 +27,10 @@ describe("GoogleSignInButton", () => {
     render(<GoogleSignInButton onCredential={onCredential} />);
 
     expect(initialize).toHaveBeenCalledWith(
-      expect.objectContaining({ client_id: "test-client-id" }),
+      expect.objectContaining({
+        client_id: "test-client-id",
+        use_fedcm_for_button: true,
+      }),
     );
     expect(renderButton).toHaveBeenCalledWith(
       expect.any(HTMLElement),

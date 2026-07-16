@@ -36,7 +36,7 @@ describe("ConstructionToolbar", () => {
       "aria-keyshortcuts",
       "p",
     );
-    expect(screen.getByRole("button", { name: "Midpoint" })).not.toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Inversion in circle" })).not.toHaveAttribute(
       "aria-keyshortcuts",
     );
   });
@@ -193,6 +193,31 @@ describe("ConstructionToolbar", () => {
     render(<ConstructionToolbar activeTool="parallel" onActivateTool={() => undefined} />);
 
     expect(screen.getByRole("button", { name: "Parallel & perpendicular" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("groups the midpoint and bisector tools under a single flyout button", async () => {
+    const user = userEvent.setup();
+    const onActivateTool = vi.fn();
+    render(<ConstructionToolbar activeTool="select" onActivateTool={onActivateTool} />);
+
+    expect(screen.queryByRole("button", { name: "Midpoint" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Perpendicular bisector" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Angle bisector" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Midpoint & bisectors" }));
+    await user.click(screen.getByRole("menuitem", { name: "Perpendicular bisector" }));
+
+    expect(onActivateTool).toHaveBeenCalledWith("perp_bisector");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("marks the Midpoint & bisectors group button pressed while midpoint is active from the group", () => {
+    render(<ConstructionToolbar activeTool="midpoint" onActivateTool={() => undefined} />);
+
+    expect(screen.getByRole("button", { name: "Midpoint & bisectors" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );

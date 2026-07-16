@@ -62,7 +62,16 @@ const TOOLS: readonly ToolEntry[] = [
     ],
   },
   { divider: true },
-  { tool: "midpoint", label: "Midpoint", icon: Diamond },
+  {
+    group: "midpoint-bisectors",
+    label: "Midpoint & bisectors",
+    instruction: "Choose a midpoint or bisector tool",
+    tools: [
+      { tool: "midpoint", label: "Midpoint", icon: Diamond },
+      { tool: "perp_bisector", label: "Perpendicular bisector", icon: Divide },
+      { tool: "angle_bisector", label: "Angle bisector", icon: Compass },
+    ],
+  },
   {
     group: "parallel-perpendicular",
     label: "Parallel & perpendicular",
@@ -72,8 +81,6 @@ const TOOLS: readonly ToolEntry[] = [
       { tool: "perpendicular", label: "Perpendicular line", icon: CornerDownRight },
     ],
   },
-  { tool: "perp_bisector", label: "Perpendicular bisector", icon: Divide },
-  { tool: "angle_bisector", label: "Angle bisector", icon: Compass },
   { divider: true },
   { tool: "intersection", label: "Intersection", icon: Crosshair },
   { tool: "circumcircle", label: "Circumscribed circle", icon: CircleDot },

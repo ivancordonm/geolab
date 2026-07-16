@@ -54,3 +54,8 @@ file, mirrored into `frontend/VERSION`. The bump is automated:
 `.github/workflows/bump-version.yml` increments both files and pushes a
 `chore: bump build version to <N> [skip ci]` commit on every push to `main`.
 No manual step is required before pushing.
+
+Every push to `main` triggers two Vercel deploys (the original commit,
+then the bump commit) since Vercel does not honor `[skip ci]` — this
+predates automation (manual bumps were also separate commits pushed to
+`main`).

@@ -221,6 +221,13 @@ files by 1 and pushes a `chore: bump build version to <N> [skip ci]` commit
 on every push to `main`. The `[skip ci]` marker stops that commit from
 re-triggering the workflow. No manual step is required before pushing.
 
+Every push to `main` therefore triggers two Vercel deploys: the original
+commit's, and — moments later — the bump commit's. The bump commit is not
+skipped by Vercel (its `[skip ci]` marker only affects GitHub Actions, not
+Vercel's own Git integration), so this is expected, not a bug. This already
+happened under the old manual process too, since a version bump was always
+its own commit pushed to `main`.
+
 ## Known limitations and future work
 
 - **REST tool workspace is process-global:** `GET /geometry/graph` and

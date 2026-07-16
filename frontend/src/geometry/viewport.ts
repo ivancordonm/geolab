@@ -98,6 +98,37 @@ export function chooseGridStep(scale: number, targetPixels = 72): number {
   return multiplier * magnitude;
 }
 
+export interface GridSettings {
+  showGrid: boolean;
+  snapToGrid: boolean;
+  stepMode: "auto" | "manual";
+  manualStep: number;
+}
+
+export function getEffectiveGridStep(settings: GridSettings, viewportScale: number): number {
+  return settings.stepMode === "manual" ? settings.manualStep : chooseGridStep(viewportScale);
+}
+
+const DEFAULT_SNAP_RADIUS_PX = 8;
+
+export function snapToGrid(
+  point: Coordinate,
+  step: number,
+  viewportScale: number,
+  snapRadiusPx: number = DEFAULT_SNAP_RADIUS_PX,
+): Coordinate {
+  const worldRadius = snapRadiusPx / viewportScale;
+  return {
+    x: snapAxis(point.x, step, worldRadius),
+    y: snapAxis(point.y, step, worldRadius),
+  };
+}
+
+function snapAxis(value: number, step: number, worldRadius: number): number {
+  const nearest = Math.round(value / step) * step;
+  return Math.abs(value - nearest) <= worldRadius ? nearest : value;
+}
+
 export function clientToSvgScreen(
   client: Coordinate,
   rect: Pick<DOMRect, "left" | "top" | "width" | "height">,

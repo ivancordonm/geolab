@@ -173,6 +173,10 @@ connector at `https://geolab-seven.vercel.app/mcp`.
 
 ## Checks
 
+Before pushing to `main`, bump the root `VERSION` file by 1, run
+`npm run sync-version` from `frontend/` to refresh `frontend/VERSION`, and
+commit both files together.
+
 ```bash
 cd frontend
 npm run lint

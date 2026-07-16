@@ -544,7 +544,8 @@ export function App() {
 
       {/* Leyenda a la derecha del toolbar izquierdo */}
       <div className="pointer-events-none absolute bottom-3 left-[72px] z-10 text-[11px] text-muted/50 select-none">
-        An Anticentro Lab project
+        <div>v.{__APP_VERSION__}</div>
+        <div>An Anticentro Lab project</div>
       </div>
 
       {/* Panel derecho flotante colapsable — siempre montado para preservar estado */}

@@ -9,6 +9,7 @@ import {
   Sparkles,
   Undo2,
 } from "lucide-react";
+import { Analytics } from "@vercel/analytics/react";
 
 import { evaluateConstructionScript, ScriptEvaluationError } from "./api/geometryApi";
 import { useAuth } from "./auth/useAuth";
@@ -620,7 +621,6 @@ export function App() {
           />
         </div>
       </div>
-
       <CloudDocumentsPanel
         open={cloudPanelOpen}
         documents={cloudDocuments}
@@ -646,6 +646,7 @@ export function App() {
         onClose={sharing.closeShareDialog}
         onStopSharing={sharing.handleStopSharing}
       />
+      <Analytics />
     </div>
   );
 }

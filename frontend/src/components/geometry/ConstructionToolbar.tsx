@@ -50,10 +50,17 @@ type ToolEntry =
 const TOOLS: readonly ToolEntry[] = [
   { tool: "select", label: "Select", icon: MousePointer2, shortcut: "p" },
   { divider: true },
-  { tool: "point", label: "Point", icon: Dot },
-  { tool: "segment", label: "Segment", icon: Minus },
-  { tool: "line", label: "Line", icon: Slash },
-  { tool: "circle", label: "Circle", icon: Circle },
+  {
+    group: "basic-shapes",
+    label: "Basic shapes",
+    instruction: "Choose a basic construction tool",
+    tools: [
+      { tool: "point", label: "Point", icon: Dot },
+      { tool: "segment", label: "Segment", icon: Minus },
+      { tool: "line", label: "Line", icon: Slash },
+      { tool: "circle", label: "Circle", icon: Circle },
+    ],
+  },
   { divider: true },
   { tool: "midpoint", label: "Midpoint", icon: Diamond },
   { tool: "parallel", label: "Parallel line", icon: Equal },

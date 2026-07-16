@@ -253,25 +253,36 @@ describe("script editor flow", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "Point" }));
-    expect(screen.getByRole("button", { name: "Point" })).toHaveAttribute("aria-pressed", "true");
+    await user.click(screen.getByRole("button", { name: "Basic shapes" }));
+    await user.click(screen.getByRole("menuitem", { name: "Point" }));
+    expect(screen.getByRole("button", { name: "Basic shapes" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
 
     await user.keyboard("p");
 
     expect(screen.getByRole("button", { name: "Select" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Point" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "Basic shapes" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 
   it("ignores the P shortcut while typing in the script editor", async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "Point" }));
+    await user.click(screen.getByRole("button", { name: "Basic shapes" }));
+    await user.click(screen.getByRole("menuitem", { name: "Point" }));
     await user.click(screen.getByRole("tab", { name: "Script" }));
     await user.click(screen.getByLabelText("Construction script"));
     await user.keyboard("p");
 
-    expect(screen.getByRole("button", { name: "Point" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Basic shapes" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   it("undoes a visibility change from the toolbar button", async () => {

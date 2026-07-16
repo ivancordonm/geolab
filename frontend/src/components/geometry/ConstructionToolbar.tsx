@@ -63,8 +63,15 @@ const TOOLS: readonly ToolEntry[] = [
   },
   { divider: true },
   { tool: "midpoint", label: "Midpoint", icon: Diamond },
-  { tool: "parallel", label: "Parallel line", icon: Equal },
-  { tool: "perpendicular", label: "Perpendicular line", icon: CornerDownRight },
+  {
+    group: "parallel-perpendicular",
+    label: "Parallel & perpendicular",
+    instruction: "Choose a parallel or perpendicular line tool",
+    tools: [
+      { tool: "parallel", label: "Parallel line", icon: Equal },
+      { tool: "perpendicular", label: "Perpendicular line", icon: CornerDownRight },
+    ],
+  },
   { tool: "perp_bisector", label: "Perpendicular bisector", icon: Divide },
   { tool: "angle_bisector", label: "Angle bisector", icon: Compass },
   { divider: true },

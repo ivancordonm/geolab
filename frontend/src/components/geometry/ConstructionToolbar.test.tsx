@@ -173,4 +173,28 @@ describe("ConstructionToolbar", () => {
       "true",
     );
   });
+
+  it("groups the parallel and perpendicular tools under a single flyout button", async () => {
+    const user = userEvent.setup();
+    const onActivateTool = vi.fn();
+    render(<ConstructionToolbar activeTool="select" onActivateTool={onActivateTool} />);
+
+    expect(screen.queryByRole("button", { name: "Parallel line" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Perpendicular line" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Parallel & perpendicular" }));
+    await user.click(screen.getByRole("menuitem", { name: "Perpendicular line" }));
+
+    expect(onActivateTool).toHaveBeenCalledWith("perpendicular");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("marks the Parallel & perpendicular group button pressed while parallel is active from the group", () => {
+    render(<ConstructionToolbar activeTool="parallel" onActivateTool={() => undefined} />);
+
+    expect(screen.getByRole("button", { name: "Parallel & perpendicular" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
 });

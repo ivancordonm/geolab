@@ -206,6 +206,21 @@ and `/agent` same-origin to `https://geolab-api.anticentro.es`, and
 `VITE_API_BASE_URL` must stay **empty** in the frontend Vercel project. See the
 "Production deployment (Vercel)" section of `README.md` for the full checklist.
 
+## Build version counter
+
+The bottom-left corner of the canvas shows a `v.<N>` build indicator above
+the "An Anticentro Lab project" credit (`frontend/src/App.tsx`), sourced
+from the plain-integer `frontend/VERSION` file and injected at build time via
+the `__APP_VERSION__` constant defined in `frontend/vite.config.ts`. The root
+`VERSION` file is the canonical value; `frontend/VERSION` is a committed
+mirror kept local to `frontend/` on purpose, so the Vercel build (Root
+Directory = `frontend/`) never needs filesystem access outside it.
+
+**Before every push to `main`, increment the integer in the root `VERSION`
+file by 1, then run `npm run sync-version` from `frontend/`** to update the
+mirror, and commit both files together. This is a manual step — there is no
+git hook or CI automation enforcing it.
+
 ## Known limitations and future work
 
 - **REST tool workspace is process-global:** `GET /geometry/graph` and

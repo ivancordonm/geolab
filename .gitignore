@@ -32,3 +32,4 @@ data/
 .superpowers/
 .claude/keybindings.json
 .vercel
+.worktrees/

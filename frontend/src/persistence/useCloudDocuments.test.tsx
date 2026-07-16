@@ -410,4 +410,27 @@ describe("useCloudDocuments", () => {
     });
     expect(result.current.error).toBe("Your session expired. Please sign in again.");
   });
+
+  it("restores cloudId from localStorage on init and saves it on mutations", async () => {
+    window.localStorage.setItem("geolab.cloud-id.v1", "loaded-id");
+    const { result } = renderHook(() => useCloudDocuments(vi.fn()));
+    expect(result.current.cloudId).toBe("loaded-id");
+
+    act(() => {
+      result.current.detachDocument();
+    });
+    expect(result.current.cloudId).toBeNull();
+    expect(window.localStorage.getItem("geolab.cloud-id.v1")).toBeNull();
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify(detail("saved-new-id", "Triangle")), { status: 201 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await act(async () => {
+      await result.current.saveAsNew("Triangle", sampleDocument);
+    });
+    expect(result.current.cloudId).toBe("saved-new-id");
+    expect(window.localStorage.getItem("geolab.cloud-id.v1")).toBe("saved-new-id");
+  });
 });

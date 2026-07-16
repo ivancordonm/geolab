@@ -64,6 +64,16 @@ async function requestResult<T>(action: () => Promise<T>): Promise<RequestResult
   }
 }
 
+const CLOUD_ID_STORAGE_KEY = "geolab.cloud-id.v1";
+
+function getStoredCloudId(): string | null {
+  try {
+    return window.localStorage.getItem(CLOUD_ID_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
 export function useCloudDocuments(onUnauthorized: () => void): UseCloudDocumentsResult {
   const [panelOpen, setPanelOpen] = useState(false);
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
@@ -72,8 +82,8 @@ export function useCloudDocuments(onUnauthorized: () => void): UseCloudDocuments
   const [hasMore, setHasMore] = useState(false);
   const [associationError, setAssociationError] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
-  const [cloudId, setCloudIdState] = useState<string | null>(null);
-  const cloudIdRef = useRef<string | null>(null);
+  const [cloudId, setCloudIdState] = useState<string | null>(getStoredCloudId);
+  const cloudIdRef = useRef<string | null>(getStoredCloudId());
   const associationGenerationRef = useRef(0);
   const listGenerationRef = useRef(0);
   const listOffsetRef = useRef(0);
@@ -91,6 +101,15 @@ export function useCloudDocuments(onUnauthorized: () => void): UseCloudDocuments
   const setCloudId = useCallback((id: string | null) => {
     cloudIdRef.current = id;
     setCloudIdState(id);
+    try {
+      if (id === null) {
+        window.localStorage.removeItem(CLOUD_ID_STORAGE_KEY);
+      } else {
+        window.localStorage.setItem(CLOUD_ID_STORAGE_KEY, id);
+      }
+    } catch {
+      // Ignore
+    }
   }, []);
 
   const invalidateList = useCallback(() => {

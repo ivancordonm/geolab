@@ -111,6 +111,12 @@ export function App() {
     }
   }, [auth.error]);
 
+  useEffect(() => {
+    if (!auth.loading && auth.user === null) {
+      detachCloudDocument();
+    }
+  }, [auth.loading, auth.user, detachCloudDocument]);
+
   const constructionTools = useConstructionTools({
     document: geometry.document,
     onApplyObjectChanges: geometry.applyObjectChanges,

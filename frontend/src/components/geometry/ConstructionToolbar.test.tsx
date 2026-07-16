@@ -36,7 +36,7 @@ describe("ConstructionToolbar", () => {
       "aria-keyshortcuts",
       "p",
     );
-    expect(screen.getByRole("button", { name: "Point" })).not.toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Midpoint" })).not.toHaveAttribute(
       "aria-keyshortcuts",
     );
   });
@@ -109,6 +109,32 @@ describe("ConstructionToolbar", () => {
 
     expect(screen.getByLabelText("Ratio")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Homothety" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("groups the basic shape tools under a single flyout button", async () => {
+    const user = userEvent.setup();
+    const onActivateTool = vi.fn();
+    render(<ConstructionToolbar activeTool="select" onActivateTool={onActivateTool} />);
+
+    expect(screen.queryByRole("button", { name: "Point" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Segment" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Line" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Circle" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Basic shapes" }));
+    await user.click(screen.getByRole("menuitem", { name: "Circle" }));
+
+    expect(onActivateTool).toHaveBeenCalledWith("circle");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("marks the Basic shapes group button pressed while segment is active from the group", () => {
+    render(<ConstructionToolbar activeTool="segment" onActivateTool={() => undefined} />);
+
+    expect(screen.getByRole("button", { name: "Basic shapes" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );

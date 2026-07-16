@@ -7,7 +7,7 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
 const appVersion = readFileSync(
-  resolve(dirname(fileURLToPath(import.meta.url)), "../VERSION"),
+  resolve(dirname(fileURLToPath(import.meta.url)), "VERSION"),
   "utf-8",
 ).trim();
 

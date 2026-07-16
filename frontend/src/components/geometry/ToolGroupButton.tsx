@@ -46,13 +46,14 @@ export function ToolGroupButton({
 }: ToolGroupButtonProps) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
-  const [lastUsed, setLastUsed] = useState<ConstructionTool>(tools[0].tool);
+  const [lastUsed, setLastUsed] = useState<ConstructionTool | null>(tools[0]?.tool ?? null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const activeMember = tools.find((entry) => entry.tool === activeTool);
-  const displayed = activeMember ?? tools.find((entry) => entry.tool === lastUsed) ?? tools[0];
-  const DisplayedIcon = displayed.icon;
+  const displayed =
+    activeMember ?? tools.find((entry) => entry.tool === lastUsed) ?? tools[0];
   const isActive = activeMember !== undefined;
 
   useEffect(() => {
@@ -64,7 +65,10 @@ export function ToolGroupButton({
       if (!insideTrigger && !insideMenu) setOpen(false);
     };
     const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
     };
     document.addEventListener("mousedown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
@@ -73,6 +77,47 @@ export function ToolGroupButton({
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const activeIndex = tools.findIndex((entry) => entry.tool === activeTool);
+    const focusIndex = activeIndex >= 0 ? activeIndex : 0;
+    itemRefs.current[focusIndex]?.focus();
+  }, [open, tools, activeTool]);
+
+  const focusItem = (index: number): void => {
+    const count = tools.length;
+    const wrapped = ((index % count) + count) % count;
+    itemRefs.current[wrapped]?.focus();
+  };
+
+  const handleMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
+    const currentIndex = itemRefs.current.findIndex((el) => el === document.activeElement);
+    switch (event.key) {
+      case "ArrowDown":
+        event.preventDefault();
+        focusItem(currentIndex + 1);
+        break;
+      case "ArrowUp":
+        event.preventDefault();
+        focusItem(currentIndex - 1);
+        break;
+      case "Home":
+        event.preventDefault();
+        focusItem(0);
+        break;
+      case "End":
+        event.preventDefault();
+        focusItem(tools.length - 1);
+        break;
+      default:
+        break;
+    }
+  };
+
+  if (tools.length === 0) return null;
+
+  const DisplayedIcon = displayed.icon;
 
   const handleToggle = (): void => {
     if (!open && triggerRef.current) {
@@ -124,14 +169,18 @@ export function ToolGroupButton({
               ref={menuRef}
               role="menu"
               aria-label={label}
+              onKeyDown={handleMenuKeyDown}
               style={{ position: "fixed", top: pos.top, left: pos.left, width: MENU_WIDTH, zIndex: 9999 }}
               className="rounded-xl border border-edge bg-surface p-1.5 shadow-pop"
             >
-              {tools.map(({ tool, label: toolLabel, icon: Icon, shortcut }) => {
+              {tools.map(({ tool, label: toolLabel, icon: Icon, shortcut }, index) => {
                 const active = activeTool === tool;
                 return (
                   <button
                     key={tool}
+                    ref={(el) => {
+                      itemRefs.current[index] = el;
+                    }}
                     type="button"
                     role="menuitem"
                     aria-keyshortcuts={shortcut}

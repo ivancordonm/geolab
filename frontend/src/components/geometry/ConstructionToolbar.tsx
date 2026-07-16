@@ -71,8 +71,17 @@ const TOOLS: readonly ToolEntry[] = [
   { tool: "intersection", label: "Intersection", icon: Crosshair },
   { tool: "circumcircle", label: "Circumscribed circle", icon: CircleDot },
   { divider: true },
-  { tool: "reflect_line", label: "Reflect over line", icon: ArrowLeftRight },
-  { tool: "reflect_point", label: "Reflect over point", icon: RefreshCcw },
+  {
+    group: "transformations",
+    label: "Transformations",
+    instruction: "Choose a transformation tool",
+    tools: [
+      { tool: "reflect_line", label: "Reflect over line", icon: ArrowLeftRight },
+      { tool: "reflect_point", label: "Reflect over point", icon: RefreshCcw },
+      { tool: "translation", label: "Translation", icon: Move },
+      { tool: "rotation", label: "Rotate", icon: RotateCw },
+    ],
+  },
   {
     group: "homothety",
     label: "Homothety",
@@ -83,8 +92,6 @@ const TOOLS: readonly ToolEntry[] = [
     ],
   },
   { tool: "inversion", label: "Inversion in circle", icon: RefreshCw },
-  { tool: "translation", label: "Translation", icon: Move },
-  { tool: "rotation", label: "Rotate", icon: RotateCw },
   { divider: true },
   {
     group: "polygons",

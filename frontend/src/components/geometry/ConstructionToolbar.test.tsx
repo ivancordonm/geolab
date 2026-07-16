@@ -139,4 +139,38 @@ describe("ConstructionToolbar", () => {
       "true",
     );
   });
+
+  it("groups the transformation tools under a single flyout button", async () => {
+    const user = userEvent.setup();
+    const onActivateTool = vi.fn();
+    render(<ConstructionToolbar activeTool="select" onActivateTool={onActivateTool} />);
+
+    expect(screen.queryByRole("button", { name: "Reflect over line" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reflect over point" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Translation" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Rotate" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Transformations" }));
+    await user.click(screen.getByRole("menuitem", { name: "Rotate" }));
+
+    expect(onActivateTool).toHaveBeenCalledWith("rotation");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("still shows the Angle input while rotation is active from the group", () => {
+    render(
+      <ConstructionToolbar
+        activeTool="rotation"
+        onActivateTool={() => undefined}
+        rotationAngle={45}
+        onRotationAngleChange={() => undefined}
+      />,
+    );
+
+    expect(screen.getByLabelText("Angle (°)")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Transformations" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
 });

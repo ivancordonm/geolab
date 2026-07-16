@@ -28,7 +28,13 @@ describe("ConstructionToolbar", () => {
   });
 
   it("exposes a p -> select keyboard shortcut and marks it on the button", () => {
-    expect(SHORTCUT_TO_TOOL).toEqual({ p: "select" });
+    expect(SHORTCUT_TO_TOOL).toEqual({
+      p: "select",
+      o: "point",
+      s: "segment",
+      l: "line",
+      c: "circle",
+    });
 
     render(<ConstructionToolbar activeTool="select" onActivateTool={() => undefined} />);
 

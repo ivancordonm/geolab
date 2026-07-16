@@ -82,8 +82,15 @@ const TOOLS: readonly ToolEntry[] = [
     ],
   },
   { divider: true },
-  { tool: "intersection", label: "Intersection", icon: Crosshair },
-  { tool: "circumcircle", label: "Circumscribed circle", icon: CircleDot },
+  {
+    group: "intersection-circumcircle",
+    label: "Intersection & circumcircle",
+    instruction: "Choose intersection or circumcircle tool",
+    tools: [
+      { tool: "intersection", label: "Intersection", icon: Crosshair },
+      { tool: "circumcircle", label: "Circumscribed circle", icon: CircleDot },
+    ],
+  },
   { divider: true },
   {
     group: "transformations",

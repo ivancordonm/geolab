@@ -222,4 +222,28 @@ describe("ConstructionToolbar", () => {
       "true",
     );
   });
+
+  it("groups the intersection and circumcircle tools under a single flyout button", async () => {
+    const user = userEvent.setup();
+    const onActivateTool = vi.fn();
+    render(<ConstructionToolbar activeTool="select" onActivateTool={onActivateTool} />);
+
+    expect(screen.queryByRole("button", { name: "Intersection" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Circumscribed circle" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Intersection & circumcircle" }));
+    await user.click(screen.getByRole("menuitem", { name: "Circumscribed circle" }));
+
+    expect(onActivateTool).toHaveBeenCalledWith("circumcircle");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("marks the Intersection & circumcircle group button pressed while intersection is active from the group", () => {
+    render(<ConstructionToolbar activeTool="intersection" onActivateTool={() => undefined} />);
+
+    expect(screen.getByRole("button", { name: "Intersection & circumcircle" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
 });

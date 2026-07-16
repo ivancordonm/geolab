@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 
 import { TOOL_INSTRUCTIONS, type ConstructionTool } from "../../geometry/constructionTools";
-import { ToolGroupButton, type GroupToolOption, type IconProps } from "./ToolGroupButton";
+import { ToolGroupButton, type GroupToolOption } from "./ToolGroupButton";
 
 interface ConstructionToolbarProps {
   activeTool: ConstructionTool;

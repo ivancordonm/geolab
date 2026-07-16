@@ -49,4 +49,34 @@ describe("ConstructionToolbar", () => {
 
     expect(await screen.findByRole("tooltip")).toHaveTextContent("(P)");
   });
+
+  it("groups the polygon tools under a single flyout button", async () => {
+    const user = userEvent.setup();
+    const onActivateTool = vi.fn();
+    render(<ConstructionToolbar activeTool="select" onActivateTool={onActivateTool} />);
+
+    expect(screen.queryByRole("button", { name: "Polygon" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Regular polygon" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Vector polygon" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Polygons" }));
+    await user.click(screen.getByRole("menuitem", { name: "Regular polygon" }));
+
+    expect(onActivateTool).toHaveBeenCalledWith("regular_polygon");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("still shows the Sides input while regular_polygon is active from the group", () => {
+    render(
+      <ConstructionToolbar
+        activeTool="regular_polygon"
+        onActivateTool={() => undefined}
+        regularPolygonSides={5}
+        onRegularPolygonSidesChange={() => undefined}
+      />,
+    );
+
+    expect(screen.getByLabelText("Sides")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Polygons" })).toHaveAttribute("aria-pressed", "true");
+  });
 });

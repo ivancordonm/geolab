@@ -526,7 +526,17 @@ describe("footer credit", () => {
   it("shows the build version above the Anticentro Lab credit", () => {
     render(<App />);
 
-    expect(screen.getByText(/^v\.\d+$/)).toBeInTheDocument();
-    expect(screen.getByText("An Anticentro Lab project")).toBeInTheDocument();
+    const versionEl = screen.getByText(/^v\.\d+$/);
+    const creditEl = screen.getByText("An Anticentro Lab project");
+
+    expect(versionEl).toBeInTheDocument();
+    expect(creditEl).toBeInTheDocument();
+    // Both lines must live in the same container, with the version
+    // immediately preceding the credit line in the DOM.
+    expect(versionEl.parentElement).toBe(creditEl.parentElement);
+    expect(versionEl.nextElementSibling).toBe(creditEl);
+    expect(
+      versionEl.compareDocumentPosition(creditEl) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });

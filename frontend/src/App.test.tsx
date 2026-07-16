@@ -521,3 +521,12 @@ describe("assistant flow", () => {
     expect(screen.getByText(/Describe a construction in natural language/)).toBeInTheDocument();
   });
 });
+
+describe("footer credit", () => {
+  it("shows the build version above the Anticentro Lab credit", () => {
+    render(<App />);
+
+    expect(screen.getByText(/^v\.\d+$/)).toBeInTheDocument();
+    expect(screen.getByText("An Anticentro Lab project")).toBeInTheDocument();
+  });
+});

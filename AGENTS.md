@@ -48,8 +48,9 @@ The construction toolbar (`frontend/src/components/geometry/ConstructionToolbar.
 **Reference implementation:** PR #15 groups `polygon`, `regular_polygon`, `vector_polygon` under a "Polygons" button. See `docs/superpowers/specs/2026-07-16-toolbar-tool-groups-design.md` and `docs/superpowers/plans/2026-07-16-toolbar-tool-groups.md` for the full design details and implementation walkthrough.
 # Build version counter
 
-Before every push to `main`, increment the integer in the root `VERSION` file
-by 1, then run `npm run sync-version` from `frontend/` to update the
-committed `frontend/VERSION` mirror, and include both file changes in the
-pushed commit(s). This powers the `v.<N>` build indicator shown in the app UI
-(bottom-left corner, above the "An Anticentro Lab project" credit).
+The `v.<N>` build indicator shown in the app UI (bottom-left corner, above
+the "An Anticentro Lab project" credit) is sourced from the root `VERSION`
+file, mirrored into `frontend/VERSION`. The bump is automated:
+`.github/workflows/bump-version.yml` increments both files and pushes a
+`chore: bump build version to <N> [skip ci]` commit on every push to `main`.
+No manual step is required before pushing.

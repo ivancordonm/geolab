@@ -216,10 +216,10 @@ the `__APP_VERSION__` constant defined in `frontend/vite.config.ts`. The root
 mirror kept local to `frontend/` on purpose, so the Vercel build (Root
 Directory = `frontend/`) never needs filesystem access outside it.
 
-**Before every push to `main`, increment the integer in the root `VERSION`
-file by 1, then run `npm run sync-version` from `frontend/`** to update the
-mirror, and commit both files together. This is a manual step — there is no
-git hook or CI automation enforcing it.
+The bump is automated: `.github/workflows/bump-version.yml` increments both
+files by 1 and pushes a `chore: bump build version to <N> [skip ci]` commit
+on every push to `main`. The `[skip ci]` marker stops that commit from
+re-triggering the workflow. No manual step is required before pushing.
 
 ## Known limitations and future work
 

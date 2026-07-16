@@ -79,4 +79,38 @@ describe("ConstructionToolbar", () => {
     expect(screen.getByLabelText("Sides")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Polygons" })).toHaveAttribute("aria-pressed", "true");
   });
+
+  it("groups the homothety tools under a single flyout button", async () => {
+    const user = userEvent.setup();
+    const onActivateTool = vi.fn();
+    render(<ConstructionToolbar activeTool="select" onActivateTool={onActivateTool} />);
+
+    expect(screen.queryByRole("button", { name: "Homothety (point ratio)" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Homothety (numeric ratio)" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Homothety" }));
+    await user.click(screen.getByRole("menuitem", { name: "Homothety (numeric ratio)" }));
+
+    expect(onActivateTool).toHaveBeenCalledWith("homothety_scalar");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("still shows the Ratio input while homothety_scalar is active from the group", () => {
+    render(
+      <ConstructionToolbar
+        activeTool="homothety_scalar"
+        onActivateTool={() => undefined}
+        homothetyRatio={1}
+        onHomothetyRatioChange={() => undefined}
+      />,
+    );
+
+    expect(screen.getByLabelText("Ratio")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Homothety" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
 });

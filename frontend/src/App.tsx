@@ -19,6 +19,8 @@ import { AuthControl } from "./components/auth/AuthControl";
 import { ConstructionToolbar, SHORTCUT_TO_TOOL } from "./components/geometry/ConstructionToolbar";
 import { GeometryCanvas } from "./components/geometry/GeometryCanvas";
 import { GridMenu } from "./components/geometry/GridMenu";
+import { CaptureMenu } from "./components/geometry/CaptureMenu";
+import { CaptureOverlay } from "./components/geometry/CaptureOverlay";
 import { ObjectList } from "./components/panel/ObjectList";
 import { ScriptEditor } from "./components/panel/ScriptEditor";
 import { CloudDocumentsPanel } from "./components/persistence/CloudDocumentsPanel";
@@ -41,6 +43,7 @@ import {
   loadDocument,
 } from "./persistence/documentPersistence";
 import { downloadTextFile } from "./persistence/download";
+import { captureSvgToPng } from "./geometry/exportImage";
 import { useAutoSaveDocument } from "./persistence/useAutoSaveDocument";
 import {
   useCloudDocuments,
@@ -98,6 +101,7 @@ export function App() {
     error: string | null;
   }>({ message: null, error: startup.error });
   const [panelOpen, setPanelOpen] = useState(true);
+  const [captureMode, setCaptureMode] = useState<"none" | "area">("none");
 
   useEffect(() => {
     if (persistenceNotice.message === null && persistenceNotice.error === null) return;
@@ -249,6 +253,25 @@ export function App() {
     replaceConstruction(createEmptyDocument(geometry.viewport));
     setPersistenceNotice({ message: "Construction cleared.", error: null });
   }, [detachCloudDocument, geometry.viewport, replaceConstruction, sharing]);
+
+  const handleCaptureFull = useCallback(() => {
+    const svg = document.querySelector(".coordinate-grid")?.closest("svg");
+    if (svg) {
+      void captureSvgToPng(svg, `capture-${safeFilename(geometry.document.title)}.png`);
+    }
+  }, [geometry.document.title]);
+
+  const handleCaptureArea = useCallback(() => {
+    setCaptureMode("area");
+  }, []);
+
+  const handleCaptureBounds = useCallback((bounds: { x: number; y: number; width: number; height: number }) => {
+    setCaptureMode("none");
+    const svg = document.querySelector(".coordinate-grid")?.closest("svg");
+    if (svg) {
+      void captureSvgToPng(svg, `capture-${safeFilename(geometry.document.title)}.png`, bounds);
+    }
+  }, [geometry.document.title]);
 
   const handleImportJson = useCallback(
     (serialized: string) => {
@@ -414,6 +437,7 @@ export function App() {
         <RotateCcw size={18} aria-hidden />
       </button>
       <GridMenu settings={gridSettings} onChange={setGridSettings} />
+      <CaptureMenu onCaptureFull={handleCaptureFull} onCaptureArea={handleCaptureArea} />
       <AuthControl
         user={auth.user}
         onCredential={(idToken) => void auth.signIn(idToken)}
@@ -486,6 +510,13 @@ export function App() {
           gridSettings={gridSettings}
         />
       </div>
+
+      {captureMode === "area" && (
+        <CaptureOverlay
+          onCapture={handleCaptureBounds}
+          onCancel={() => setCaptureMode("none")}
+        />
+      )}
 
       {/* Tira vertical flotante izquierda: herramientas + divisor + controles */}
       <ConstructionToolbar

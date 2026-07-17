@@ -29,7 +29,7 @@ describe("GoogleSignInButton", () => {
     expect(initialize).toHaveBeenCalledWith(
       expect.objectContaining({
         client_id: "test-client-id",
-        use_fedcm_for_button: true,
+        use_fedcm_for_button: false,
       }),
     );
     expect(renderButton).toHaveBeenCalledWith(

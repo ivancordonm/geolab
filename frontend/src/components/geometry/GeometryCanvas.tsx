@@ -359,7 +359,13 @@ export function GeometryCanvas({
         onPointerLeave={() => { onPointerWorldChange(null); if (svgRef.current) svgRef.current.style.cursor = ""; }}
       >
         <rect className="canvas-background" width={size.width} height={size.height} />
-        <Grid viewport={viewport} size={size} step={effectiveStep} showGrid={gridSettings.showGrid} />
+        <Grid
+          viewport={viewport}
+          size={size}
+          step={effectiveStep}
+          showGrid={gridSettings.showGrid}
+          showAxes={gridSettings.showAxes}
+        />
         <g className="geometry-objects">
           {document.objects.filter((object) => object.kind === "polygon").map((object) =>
             renderGeometryObject(

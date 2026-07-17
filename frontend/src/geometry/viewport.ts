@@ -100,6 +100,7 @@ export function chooseGridStep(scale: number, targetPixels = 72): number {
 
 export interface GridSettings {
   showGrid: boolean;
+  showAxes: boolean;
   snapToGrid: boolean;
   stepMode: "auto" | "manual";
   manualStep: number;

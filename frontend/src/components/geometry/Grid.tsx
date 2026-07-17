@@ -7,6 +7,7 @@ interface GridProps {
   size: CanvasSize;
   step: number;
   showGrid: boolean;
+  showAxes: boolean;
 }
 
 interface GridLine {
@@ -18,7 +19,7 @@ interface GridLine {
 const AXIS_MARGIN = 18;
 const TICK_HALF = 4;
 
-export function Grid({ viewport, size, step, showGrid }: GridProps) {
+export function Grid({ viewport, size, step, showGrid, showAxes }: GridProps) {
   const bounds = getWorldBounds(viewport, size);
   const origin = worldToScreen({ x: 0, y: 0 }, viewport, size);
   const axisXVisible = origin.x >= 0 && origin.x <= size.width;
@@ -48,73 +49,77 @@ export function Grid({ viewport, size, step, showGrid }: GridProps) {
           <GridHorizontalLine key={line.key} line={line} width={size.width} />
         ))}
 
-      {axisXVisible ? (
-        <line className="axis-line" x1={origin.x} y1={0} x2={origin.x} y2={size.height} />
-      ) : null}
-      {axisYVisible ? (
-        <line className="axis-line" x1={0} y1={origin.y} x2={size.width} y2={origin.y} />
-      ) : null}
+      {showAxes && (
+        <>
+          {axisXVisible ? (
+            <line className="axis-line" x1={origin.x} y1={0} x2={origin.x} y2={size.height} />
+          ) : null}
+          {axisYVisible ? (
+            <line className="axis-line" x1={0} y1={origin.y} x2={size.width} y2={origin.y} />
+          ) : null}
 
-      {axisYVisible &&
-        verticalLines.map((line) => (
-          <g key={`${line.key}-tick`}>
-            <line
-              className="axis-tick"
-              x1={line.position}
-              y1={origin.y - TICK_HALF}
-              x2={line.position}
-              y2={origin.y + TICK_HALF}
-            />
-            <text
-              className="axis-text"
-              x={line.position}
-              y={origin.y + 16}
-              textAnchor="middle"
-            >
-              {formatTick(line.worldValue)}
+          {axisYVisible &&
+            verticalLines.map((line) => (
+              <g key={`${line.key}-tick`}>
+                <line
+                  className="axis-tick"
+                  x1={line.position}
+                  y1={origin.y - TICK_HALF}
+                  x2={line.position}
+                  y2={origin.y + TICK_HALF}
+                />
+                <text
+                  className="axis-text"
+                  x={line.position}
+                  y={origin.y + 16}
+                  textAnchor="middle"
+                >
+                  {formatTick(line.worldValue)}
+                </text>
+              </g>
+            ))}
+
+          {axisXVisible &&
+            horizontalLines.map((line) => (
+              <g key={`${line.key}-tick`}>
+                <line
+                  className="axis-tick"
+                  x1={origin.x - TICK_HALF}
+                  y1={line.position}
+                  x2={origin.x + TICK_HALF}
+                  y2={line.position}
+                />
+                {Math.abs(line.worldValue) > 1e-9 ? (
+                  <text
+                    className="axis-text"
+                    x={origin.x - 8}
+                    y={line.position + 4}
+                    textAnchor="end"
+                  >
+                    {formatTick(line.worldValue)}
+                  </text>
+                ) : null}
+              </g>
+            ))}
+
+          {axisXVisible && axisYVisible ? (
+            <text className="axis-text" x={origin.x - 8} y={origin.y + 16} textAnchor="end">
+              0
             </text>
-          </g>
-        ))}
+          ) : null}
 
-      {axisXVisible &&
-        horizontalLines.map((line) => (
-          <g key={`${line.key}-tick`}>
-            <line
-              className="axis-tick"
-              x1={origin.x - TICK_HALF}
-              y1={line.position}
-              x2={origin.x + TICK_HALF}
-              y2={line.position}
-            />
-            {Math.abs(line.worldValue) > 1e-9 ? (
-              <text
-                className="axis-text"
-                x={origin.x - 8}
-                y={line.position + 4}
-                textAnchor="end"
-              >
-                {formatTick(line.worldValue)}
-              </text>
-            ) : null}
-          </g>
-        ))}
-
-      {axisXVisible && axisYVisible ? (
-        <text className="axis-text" x={origin.x - 8} y={origin.y + 16} textAnchor="end">
-          0
-        </text>
-      ) : null}
-
-      {axisYVisible ? (
-        <text className="axis-name" x={size.width - 12} y={axisY - 8} textAnchor="end">
-          x
-        </text>
-      ) : null}
-      {axisXVisible ? (
-        <text className="axis-name" x={axisX + 8} y={14}>
-          y
-        </text>
-      ) : null}
+          {axisYVisible ? (
+            <text className="axis-name" x={size.width - 12} y={axisY - 8} textAnchor="end">
+              x
+            </text>
+          ) : null}
+          {axisXVisible ? (
+            <text className="axis-name" x={axisX + 8} y={14}>
+              y
+            </text>
+          ) : null}
+        </>
+      )}
     </g>
   );
 }

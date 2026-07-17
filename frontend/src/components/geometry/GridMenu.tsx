@@ -102,6 +102,15 @@ export function GridMenu({ settings, onChange }: GridMenuProps) {
                 />
                 <span className="text-xs text-content">Mostrar cuadrícula</span>
               </label>
+              <label className="mb-2 flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={settings.showAxes}
+                  onChange={(event) => onChange({ ...settings, showAxes: event.target.checked })}
+                  className="h-3.5 w-3.5 rounded accent-brand-600"
+                />
+                <span className="text-xs text-content">Mostrar ejes</span>
+              </label>
               <label className="mb-3 flex cursor-pointer items-center gap-2">
                 <input
                   type="checkbox"

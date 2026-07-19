@@ -49,6 +49,7 @@ from app.geometry.models import (
     SegmentValue,
     SliderDefinition,
     SlopeMeasureDefinition,
+    TangentPointCircleDefinition,
     TranslationDefinition,
     UndefinedValue,
     VectorPolygonDefinition,
@@ -535,6 +536,17 @@ class GeometryGraph:
             assert isinstance(cA, CircleValue)
             assert isinstance(cB, CircleValue)
             return _intersect_circle_circle(cA, cB, definition.index, definition.selector)
+
+        if isinstance(definition, TangentPointCircleDefinition):
+            point = self._require_value(obj.id, definition.point, "point")
+            if isinstance(point, UndefinedValue):
+                return point
+            circle = self._require_value(obj.id, definition.circle, "circle")
+            if isinstance(circle, UndefinedValue):
+                return circle
+            assert isinstance(point, PointValue)
+            assert isinstance(circle, CircleValue)
+            return _tangent_point_circle(point, circle, definition.index, definition.selector)
 
         # ─── New: bisectors / circumcircle ────────────────────────────────
 
@@ -1049,6 +1061,34 @@ def _intersect_line_circle(
         return selected
     x, y = selected
     return PointValue(x=_clean_zero(x), y=_clean_zero(y))
+
+
+def _tangent_point_circle(
+    point: PointValue,
+    circle: CircleValue,
+    index: int | None,
+    selector: str | None,
+) -> EvaluatedValue:
+    ox, oy, r = circle.center.x, circle.center.y, circle.radius
+    dx, dy = point.x - ox, point.y - oy
+    d = hypot(dx, dy)
+    if r <= GEOMETRY_EPSILON:
+        return UndefinedValue(code="degenerate_circle", message="Tangent requires a circle with positive radius")
+    if d < r - GEOMETRY_EPSILON:
+        return UndefinedValue(code="no_tangent", message="Point is inside the circle; no tangent exists")
+    if abs(d - r) <= GEOMETRY_EPSILON:
+        # Point on the circle: single tangent, perpendicular to radius OP through P.
+        return _canonical_line(dx, dy, -(dx * point.x + dy * point.y))
+    ux, uy = dx / d, dy / d
+    cos_a = r / d
+    sin_a = sqrt(d * d - r * r) / d
+    t_plus = (ox + r * (ux * cos_a - uy * sin_a), oy + r * (ux * sin_a + uy * cos_a))
+    t_minus = (ox + r * (ux * cos_a + uy * sin_a), oy + r * (-ux * sin_a + uy * cos_a))
+    selected = _select_intersection(t_plus, t_minus, index=index, selector=selector)
+    if isinstance(selected, UndefinedValue):
+        return selected
+    tx, ty = selected
+    return _line_through_points(point, PointValue(x=tx, y=ty))
 
 
 def _intersect_circle_circle(

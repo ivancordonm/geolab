@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { GeometryViewport } from "../types/geometry";
 import {
-  approximateVisibleCircleAsLine,
+  approximateVisibleCircleAsPolyline,
   chooseGridStep,
   clientToSvgScreen,
   clipImplicitLineToBounds,
@@ -78,54 +78,85 @@ describe("viewport coordinates", () => {
     expect(vertical).toEqual({ start: { x: -3, y: -7 }, end: { x: -3, y: 7 } });
   });
 
-  it("approximates a huge visible circle with a bounded sub-pixel tangent", () => {
+  it("approximates a huge visible circle with a bounded sub-pixel polyline", () => {
     const center = { x: 344_000, y: -114_000 };
     const radius = 362_400;
-    const circle = approximateVisibleCircleAsLine(
+    const circle = approximateVisibleCircleAsPolyline(
       center,
       radius,
       { width: 1117, height: 772 },
     );
 
     expect(circle).not.toBeNull();
-    const toCanvas = { x: 1117 / 2 - center.x, y: 772 / 2 - center.y };
-    const centerDistance = Math.hypot(toCanvas.x, toCanvas.y);
-    const normal = { x: toCanvas.x / centerDistance, y: toCanvas.y / centerDistance };
-    const tangentPoint = {
-      x: center.x + normal.x * radius,
-      y: center.y + normal.y * radius,
-    };
-    const tangent = { x: -normal.y, y: normal.x };
-    for (const point of [circle!.start, circle!.end]) {
+    expect(circle!.points.length).toBeGreaterThan(2);
+    for (const point of circle!.points) {
       expect(Number.isFinite(point.x)).toBe(true);
       expect(Number.isFinite(point.y)).toBe(true);
       expect(point.x).toBeGreaterThanOrEqual(0);
       expect(point.x).toBeLessThanOrEqual(1117);
       expect(point.y).toBeGreaterThanOrEqual(0);
       expect(point.y).toBeLessThanOrEqual(772);
-
-      const fromTangentPoint = { x: point.x - tangentPoint.x, y: point.y - tangentPoint.y };
-      expect(fromTangentPoint.x * normal.x + fromTangentPoint.y * normal.y).toBeCloseTo(0, 8);
-      const alongTangent = Math.abs(fromTangentPoint.x * tangent.x + fromTangentPoint.y * tangent.y);
-      const sagitta = (alongTangent * alongTangent) /
-        (radius + Math.sqrt(radius * radius - alongTangent * alongTangent));
-      expect(sagitta).toBeLessThanOrEqual(1);
     }
   });
 
-  it("keeps visibly curved and off-screen circles out of the tangent fallback", () => {
-    expect(approximateVisibleCircleAsLine({ x: 500, y: 350 }, 200, size)).toBeNull();
-    expect(approximateVisibleCircleAsLine({ x: 50_000, y: 50_000 }, 100, size)).toBeNull();
+  it("keeps ordinary and off-screen circles out of the bounded fallback", () => {
+    expect(approximateVisibleCircleAsPolyline({ x: 500, y: 350 }, 200, size)).toBeNull();
+    expect(approximateVisibleCircleAsPolyline({ x: 50_000, y: 50_000 }, 100, size)).toBeNull();
   });
 
-  it("keeps a near-threshold circle curved when tangent error exceeds one pixel", () => {
+  it("switches to bounded rendering at, but not below, eight canvas diagonals", () => {
+    const cutoff = Math.hypot(size.width, size.height) * 8;
+    const centerAtCutoff = { x: size.width / 2, y: size.height / 2 - cutoff };
+
+    expect(approximateVisibleCircleAsPolyline(centerAtCutoff, cutoff, size)).not.toBeNull();
     expect(
-      approximateVisibleCircleAsLine(
-        { x: 500, y: -124_998 },
-        124_999,
+      approximateVisibleCircleAsPolyline(
+        { ...centerAtCutoff, y: centerAtCutoff.y + 1 },
+        cutoff - Number.EPSILON * cutoff,
         size,
       ),
     ).toBeNull();
+  });
+
+  it("rejects a truly huge circle that does not intersect the canvas", () => {
+    expect(
+      approximateVisibleCircleAsPolyline(
+        { x: 1e200, y: 1e200 },
+        1e199,
+        size,
+      ),
+    ).toBeNull();
+  });
+
+  it("handles finite radii near Number.MAX_VALUE without overflowing segment math", () => {
+    const circle = approximateVisibleCircleAsPolyline(
+      { x: Number.MAX_VALUE, y: size.height / 2 },
+      Number.MAX_VALUE,
+      size,
+    );
+
+    expect(circle).not.toBeNull();
+    expect(circle!.points.length).toBeGreaterThanOrEqual(2);
+    for (const point of circle!.points) {
+      expect(Number.isFinite(point.x)).toBe(true);
+      expect(Number.isFinite(point.y)).toBe(true);
+    }
+  });
+
+  it("handles the screenshot regression without flattening its visible curvature", () => {
+    const center = { x: 51_293, y: -18_512 };
+    const radius = 54_104;
+    const circle = approximateVisibleCircleAsPolyline(center, radius, { width: 1041, height: 643 });
+
+    expect(circle).not.toBeNull();
+    expect(circle!.points.length).toBeGreaterThan(2);
+    for (let index = 1; index < circle!.points.length; index += 1) {
+      const start = circle!.points[index - 1];
+      const end = circle!.points[index];
+      const midpoint = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+      const radialError = Math.abs(Math.hypot(midpoint.x - center.x, midpoint.y - center.y) - radius);
+      expect(radialError).toBeLessThanOrEqual(0.251);
+    }
   });
 
   it("chooses stable human-readable grid steps", () => {

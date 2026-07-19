@@ -22,6 +22,10 @@ export interface ClippedLine {
   end: Coordinate;
 }
 
+export interface CirclePolyline {
+  points: Coordinate[];
+}
+
 /** Interactive zoom bounds in screen pixels per world unit. */
 export const MIN_VIEWPORT_SCALE = 2;
 export const MAX_VIEWPORT_SCALE = 180;
@@ -91,16 +95,19 @@ export function clipImplicitLineToBounds(
 }
 
 /**
- * Approximate the visible part of a very large circle with its tangent when
- * the difference is sub-pixel. Keeping the rendered coordinates inside the
- * canvas avoids browser precision loss for circles centred far off-screen.
+ * Approximate the visible arc of a very large circle with a bounded polyline.
+ *
+ * Chromium loses stroke precision when an SVG circle has a far-off-screen
+ * centre and a correspondingly large radius. The points here are evaluated in
+ * a local tangent frame, using a cancellation-free sagitta formula, and then
+ * clipped to the canvas so the browser never receives those large values.
  */
-export function approximateVisibleCircleAsLine(
+export function approximateVisibleCircleAsPolyline(
   center: Coordinate,
   radius: number,
   size: CanvasSize,
-  maxErrorPx = 1,
-): ClippedLine | null {
+  maxChordErrorPx = 0.25,
+): CirclePolyline | null {
   if (
     !Number.isFinite(center.x) ||
     !Number.isFinite(center.y) ||
@@ -108,8 +115,16 @@ export function approximateVisibleCircleAsLine(
     radius <= 0 ||
     size.width <= 0 ||
     size.height <= 0 ||
-    maxErrorPx < 0
+    !Number.isFinite(maxChordErrorPx) ||
+    maxChordErrorPx <= 0
   ) {
+    return null;
+  }
+
+  // Keep native SVG circle rendering for normal construction-scale circles.
+  // Large-coordinate circles are the only ones affected by browser precision.
+  const canvasDiagonal = Math.hypot(size.width, size.height);
+  if (radius < canvasDiagonal * 8) {
     return null;
   }
 
@@ -136,39 +151,122 @@ export function approximateVisibleCircleAsLine(
 
   const normalX = toCanvasX / centerDistance;
   const normalY = toCanvasY / centerDistance;
+  const tangentX = -normalY;
+  const tangentY = normalX;
+
+  // Express the closest point in terms of the local canvas centre. This avoids
+  // subtracting two ~radius-sized coordinates when the circle is almost a line.
   const tangentPoint = {
-    x: center.x + normalX * radius,
-    y: center.y + normalY * radius,
+    x: canvasCenter.x + normalX * (radius - centerDistance),
+    y: canvasCenter.y + normalY * (radius - centerDistance),
   };
-  const clipped = clipImplicitLineToBounds(
-    {
-      type: "line",
-      a: normalX,
-      b: normalY,
-      c: -(normalX * tangentPoint.x + normalY * tangentPoint.y),
-    },
-    { minX: 0, maxX: size.width, minY: 0, maxY: size.height },
+
+  const corners = [
+    { x: 0, y: 0 },
+    { x: size.width, y: 0 },
+    { x: 0, y: size.height },
+    { x: size.width, y: size.height },
+  ];
+  const tangentOffsets = corners.map(
+    (corner) =>
+      (corner.x - tangentPoint.x) * tangentX +
+      (corner.y - tangentPoint.y) * tangentY,
   );
-  if (clipped === null) {
+  const minOffset = Math.max(-radius, Math.min(...tangentOffsets));
+  const maxOffset = Math.min(radius, Math.max(...tangentOffsets));
+  if (minOffset >= maxOffset) {
     return null;
   }
 
-  const tangentX = -normalY;
-  const tangentY = normalX;
-  const endpointError = (endpoint: Coordinate): number => {
-    const alongTangent = Math.abs(
-      (endpoint.x - tangentPoint.x) * tangentX + (endpoint.y - tangentPoint.y) * tangentY,
-    );
-    if (alongTangent >= radius) {
-      return Number.POSITIVE_INFINITY;
-    }
-    const remainingRadius = Math.sqrt(Math.max(0, radius * radius - alongTangent * alongTangent));
-    return (alongTangent * alongTangent) / (radius + remainingRadius);
-  };
+  const minAngle = Math.asin(minOffset / radius);
+  const maxAngle = Math.asin(maxOffset / radius);
+  // A chord spanning deltaAngle deviates from the arc by
+  // 2r*sin^2(deltaAngle/4). Inverting that expression gives a strict segment
+  // size for the requested screen-pixel error.
+  // Divide before multiplying by 1/2 so `2 * radius` cannot overflow for a
+  // finite radius near Number.MAX_VALUE.
+  const maxAngleStep = 4 * Math.asin(Math.min(1, Math.sqrt((maxChordErrorPx / radius) / 2)));
+  if (!Number.isFinite(maxAngleStep) || maxAngleStep <= 0) {
+    return null;
+  }
+  const segmentCount = Math.max(1, Math.ceil((maxAngle - minAngle) / maxAngleStep));
+  if (!Number.isFinite(segmentCount)) {
+    return null;
+  }
+  const arcPoints: Coordinate[] = [];
+  for (let index = 0; index <= segmentCount; index += 1) {
+    const angle = minAngle + ((maxAngle - minAngle) * index) / segmentCount;
+    const alongTangent = radius * Math.sin(angle);
+    const tangentRatio = alongTangent / radius;
+    const sagitta =
+      (tangentRatio * alongTangent) /
+      (1 + Math.sqrt(Math.max(0, 1 - tangentRatio * tangentRatio)));
+    arcPoints.push({
+      x: tangentPoint.x + tangentX * alongTangent - normalX * sagitta,
+      y: tangentPoint.y + tangentY * alongTangent - normalY * sagitta,
+    });
+  }
 
-  return Math.max(endpointError(clipped.start), endpointError(clipped.end)) <= maxErrorPx
-    ? clipped
-    : null;
+  const points: Coordinate[] = [];
+  for (let index = 1; index < arcPoints.length; index += 1) {
+    const clipped = clipSegmentToCanvas(arcPoints[index - 1], arcPoints[index], size);
+    if (clipped === null) {
+      continue;
+    }
+    if (points.length === 0 || !coordinatesEqual(points[points.length - 1], clipped.start)) {
+      points.push(clipped.start);
+    }
+    if (!coordinatesEqual(points[points.length - 1], clipped.end)) {
+      points.push(clipped.end);
+    }
+  }
+
+  return points.length >= 2 ? { points } : null;
+}
+
+function clipSegmentToCanvas(
+  start: Coordinate,
+  end: Coordinate,
+  size: CanvasSize,
+): ClippedLine | null {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  let entry = 0;
+  let exit = 1;
+
+  const clips: Array<[number, number]> = [
+    [-dx, start.x],
+    [dx, size.width - start.x],
+    [-dy, start.y],
+    [dy, size.height - start.y],
+  ];
+  for (const [direction, distance] of clips) {
+    if (direction === 0) {
+      if (distance < 0) {
+        return null;
+      }
+      continue;
+    }
+    const ratio = distance / direction;
+    if (direction < 0) {
+      entry = Math.max(entry, ratio);
+    } else {
+      exit = Math.min(exit, ratio);
+    }
+    if (entry > exit) {
+      return null;
+    }
+  }
+
+  const pointAt = (amount: number): Coordinate => ({
+    x: Math.min(size.width, Math.max(0, start.x + dx * amount)),
+    y: Math.min(size.height, Math.max(0, start.y + dy * amount)),
+  });
+  return { start: pointAt(entry), end: pointAt(exit) };
+}
+
+function coordinatesEqual(first: Coordinate, second: Coordinate): boolean {
+  return Math.abs(first.x - second.x) < 1e-9 && Math.abs(first.y - second.y) < 1e-9;
 }
 
 export function chooseGridStep(scale: number, targetPixels = 72): number {

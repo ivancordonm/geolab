@@ -847,6 +847,7 @@ function describeObject(object: GeometryObject): string {
     intersection_ll: "Intersection (line∩line)",
     intersection_lc: "Intersection (line∩circle)",
     intersection_cc: "Intersection (circle∩circle)",
+    tangent_pc: "Tangent lines",
     perpendicular_bisector: "Perpendicular bisector",
     angle_bisector: "Angle bisector",
     circumscribed: "Circumscribed circle",

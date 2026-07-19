@@ -8,6 +8,7 @@ import type {
   ScalarValue,
   UndefinedValue,
 } from "../../types/geometry";
+import { canonicalLine, lineThroughPoints } from "./lines";
 import { GEOMETRY_EPSILON, cleanZero, isUndefined, requirePointValues, requireValue } from "./shared";
 
 /**
@@ -57,6 +58,14 @@ export function evaluateCircleFamily(object: GeometryObject, values: EvaluationM
       return intersectCircleCircle(cA, cB, def.index, def.selector);
     }
 
+    case "tangent_pc": {
+      const point = requireValue<PointValue>(values, object.id, def.point, "point");
+      if (isUndefined(point)) return point;
+      const cr = requireValue<CircleValue>(values, object.id, def.circle, "circle");
+      if (isUndefined(cr)) return cr;
+      return tangentPointCircle(point, cr, def.index, def.selector);
+    }
+
     case "circumscribed": {
       const pA = requireValue<PointValue>(values, object.id, def.pointA, "point");
       if (isUndefined(pA)) return pA;
@@ -95,6 +104,34 @@ function intersectLineCircle(
   const pt = selectIntersection(p1, p2, index, selector);
   if ("type" in pt) return pt;
   return { type: "point", x: cleanZero(pt.x), y: cleanZero(pt.y) };
+}
+
+function tangentPointCircle(
+  point: PointValue,
+  circle: CircleValue,
+  index?: 1 | 2 | null,
+  selector?: "first" | "second" | "left" | "right" | null,
+): EvaluatedValue {
+  const ox = circle.center.x, oy = circle.center.y, r = circle.radius;
+  const dx = point.x - ox, dy = point.y - oy;
+  const d = Math.hypot(dx, dy);
+  if (r <= GEOMETRY_EPSILON) {
+    return { type: "undefined", code: "degenerate_circle", message: "Tangent requires a circle with positive radius" };
+  }
+  if (d < r - GEOMETRY_EPSILON) {
+    return { type: "undefined", code: "no_tangent", message: "Point is inside the circle; no tangent exists" };
+  }
+  if (Math.abs(d - r) <= GEOMETRY_EPSILON) {
+    return canonicalLine(dx, dy, -(dx * point.x + dy * point.y));
+  }
+  const ux = dx / d, uy = dy / d;
+  const cosA = r / d;
+  const sinA = Math.sqrt(d * d - r * r) / d;
+  const tPlus = { x: ox + r * (ux * cosA - uy * sinA), y: oy + r * (ux * sinA + uy * cosA) };
+  const tMinus = { x: ox + r * (ux * cosA + uy * sinA), y: oy + r * (-ux * sinA + uy * cosA) };
+  const t = selectIntersection(tPlus, tMinus, index, selector);
+  if ("type" in t) return t;
+  return lineThroughPoints(point, { type: "point", x: t.x, y: t.y });
 }
 
 function intersectCircleCircle(

@@ -139,6 +139,44 @@ describe("document persistence", () => {
     );
   });
 
+  it("preserves tangent line index and selector variants in JSON and script exports", () => {
+    const indexed: GeometryDocument = {
+      ...exampleGeometryDocument,
+      objects: [
+        ...exampleGeometryDocument.objects,
+        {
+          id: "tangent1",
+          label: "tangent1",
+          kind: "line",
+          visible: true,
+          definition: { type: "tangent_pc", point: "C", circle: "circumference", index: 1 },
+        },
+      ],
+    };
+    expect(importDocumentJson(exportDocumentJson(indexed))).toEqual(indexed);
+    expect(documentToScript(indexed)).toContain(
+      "tangent1 = Tangent(C, circumference, 1)",
+    );
+
+    const selectedTangent: GeometryDocument = {
+      ...exampleGeometryDocument,
+      objects: [
+        ...exampleGeometryDocument.objects,
+        {
+          id: "tangent2",
+          label: "tangent2",
+          kind: "line",
+          visible: true,
+          definition: { type: "tangent_pc", point: "C", circle: "circumference", selector: "first" },
+        },
+      ],
+    };
+    expect(importDocumentJson(exportDocumentJson(selectedTangent))).toEqual(selectedTangent);
+    expect(documentToScript(selectedTangent)).toContain(
+      "tangent2 = Tangent(C, circumference, first)",
+    );
+  });
+
   it("exports polygon vertices and arcs in backend-compatible dependency order", () => {
     const document: GeometryDocument = {
       schemaVersion: 1,

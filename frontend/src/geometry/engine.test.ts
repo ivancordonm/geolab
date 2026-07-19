@@ -859,3 +859,40 @@ describe("generalized inversion", () => {
     expect(values.get("Inv")).toEqual({ type: "point", x: 1, y: 0 });
   });
 });
+
+function tangentDoc(px: number, py: number): GeometryDocument {
+  return {
+    schemaVersion: 1, id: "d", title: "t", objects: [
+      { id: "O", label: "O", visible: true, kind: "point", definition: { type: "free", x: 0, y: 0 } },
+      { id: "R", label: "R", visible: true, kind: "point", definition: { type: "free", x: 3, y: 0 } },
+      { id: "c", label: "c", visible: true, kind: "circle", definition: { type: "center_through_point", center: "O", point: "R" } },
+      { id: "P", label: "P", visible: true, kind: "point", definition: { type: "free", x: px, y: py } },
+      { id: "t1", label: "t1", visible: true, kind: "line", definition: { type: "tangent_pc", point: "P", circle: "c", index: 1 } },
+      { id: "t2", label: "t2", visible: true, kind: "line", definition: { type: "tangent_pc", point: "P", circle: "c", index: 2 } },
+    ],
+  } as unknown as GeometryDocument;
+}
+
+describe("tangent_pc", () => {
+  it("returns two lines through an external point", () => {
+    const v = evaluateGeometryDocument(tangentDoc(5, 0));
+    const t1 = v.get("t1")!; const t2 = v.get("t2")!;
+    expect(t1.type).toBe("line"); expect(t2.type).toBe("line");
+    if (t1.type === "line") expect(t1.a * 5 + t1.b * 0 + t1.c).toBeCloseTo(0, 9);
+    if (t2.type === "line") expect(t2.a * 5 + t2.b * 0 + t2.c).toBeCloseTo(0, 9);
+  });
+
+  it("is undefined when the point is inside the circle", () => {
+    const v = evaluateGeometryDocument(tangentDoc(1, 0));
+    const t = v.get("t1")!;
+    expect(t.type).toBe("undefined");
+    if (t.type === "undefined") expect(t.code).toBe("no_tangent");
+  });
+
+  it("returns a single tangent when the point is on the circle", () => {
+    const v = evaluateGeometryDocument(tangentDoc(3, 0));
+    const t1 = v.get("t1")!;
+    expect(t1.type).toBe("line");
+    if (t1.type === "line") { expect(t1.a).toBeCloseTo(1, 9); expect(t1.b).toBeCloseTo(0, 9); expect(t1.c).toBeCloseTo(-3, 9); }
+  });
+});

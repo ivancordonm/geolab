@@ -946,7 +946,7 @@ def _parse_selector(
     if selector not in allowed:
         _raise(
             "expected_selector",
-            f"Argument 3 of Intersection must be one of {', '.join(allowed)}, received '{token}'",
+            f"Argument 3 of {statement.command} must be one of {', '.join(allowed)}, received '{token}'",
             statement.line,
             statement.source_line,
             token,

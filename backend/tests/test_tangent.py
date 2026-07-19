@@ -48,14 +48,22 @@ def test_point_on_circle_single_tangent():
     assert isclose(abs(t1.a), 1.0, abs_tol=1e-9)
     assert isclose(t1.b, 0.0, abs_tol=1e-9)
     assert isclose(t1.a * 3 + t1.b * 0 + t1.c, 0.0, abs_tol=1e-9)
+    # index=2 must coincide with index=1: the single-tangent short-circuit
+    # returns the same line regardless of which index was requested.
+    t2 = _tangent_point_circle(point, circle, index=2, selector=None)
+    assert t2.type == "line"
+    assert isclose(t1.a, t2.a, abs_tol=1e-9)
+    assert isclose(t1.b, t2.b, abs_tol=1e-9)
+    assert isclose(t1.c, t2.c, abs_tol=1e-9)
 
 
-def test_tangent_evaluator_direct():
-    circle = CircleValue(center=Coordinate(x=0, y=0), radius=3)
-    p = PointValue(x=5, y=0)
-    line1 = _tangent_point_circle(p, circle, index=1, selector=None)
-    assert line1.type == "line"
-    assert abs(line1.a * 5 + line1.b * 0 + line1.c) < 1e-9
+def test_degenerate_circle_is_undefined():
+    # Zero-radius circle: no tangent can be constructed regardless of point.
+    circle = CircleValue(center=Coordinate(x=0, y=0), radius=0)
+    point = PointValue(x=5, y=0)
+    result = _tangent_point_circle(point, circle, index=1, selector=None)
+    assert result.type == "undefined"
+    assert result.code == "degenerate_circle"
 
 
 # ─── Parser-driven tests (Task 3: the `Tangent(...)` script command) ───────

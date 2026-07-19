@@ -822,3 +822,14 @@ def test_tangent_command_rejects_bad_arity() -> None:
             document_id="d", title="t",
         )
     assert error_info.value.diagnostic.code == "invalid_arity"
+
+
+def test_tangent_command_rejects_bad_selector_names_tangent() -> None:
+    with pytest.raises(ConstructionScriptError) as error_info:
+        evaluate_script(
+            "O=Point(0,0)\nR=Point(3,0)\nc=Circle(O,R)\nP=Point(5,0)\nt=Tangent(P, c, bogus)\n",
+            document_id="d", title="t",
+        )
+    assert error_info.value.diagnostic.code == "expected_selector"
+    assert "Tangent" in error_info.value.diagnostic.message
+    assert "Intersection" not in error_info.value.diagnostic.message

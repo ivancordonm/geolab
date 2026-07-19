@@ -895,4 +895,20 @@ describe("tangent_pc", () => {
     expect(t1.type).toBe("line");
     if (t1.type === "line") { expect(t1.a).toBeCloseTo(1, 9); expect(t1.b).toBeCloseTo(0, 9); expect(t1.c).toBeCloseTo(-3, 9); }
   });
+
+  it("is undefined with code degenerate_circle when the circle has zero radius", () => {
+    const document: GeometryDocument = {
+      schemaVersion: 1, id: "d", title: "t", objects: [
+        { id: "O", label: "O", visible: true, kind: "point", definition: { type: "free", x: 0, y: 0 } },
+        { id: "c", label: "c", visible: true, kind: "circle", definition: { type: "center_through_point", center: "O", point: "O" } },
+        { id: "P", label: "P", visible: true, kind: "point", definition: { type: "free", x: 5, y: 0 } },
+        { id: "t1", label: "t1", visible: true, kind: "line", definition: { type: "tangent_pc", point: "P", circle: "c", index: 1 } },
+      ],
+    } as unknown as GeometryDocument;
+
+    const v = evaluateGeometryDocument(document);
+    const t = v.get("t1")!;
+    expect(t.type).toBe("undefined");
+    if (t.type === "undefined") expect(t.code).toBe("degenerate_circle");
+  });
 });

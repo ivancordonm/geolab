@@ -6,8 +6,11 @@ These tests exercise `_tangent_point_circle` directly, without the parser.
 
 from math import isclose
 
+import pytest
+
 from app.geometry.engine import _tangent_point_circle
 from app.geometry.models import CircleValue, Coordinate, PointValue
+from app.geometry.script import ConstructionScriptError, evaluate_script
 
 
 def test_two_tangents_from_external_point():
@@ -53,3 +56,43 @@ def test_tangent_evaluator_direct():
     line1 = _tangent_point_circle(p, circle, index=1, selector=None)
     assert line1.type == "line"
     assert abs(line1.a * 5 + line1.b * 0 + line1.c) < 1e-9
+
+
+# ─── Parser-driven tests (Task 3: the `Tangent(...)` script command) ───────
+
+
+def test_tangent_command_two_tangents_from_external_point():
+    document, _ = evaluate_script(
+        "O = Point(0,0)\nR = Point(3,0)\nc = Circle(O, R)\nP = Point(5,0)\n"
+        "t1 = Tangent(P, c, 1)\nt2 = Tangent(P, c, 2)\n",
+        document_id="doc", title="t",
+    )
+    ids = {o.id: o for o in document.objects}
+    for tid in ("t1", "t2"):
+        obj = ids[tid]
+        assert obj.kind == "line"
+        assert obj.definition.type == "tangent_pc"
+        assert obj.definition.point == "P"
+        assert obj.definition.circle == "c"
+    assert ids["t1"].definition.index == 1
+    assert ids["t2"].definition.index == 2
+
+
+def test_tangent_command_selector_form():
+    document, _ = evaluate_script(
+        "O = Point(0,0)\nR = Point(3,0)\nc = Circle(O, R)\nP = Point(5,0)\n"
+        "t = Tangent(P, c, first)\n",
+        document_id="doc", title="t",
+    )
+    ids = {o.id: o for o in document.objects}
+    assert ids["t"].definition.selector == "first"
+    assert ids["t"].definition.index is None
+
+
+def test_tangent_command_rejects_bad_arity():
+    with pytest.raises(ConstructionScriptError) as error_info:
+        evaluate_script(
+            "O=Point(0,0)\nR=Point(3,0)\nc=Circle(O,R)\nP=Point(5,0)\nt=Tangent(P, c)\n",
+            document_id="d", title="t",
+        )
+    assert error_info.value.diagnostic.code == "invalid_arity"

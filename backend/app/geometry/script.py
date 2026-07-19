@@ -74,6 +74,8 @@ from app.geometry.models import (
     Slider,
     SliderDefinition,
     SlopeMeasureDefinition,
+    TangentFromPoint,
+    TangentPointCircleDefinition,
     TranslatedObject,
     TranslationDefinition,
     UndefinedValue,
@@ -97,6 +99,7 @@ CommandName = Literal[
     "PerpendicularBisector",
     "AngleBisector",
     "Circumcircle",
+    "Tangent",
     "Reflection",
     "Homothety",
     "Inversion",
@@ -130,6 +133,7 @@ SUPPORTED_COMMANDS: frozenset[str] = frozenset(
         "PerpendicularBisector",
         "AngleBisector",
         "Circumcircle",
+        "Tangent",
         "Reflection",
         "Homothety",
         "Inversion",
@@ -489,6 +493,19 @@ def _build_object(
         _require_kind(cr, "circle", statement, 2)
         idx = _parse_index(arguments[2], statement, argument_position=3)
         return [IntersectionLC(id=statement.target, label=statement.target, definition=IntersectionLCDefinition(line=ln.id, circle=cr.id, index=idx))]
+
+    if command == "Tangent":
+        _require_arity(statement, 3)
+        pt = _resolve_reference(arguments[0], statement, symbols, argument_position=1)
+        _require_kind(pt, "point", statement, 1)
+        cr = _resolve_reference(arguments[1], statement, symbols, argument_position=2)
+        _require_kind(cr, "circle", statement, 2)
+        token = arguments[2]
+        if token.strip() in ("1", "2"):
+            idx = _parse_index(token, statement, argument_position=3)
+            return [TangentFromPoint(id=statement.target, label=statement.target, definition=TangentPointCircleDefinition(point=pt.id, circle=cr.id, index=idx))]
+        selector = _parse_selector(token, statement, allowed=("first", "second", "left", "right"))
+        return [TangentFromPoint(id=statement.target, label=statement.target, definition=TangentPointCircleDefinition(point=pt.id, circle=cr.id, selector=selector))]
 
     if command == "IntersectionCC":
         _require_arity(statement, 3)

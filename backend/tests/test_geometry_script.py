@@ -802,3 +802,23 @@ Inv = Inversion(r, c1)"""
 
     assert error_info.value.diagnostic.code == "invalid_argument"
     assert "c1" in error_info.value.diagnostic.message
+
+
+def test_tangent_command_builds_two_lines() -> None:
+    document, _ = evaluate_script(
+        "O = Point(0,0)\nR = Point(3,0)\nc = Circle(O, R)\nP = Point(5,0)\nt1 = Tangent(P, c, 1)\nt2 = Tangent(P, c, first)\n",
+        document_id="doc", title="t",
+    )
+    ids = {o.id: o for o in document.objects}
+    assert ids["t1"].kind == "line" and ids["t1"].definition.type == "tangent_pc"
+    assert ids["t1"].definition.index == 1
+    assert ids["t2"].definition.selector == "first"
+
+
+def test_tangent_command_rejects_bad_arity() -> None:
+    with pytest.raises(ConstructionScriptError) as error_info:
+        evaluate_script(
+            "O=Point(0,0)\nR=Point(3,0)\nc=Circle(O,R)\nP=Point(5,0)\nt=Tangent(P, c)\n",
+            document_id="d", title="t",
+        )
+    assert error_info.value.diagnostic.code == "invalid_arity"

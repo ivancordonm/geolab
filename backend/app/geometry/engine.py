@@ -99,6 +99,8 @@ def get_parent_ids(obj: GeometryObject) -> list[str]:
         return [definition.line, definition.circle]
     if isinstance(definition, IntersectionCCDefinition):
         return [definition.circle_a, definition.circle_b]
+    if isinstance(definition, TangentPointCircleDefinition):
+        return [definition.point, definition.circle]
     if isinstance(definition, AngleBisectorDefinition):
         return [definition.arm_a, definition.vertex, definition.arm_b]
     if isinstance(definition, CircumscribedDefinition):
@@ -262,6 +264,9 @@ class GeometryGraph:
         elif isinstance(definition, IntersectionCCDefinition):
             require_kind(definition.circle_a, "circle")
             require_kind(definition.circle_b, "circle")
+        elif isinstance(definition, TangentPointCircleDefinition):
+            require_kind(definition.point, "point")
+            require_kind(definition.circle, "circle")
         elif isinstance(definition, AngleBisectorDefinition):
             require_kind(definition.arm_a, "point")
             require_kind(definition.vertex, "point")

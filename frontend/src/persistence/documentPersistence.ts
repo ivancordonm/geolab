@@ -197,6 +197,10 @@ function objectToScript(
       return object.definition.selector != null
         ? `${variable} = Intersection(${reference(object.definition.circleA)}, ${reference(object.definition.circleB)}, ${object.definition.selector})`
         : `${variable} = IntersectionCC(${reference(object.definition.circleA)}, ${reference(object.definition.circleB)}, ${object.definition.index})`;
+    case "tangent_pc":
+      return object.definition.selector != null
+        ? `${variable} = Tangent(${reference(object.definition.point)}, ${reference(object.definition.circle)}, ${object.definition.selector})`
+        : `${variable} = Tangent(${reference(object.definition.point)}, ${reference(object.definition.circle)}, ${object.definition.index})`;
     case "perpendicular_bisector":
       return `${variable} = PerpendicularBisector(${reference(object.definition.pointA)}, ${reference(object.definition.pointB)})`;
     case "angle_bisector":

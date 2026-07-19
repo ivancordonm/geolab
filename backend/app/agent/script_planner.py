@@ -46,6 +46,8 @@ COMMANDS (use these names EXACTLY, with the stated arity):
 - Intersection(lineA, lineB)      exact intersection point of two lines
 - Intersection(line, circle, selector)  selector: first, second, left, or right
 - Intersection(circleA, circleB, selector) selector: upper, lower, left, or right
+- Tangent(point, circle, selector)  one tangent line from a point to a circle;
+                                   selector: first, second, left, or right
 - PerpendicularBisector(P, Q)     perpendicular bisector line of segment PQ
 - AngleBisector(armA, vertex, armB)   angle bisector line
 - Circumcircle(P, Q, R)           circle through three points

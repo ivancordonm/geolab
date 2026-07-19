@@ -22,6 +22,7 @@ import {
   RefreshCw,
   RotateCw,
   Slash,
+  Spline,
   Star,
   Waypoints,
 } from "lucide-react";
@@ -84,10 +85,11 @@ const TOOLS: readonly ToolEntry[] = [
   { divider: true },
   {
     group: "intersection-circumcircle",
-    label: "Intersection & circumcircle",
-    instruction: "Choose intersection or circumcircle tool",
+    label: "Circle constructions",
+    instruction: "Choose an intersection, tangent, or circumscribed-circle tool",
     tools: [
       { tool: "intersection", label: "Intersection", icon: Crosshair },
+      { tool: "tangent", label: "Tangent lines", icon: Spline },
       { tool: "circumcircle", label: "Circumscribed circle", icon: CircleDot },
     ],
   },

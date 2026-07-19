@@ -27,6 +27,7 @@ import type {
   ReflectionOverPoint,
   RotatedObject,
   Segment,
+  TangentFromPoint,
   TranslatedObject,
 } from "../types/geometry";
 import type { Coordinate } from "./viewport";
@@ -46,6 +47,7 @@ export type ConstructionTool =
   | "perp_bisector"
   | "angle_bisector"
   | "circumcircle"
+  | "tangent"
   | "reflect_line"
   | "reflect_point"
   | "homothety"
@@ -102,6 +104,7 @@ export const TOOL_INSTRUCTIONS: Record<ConstructionTool, string> = {
   perp_bisector: "Click two points to draw their perpendicular bisector.",
   angle_bisector: "Click the first arm point, then the vertex, then the second arm point.",
   circumcircle: "Click three points to draw the circumscribed circle.",
+  tangent: "Click a point and a circle to draw the two tangent lines.",
   reflect_line: "Select the object to reflect, then select the mirror line.",
   reflect_point: "Select the object to reflect, then select the center of symmetry.",
   homothety: "Click center, then the object to transform, then a point defining the ratio.",
@@ -127,6 +130,7 @@ const MULTI_STEP_REQUIREMENTS: Partial<Record<ConstructionTool, readonly Require
   perp_bisector: ["point", "point"],
   angle_bisector: ["point", "point", "point"],
   circumcircle: ["point", "point", "point"],
+  tangent: ["point", "circle"],
   reflect_line: ["invertible", "line"],
   reflect_point: ["invertible", "point"],
   homothety: ["point", "invertible", "point"],
@@ -162,6 +166,7 @@ function toolLabel(tool: ConstructionTool): string {
     perp_bisector: "Perpendicular bisector",
     angle_bisector: "Angle bisector",
     circumcircle: "Circumcircle",
+    tangent: "Tangent lines",
     reflect_line: "Reflection",
     reflect_point: "Reflection",
     homothety: "Homothety",
@@ -480,7 +485,7 @@ export class ConstructionToolController {
   ): GeometryObjectGroup | undefined {
     const removed = new Set(removedObjectIds);
     const inputIds = this.createdDuringOperationIds.filter((id) => !removed.has(id));
-    const multiPrimary = tool === "intersection" || tool === "inversion";
+    const multiPrimary = tool === "intersection" || tool === "inversion" || tool === "tangent";
     const primaryIds = new Set(
       multiPrimary
         ? constructions.filter((object) => object.visible).map((object) => object.id)
@@ -581,6 +586,22 @@ function createConstruction(
       const p1: IntersectionCC = { id: id1, label: id1, kind: "point", visible: true, definition: { type: "intersection_cc", circleA: first, circleB: second, index: 1 } };
       const p2: IntersectionCC = { id: id2, label: id2, kind: "point", visible: true, definition: { type: "intersection_cc", circleA: first, circleB: second, index: 2 } };
       return [p1, p2];
+    }
+
+    case "tangent": {
+      const objA = document.objects.find((o) => o.id === first);
+      const objB = document.objects.find((o) => o.id === second);
+      if (objA === undefined || objB === undefined) {
+        throw new Error("Tangent: parent objects not found in document");
+      }
+      const pointId = objA.kind === "point" ? first : second;
+      const circleId = objA.kind === "circle" ? first : second;
+      const id1 = nextObjectId(document, "t");
+      const fakeDoc: GeometryDocument = { ...document, objects: [...document.objects, { id: id1, label: id1 } as unknown as GeometryObject] };
+      const id2 = nextObjectId(fakeDoc, "t");
+      const l1: TangentFromPoint = { id: id1, label: id1, kind: "line", visible: true, definition: { type: "tangent_pc", point: pointId, circle: circleId, index: 1 } };
+      const l2: TangentFromPoint = { id: id2, label: id2, kind: "line", visible: true, definition: { type: "tangent_pc", point: pointId, circle: circleId, index: 2 } };
+      return [l1, l2];
     }
 
     // ─── New: bisectors / circumcircle ──────────────────────────────────

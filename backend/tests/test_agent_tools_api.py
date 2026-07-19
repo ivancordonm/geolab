@@ -10,7 +10,7 @@ def test_agent_tool_discovery_endpoint() -> None:
 
     assert response.status_code == 200
     tools = {item["name"]: item for item in response.json()}
-    assert len(tools) == 36
+    assert len(tools) == 37
     assert tools["create_point"]["mutatesGeometryState"] is True
     assert tools["get_current_graph"]["mutatesGeometryState"] is False
     assert tools["create_line"]["inputSchema"]["properties"]["pointA"]["type"] == "string"

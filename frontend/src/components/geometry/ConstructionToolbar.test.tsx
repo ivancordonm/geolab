@@ -86,6 +86,18 @@ describe("ConstructionToolbar", () => {
     expect(screen.getByRole("button", { name: "Polygons" })).toHaveAttribute("aria-pressed", "true");
   });
 
+  it("groups intersection, tangent and circumcircle under Circle constructions", async () => {
+    const user = userEvent.setup();
+    const onActivateTool = vi.fn();
+    render(<ConstructionToolbar activeTool="select" onActivateTool={onActivateTool} />);
+
+    await user.click(screen.getByRole("button", { name: "Circle constructions" }));
+    await user.click(screen.getByRole("menuitem", { name: "Tangent lines" }));
+
+    expect(onActivateTool).toHaveBeenCalledWith("tangent");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
   it("groups the homothety tools under a single flyout button", async () => {
     const user = userEvent.setup();
     const onActivateTool = vi.fn();
@@ -237,17 +249,17 @@ describe("ConstructionToolbar", () => {
     expect(screen.queryByRole("button", { name: "Intersection" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Circumscribed circle" })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Intersection & circumcircle" }));
+    await user.click(screen.getByRole("button", { name: "Circle constructions" }));
     await user.click(screen.getByRole("menuitem", { name: "Circumscribed circle" }));
 
     expect(onActivateTool).toHaveBeenCalledWith("circumcircle");
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
-  it("marks the Intersection & circumcircle group button pressed while intersection is active from the group", () => {
+  it("marks the Circle constructions group button pressed while intersection is active from the group", () => {
     render(<ConstructionToolbar activeTool="intersection" onActivateTool={() => undefined} />);
 
-    expect(screen.getByRole("button", { name: "Intersection & circumcircle" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Circle constructions" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );

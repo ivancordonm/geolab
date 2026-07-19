@@ -37,6 +37,7 @@ from app.agent.models import (
     SlopeConstructionInput,
     SourceLineConstructionInput,
     SourcePointConstructionInput,
+    TangentConstructionInput,
     ThreePointConstructionInput,
     TranslationConstructionInput,
     TwoPointConstructionInput,
@@ -106,6 +107,8 @@ from app.geometry.models import (
     Slider,
     SliderDefinition,
     SlopeMeasureDefinition,
+    TangentFromPoint,
+    TangentPointCircleDefinition,
     TranslatedObject,
     TranslationDefinition,
     UndefinedValue,
@@ -314,6 +317,16 @@ def create_geometry_tool_registry(workspace: GeometryWorkspace) -> ToolRegistry:
             MutationToolOutput,
             True,
             lambda model: _create_circle_line_intersection(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_tangent",
+            "Create one tangent line from a point to a circle, selected by first, second, left, or right.",
+            TangentConstructionInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_tangent(workspace, model),
         )
     )
     registry.register(
@@ -722,6 +735,27 @@ def _create_circle_line_intersection(
         label=input_model.label or input_model.object_id,
         definition=IntersectionLCDefinition(
             line=line.object.id,
+            circle=circle.object.id,
+            selector=input_model.selector,
+        ),
+    )
+    return _commit_defined(workspace, obj)
+
+
+def _create_tangent(
+    workspace: GeometryWorkspace,
+    raw_input: BaseModel,
+) -> MutationToolOutput:
+    input_model = TangentConstructionInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    point = _resolve_kind(access, input_model.point, "point")
+    circle = _resolve_kind(access, input_model.circle, "circle")
+    obj = TangentFromPoint(
+        id=input_model.object_id,
+        label=input_model.label or input_model.object_id,
+        definition=TangentPointCircleDefinition(
+            point=point.object.id,
             circle=circle.object.id,
             selector=input_model.selector,
         ),

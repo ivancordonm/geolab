@@ -31,6 +31,7 @@ EXPECTED_TOOLS = {
     "create_line_line_intersection",
     "create_circle_line_intersection",
     "create_circle_circle_intersection",
+    "create_tangent",
     "create_perpendicular_bisector",
     "create_angle_bisector",
     "create_circumcircle",
@@ -208,6 +209,22 @@ def test_directional_intersection_tool_is_atomic_on_ambiguity() -> None:
 
     assert workspace.revision == 4
     assert "C" not in workspace.graph_access_map().by_id
+
+
+def test_create_tangent_registers_a_line() -> None:
+    workspace = GeometryWorkspace()
+    registry = create_geometry_tool_registry(workspace)
+    execute(registry, "create_point", {"objectId": "B", "x": 0, "y": 0})
+    execute(registry, "create_point", {"objectId": "U", "x": 1, "y": 0})
+    execute(registry, "create_circle", {"objectId": "c", "center": "B", "point": "U"})
+    execute(registry, "create_point", {"objectId": "P", "x": 5, "y": 0})
+
+    execute(registry, "create_tangent", {"objectId": "t", "point": "P", "circle": "c", "selector": "first"})
+
+    obj = next(o for o in workspace.document_snapshot().objects if o.id == "t")
+    assert obj.kind == "line"
+    assert obj.definition.type == "tangent_pc"
+    assert obj.definition.selector == "first"
 
 
 def test_measure_tools_create_distance_angle_area_and_slope() -> None:

@@ -100,6 +100,14 @@ class CircleLineIntersectionInput(GeometryModel):
     selector: Literal["first", "second", "left", "right"]
 
 
+class TangentConstructionInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    point: str
+    circle: str
+    selector: Literal["first", "second", "left", "right"]
+
+
 class CircleCircleIntersectionInput(GeometryModel):
     object_id: str
     label: str | None = None

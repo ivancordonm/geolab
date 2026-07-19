@@ -48,7 +48,7 @@ into a sequence of tool calls that build the requested construction:
   C=(2,3)).
 - Give each object a short, unique `objectId` (for example A, B, AB, c1, M).
 - Never fabricate coordinates for derived objects. Use the dedicated intersection,
-  midpoint, and perpendicular/parallel tools instead.
+  midpoint, perpendicular/parallel, and tangent tools instead.
 - Use only the tools you are given. Do not invent tools or arguments.
 
 Call the tools directly. Do not describe the calls in prose or emit a script; the

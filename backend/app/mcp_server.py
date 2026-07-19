@@ -217,6 +217,20 @@ def create_circle_line_intersection(
 
 
 @mcp.tool(annotations=CREATE)
+def create_tangent(
+    object_id: str,
+    point: str,
+    circle: str,
+    selector: Literal["first", "second", "left", "right"],
+    document: GeometryDocument | None = None,
+    label: str | None = None,
+) -> dict[str, Any]:
+    """Create one tangent line from a point to a circle, selected by first, second, left, or right."""
+
+    return _mutate(document, "create_tangent", {"objectId": object_id, "label": label, "point": point, "circle": circle, "selector": selector})
+
+
+@mcp.tool(annotations=CREATE)
 def create_circle_circle_intersection(
     object_id: str,
     circle_a: str,

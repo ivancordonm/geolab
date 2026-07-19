@@ -14,6 +14,7 @@ import type {
   SegmentValue,
   UndefinedValue,
 } from "../types/geometry";
+import { evaluateCircleFamily } from "./evaluators/circles";
 import { normalizeFunctionExpression } from "./functionExpression";
 import { validateObjectGroups } from "./objectGroups";
 
@@ -67,6 +68,8 @@ export function getParentIds(object: GeometryObject): GeometryObjectId[] {
       return [object.definition.line, object.definition.circle];
     case "intersection_cc":
       return [object.definition.circleA, object.definition.circleB];
+    case "tangent_pc":
+      return [object.definition.point, object.definition.circle];
     case "angle_bisector":
       return [object.definition.armA, object.definition.vertex, object.definition.armB];
     case "circumscribed":
@@ -281,6 +284,15 @@ export class GeometryGraph {
         if ((def.index == null) === (def.selector == null)) {
           throw new GeometryValidationError(
             `Object '${object.id}' requires exactly one intersection index or selector`,
+          );
+        }
+        return;
+      case "tangent_pc":
+        requireKind(def.point, "point");
+        requireKind(def.circle, "circle");
+        if ((def.index == null) === (def.selector == null)) {
+          throw new GeometryValidationError(
+            `Object '${object.id}' requires exactly one tangent index or selector`,
           );
         }
         return;
@@ -628,6 +640,9 @@ export class GeometryGraph {
         if (isUndefined(cB)) return cB;
         return intersectCircleCircle(cA, cB, def.index, def.selector);
       }
+
+      case "tangent_pc":
+        return evaluateCircleFamily(object, this.evaluatedValues);
 
       // ─── New: bisectors / circumcircle ────────────────────────────────
 

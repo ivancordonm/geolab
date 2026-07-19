@@ -114,7 +114,7 @@ const TOOLS: readonly ToolEntry[] = [
       { tool: "homothety_scalar", label: "Homothety (numeric ratio)", icon: Ratio },
     ],
   },
-  { tool: "inversion", label: "Inversion in circle", icon: RefreshCw },
+  { tool: "inversion", label: "Inversion in circle", icon: RefreshCw, shortcut: "i" },
   { divider: true },
   {
     group: "polygons",

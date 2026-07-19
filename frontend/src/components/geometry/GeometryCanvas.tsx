@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 
 import {
+  approximateVisibleCircleAsLine,
   clientToSvgScreen,
   clipImplicitLineToBounds,
   getEffectiveGridStep,
@@ -674,14 +675,17 @@ function renderCircle(
   onPointerDown: (objectId: string, event: ReactPointerEvent<SVGElement>) => void,
   onLabelOffsetChange: ((ox: number, oy: number) => void) | undefined,
 ) {
+  const screenCenter = worldToScreen(value.center, viewport, size);
+  const screenRadius = value.radius * viewport.scale;
   return (
     <CircleView
       key={object.id}
       objectId={object.id}
       label={object.label}
       value={value}
-      center={worldToScreen(value.center, viewport, size)}
-      radius={value.radius * viewport.scale}
+      center={screenCenter}
+      radius={screenRadius}
+      screenLineApproximation={approximateVisibleCircleAsLine(screenCenter, screenRadius, size)}
       color={color}
       strokeWidth={strokeWidth}
       strokeDash={strokeDash}

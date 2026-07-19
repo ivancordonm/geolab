@@ -93,6 +93,17 @@ export interface IntersectionCC extends GeometryObjectBase {
   };
 }
 
+export interface TangentFromPoint extends GeometryObjectBase {
+  kind: "line";
+  definition: {
+    type: "tangent_pc";
+    point: GeometryObjectId;
+    circle: GeometryObjectId;
+    index?: 1 | 2 | null;
+    selector?: "first" | "second" | "left" | "right" | null;
+  };
+}
+
 // ─── Bisectors and special lines ───────────────────────────────────────────
 
 export interface PerpendicularBisectorLine extends GeometryObjectBase {
@@ -220,6 +231,7 @@ export type GeometryObject =
   | IntersectionLL
   | IntersectionLC
   | IntersectionCC
+  | TangentFromPoint
   | PerpendicularBisectorLine
   | AngleBisectorLine
   | CircumscribedCircle

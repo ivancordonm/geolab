@@ -406,3 +406,24 @@ def test_inversion_in_circle_accepts_non_point_kinds() -> None:
         definition=InversionInCircleDefinition(object_id="P", circle="c1"),
     )
     assert default_kind.kind == "point"
+
+
+def test_tangent_requires_exactly_one_index_or_selector() -> None:
+    from app.geometry.models import TangentPointCircleDefinition
+
+    TangentPointCircleDefinition(point="P", circle="c", index=1)
+    TangentPointCircleDefinition(point="P", circle="c", selector="first")
+    with pytest.raises(ValidationError):
+        TangentPointCircleDefinition(point="P", circle="c")
+    with pytest.raises(ValidationError):
+        TangentPointCircleDefinition(point="P", circle="c", index=1, selector="first")
+
+
+def test_tangent_object_is_a_line() -> None:
+    from app.geometry.models import TangentFromPoint, TangentPointCircleDefinition
+
+    obj = TangentFromPoint(
+        id="t", label="t", definition=TangentPointCircleDefinition(point="P", circle="c", index=2)
+    )
+    assert obj.kind == "line"
+    assert obj.definition.type == "tangent_pc"

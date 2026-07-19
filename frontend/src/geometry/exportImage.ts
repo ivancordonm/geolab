@@ -12,12 +12,34 @@ export async function captureSvgToPng(
 ): Promise<void> {
   const clone = svgElement.cloneNode(true) as SVGSVGElement;
 
-  // Find all <style> tags in the document and embed them in the SVG clone
-  // so that CSS variables and Tailwind classes resolve correctly in the Image loader.
-  const styleElements = Array.from(document.querySelectorAll("style"));
+  // The active theme is a `dark` class on <html>, but the clone is a detached
+  // <svg> with no ancestors, so the `.dark { … }` rules never match. Mirror the
+  // class onto the clone root so theme-specific CSS resolves in the Image loader.
+  if (document.documentElement.classList.contains("dark")) {
+    clone.classList.add("dark");
+  }
+
+  // Embed the document's CSS in the SVG clone so CSS variables and Tailwind
+  // classes resolve when the SVG is rasterized. We read from document.styleSheets
+  // (not just <style> tags): in production the app CSS is served via <link>, and
+  // a <style>-only scan would embed nothing, leaving every element to fall back
+  // to its default (black) fill. Cross-origin sheets (e.g. web fonts) throw on
+  // cssRules access, so we skip those.
   let combinedStyles = "";
-  for (const style of styleElements) {
-    combinedStyles += style.textContent + "\n";
+  for (const sheet of Array.from(document.styleSheets)) {
+    let rules: CSSRuleList | null = null;
+    try {
+      rules = sheet.cssRules;
+    } catch {
+      // Cross-origin stylesheet: rules are not readable. Fall back to the raw
+      // text if it is an inline <style>, otherwise skip it.
+      const ownerText = (sheet.ownerNode as HTMLStyleElement | null)?.textContent;
+      if (ownerText) combinedStyles += ownerText + "\n";
+      continue;
+    }
+    for (const rule of Array.from(rules)) {
+      combinedStyles += rule.cssText + "\n";
+    }
   }
 
   // Ensure default Tailwind variables are somewhat present if they are on the HTML node

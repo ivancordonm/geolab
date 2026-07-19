@@ -1,5 +1,5 @@
 {
-  "script": "A = Point(0, 0)\nB = Point(4, 0)\nC = Point(0, 4)\nl1 = Line(A, B)\nl2 = Line(A, C)\nX = IntersectionLL(l1, l2)\nc1 = Circle(A, B)\nc2 = Circle(B, A)\nY0 = IntersectionCC(c1, c2, 1)\nY1 = IntersectionCC(c1, c2, 2)\nZ0 = IntersectionLC(l1, c1, 1)\npb = PerpendicularBisector(A, B)\nab = AngleBisector(B, A, C)\ncc = Circumcircle(A, B, C)\n",
+  "script": "A = Point(0, 0)\nB = Point(4, 0)\nC = Point(0, 4)\nl1 = Line(A, B)\nl2 = Line(A, C)\nX = IntersectionLL(l1, l2)\nc1 = Circle(A, B)\nc2 = Circle(B, A)\nY0 = IntersectionCC(c1, c2, 1)\nY1 = IntersectionCC(c1, c2, 2)\nZ0 = IntersectionLC(l1, c1, 1)\npb = PerpendicularBisector(A, B)\nab = AngleBisector(B, A, C)\ncc = Circumcircle(A, B, C)\nPt = Point(6, 2)\ntg0 = Tangent(Pt, c1, 1)\ntg1 = Tangent(Pt, c1, 2)\n",
   "document": {
     "schemaVersion": 1,
     "id": "doc_derived_constructions",
@@ -180,8 +180,49 @@
           "pointB": "B",
           "pointC": "C"
         }
+      },
+      {
+        "id": "Pt",
+        "label": "Pt",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 6.0,
+          "y": 2.0
+        }
+      },
+      {
+        "id": "tg0",
+        "label": "tg0",
+        "visible": true,
+        "style": null,
+        "kind": "line",
+        "definition": {
+          "type": "tangent_pc",
+          "point": "Pt",
+          "circle": "c1",
+          "index": 1,
+          "selector": null
+        }
+      },
+      {
+        "id": "tg1",
+        "label": "tg1",
+        "visible": true,
+        "style": null,
+        "kind": "line",
+        "definition": {
+          "type": "tangent_pc",
+          "point": "Pt",
+          "circle": "c1",
+          "index": 2,
+          "selector": null
+        }
       }
     ],
+    "groups": [],
     "viewport": {
       "centerX": 0.0,
       "centerY": 0.0,
@@ -272,6 +313,23 @@
         "y": 2.0
       },
       "radius": 2.8284271247461903
+    },
+    "Pt": {
+      "type": "point",
+      "x": 6.0,
+      "y": 2.0
+    },
+    "tg0": {
+      "type": "line",
+      "a": 0.3550510257216821,
+      "b": 0.9348469228349534,
+      "c": -3.999999999999999
+    },
+    "tg1": {
+      "type": "line",
+      "a": 0.8449489742783178,
+      "b": -0.5348469228349534,
+      "c": -4.0
     }
   }
 }

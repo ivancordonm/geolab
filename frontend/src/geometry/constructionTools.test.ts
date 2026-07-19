@@ -168,7 +168,15 @@ describe("ConstructionToolController", () => {
     controller.handleObjectClick("AB", document);
     const result = controller.handleObjectClick("invCircle", document);
 
-    expect(result.createdObjects?.at(-1)?.kind).toBe("circle");
+    const midpoint = result.createdObjects?.find((object) => object.kind === "point" && object.definition.type === "midpoint");
+    const invertedCircle = result.createdObjects?.at(-1);
+
+    expect(midpoint).toMatchObject({ kind: "point", visible: true });
+    expect(invertedCircle).toMatchObject({
+      kind: "circle",
+      visible: true,
+      definition: { type: "center_through_point", center: midpoint?.id },
+    });
     expectValidAdditions(document, result.createdObjects!);
   });
 

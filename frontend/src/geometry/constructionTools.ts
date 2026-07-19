@@ -885,7 +885,7 @@ function createLineInversion(
     id: nextObjectId(getDocument(), "ivm"),
     label: nextObjectId(getDocument(), "ivm"),
     kind: "point",
-    visible: false,
+    visible: true,
     definition: { type: "midpoint", pointA: inversionCenterId, pointB: invertedFoot.id },
   };
   push(midpoint);

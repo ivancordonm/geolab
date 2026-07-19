@@ -34,6 +34,7 @@ describe("ConstructionToolbar", () => {
       s: "segment",
       l: "line",
       c: "circle",
+      i: "inversion",
     });
 
     render(<ConstructionToolbar activeTool="select" onActivateTool={() => undefined} />);
@@ -42,8 +43,9 @@ describe("ConstructionToolbar", () => {
       "aria-keyshortcuts",
       "p",
     );
-    expect(screen.getByRole("button", { name: "Inversion in circle" })).not.toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Inversion in circle" })).toHaveAttribute(
       "aria-keyshortcuts",
+      "i",
     );
   });
 

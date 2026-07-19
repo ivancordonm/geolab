@@ -69,18 +69,20 @@ Given `P`, `O`, `r`, let `d = |OP|` and `û = (P − O) / d`.
 - `d < r − eps` → undefined (`no_tangent`).
 - `|d − r| ≤ eps` → single tangent: line through `P` with direction perpendicular
   to `OP`. Both indices return it.
-- `d > r + eps` → `α = arccos(r / d)`. Tangent points
-  `T_i = O + r · Rot(±α) · û`, where **`index 1` uses `+α` (counter-clockwise)**
-  and **`index 2` uses `−α`**. The tangent line is the line through `P` and `T_i`,
-  returned in the project's normalized canonical form `a·x + b·y + c = 0`,
-  `sqrt(a²+b²)=1`.
+- `d > r + eps` → `α = arccos(r / d)`, `cos α = r/d`, `sin α = sqrt(d²−r²)/d`.
+  The two tangent points are `T₊ = O + r · Rot(+α) · û` and
+  `T₋ = O + r · Rot(−α) · û`. The tangent line is the line through `P` and the
+  **selected** tangent point, returned in the project's normalized canonical form
+  `a·x + b·y + c = 0`, `sqrt(a²+b²)=1`.
 
-The `+α`/`−α` sign convention is the deterministic tie-break that keeps both
-runtimes bit-identical; it is asserted by the conformance fixture. When a
-`selector` is supplied instead of an `index`, it is resolved with the existing
-`_select_intersection` (Python) / `selectIntersection` (TS) helper against the
-two candidate tangent points, so tangent selection semantics match line-circle
-intersection selection.
+**Selection is delegated to the existing shared helper** `_select_intersection`
+(Python) / `selectIntersection` (TS): the two candidate tangent points `T₊`, `T₋`
+are passed to it, and both `index` (1/2) and `selector`
+(`first`/`second`/`left`/`right`) are resolved there exactly as for line-circle
+intersection — canonical order is higher-`y` first, tie broken by smaller `x`.
+Reusing the shared helper (rather than a bespoke `±α` index rule) keeps tangent
+selection semantics identical to the intersection tools and keeps both runtimes
+bit-identical; the conformance fixture asserts the concrete coordinates.
 
 ## Evaluators
 
@@ -148,10 +150,13 @@ Expose the construction to the assistant, consistent with existing tools like
 
 ## Testing and conformance
 
-- **Conformance fixture:** `shared/fixtures/tangent_from_point.json`, generated
-  with `backend/scripts/generate_conformance_fixture.py` from a script that builds
-  a circle, an external point, and both tangents. Both runtime suites must satisfy
-  it.
+- **Conformance fixture:** extend the existing `derived-constructions` fixture.
+  Add two `Tangent(...)` statements to `backend/fixtures-src/derived-constructions.txt`
+  (external point + circle, both solutions) and regenerate
+  `shared/fixtures/derived-constructions.json` with
+  `backend/scripts/generate_conformance_fixture.py`. The frontend
+  `conformance.test.ts` already imports this fixture, so the TS engine must
+  reproduce the Python-authored tangent coordinates with no new wiring.
 - **TS unit tests** (`engine.test.ts`): two tangents from an external point;
   point-inside → undefined; point-on-circle → single tangent.
 - **Python unit tests**: same three cases against the engine, plus a `script.py`

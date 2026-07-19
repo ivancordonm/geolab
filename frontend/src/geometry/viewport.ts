@@ -90,6 +90,87 @@ export function clipImplicitLineToBounds(
   return candidates.length >= 2 ? { start: candidates[0], end: candidates[1] } : null;
 }
 
+/**
+ * Approximate the visible part of a very large circle with its tangent when
+ * the difference is sub-pixel. Keeping the rendered coordinates inside the
+ * canvas avoids browser precision loss for circles centred far off-screen.
+ */
+export function approximateVisibleCircleAsLine(
+  center: Coordinate,
+  radius: number,
+  size: CanvasSize,
+  maxErrorPx = 1,
+): ClippedLine | null {
+  if (
+    !Number.isFinite(center.x) ||
+    !Number.isFinite(center.y) ||
+    !Number.isFinite(radius) ||
+    radius <= 0 ||
+    size.width <= 0 ||
+    size.height <= 0 ||
+    maxErrorPx < 0
+  ) {
+    return null;
+  }
+
+  const minDx = center.x < 0 ? -center.x : center.x > size.width ? center.x - size.width : 0;
+  const minDy = center.y < 0 ? -center.y : center.y > size.height ? center.y - size.height : 0;
+  const minDistance = Math.hypot(minDx, minDy);
+  const maxDistance = Math.max(
+    Math.hypot(center.x, center.y),
+    Math.hypot(center.x - size.width, center.y),
+    Math.hypot(center.x, center.y - size.height),
+    Math.hypot(center.x - size.width, center.y - size.height),
+  );
+  if (radius < minDistance || radius > maxDistance) {
+    return null;
+  }
+
+  const canvasCenter = { x: size.width / 2, y: size.height / 2 };
+  const toCanvasX = canvasCenter.x - center.x;
+  const toCanvasY = canvasCenter.y - center.y;
+  const centerDistance = Math.hypot(toCanvasX, toCanvasY);
+  if (centerDistance === 0) {
+    return null;
+  }
+
+  const normalX = toCanvasX / centerDistance;
+  const normalY = toCanvasY / centerDistance;
+  const tangentPoint = {
+    x: center.x + normalX * radius,
+    y: center.y + normalY * radius,
+  };
+  const clipped = clipImplicitLineToBounds(
+    {
+      type: "line",
+      a: normalX,
+      b: normalY,
+      c: -(normalX * tangentPoint.x + normalY * tangentPoint.y),
+    },
+    { minX: 0, maxX: size.width, minY: 0, maxY: size.height },
+  );
+  if (clipped === null) {
+    return null;
+  }
+
+  const tangentX = -normalY;
+  const tangentY = normalX;
+  const endpointError = (endpoint: Coordinate): number => {
+    const alongTangent = Math.abs(
+      (endpoint.x - tangentPoint.x) * tangentX + (endpoint.y - tangentPoint.y) * tangentY,
+    );
+    if (alongTangent >= radius) {
+      return Number.POSITIVE_INFINITY;
+    }
+    const remainingRadius = Math.sqrt(Math.max(0, radius * radius - alongTangent * alongTangent));
+    return (alongTangent * alongTangent) / (radius + remainingRadius);
+  };
+
+  return Math.max(endpointError(clipped.start), endpointError(clipped.end)) <= maxErrorPx
+    ? clipped
+    : null;
+}
+
 export function chooseGridStep(scale: number, targetPixels = 72): number {
   const rawStep = targetPixels / scale;
   const magnitude = 10 ** Math.floor(Math.log10(rawStep));

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { GeometryViewport } from "../types/geometry";
 import {
+  approximateVisibleCircleAsLine,
   chooseGridStep,
   clientToSvgScreen,
   clipImplicitLineToBounds,
@@ -75,6 +76,56 @@ describe("viewport coordinates", () => {
 
     expect(horizontal).toEqual({ start: { x: -10, y: 2 }, end: { x: 10, y: 2 } });
     expect(vertical).toEqual({ start: { x: -3, y: -7 }, end: { x: -3, y: 7 } });
+  });
+
+  it("approximates a huge visible circle with a bounded sub-pixel tangent", () => {
+    const center = { x: 344_000, y: -114_000 };
+    const radius = 362_400;
+    const circle = approximateVisibleCircleAsLine(
+      center,
+      radius,
+      { width: 1117, height: 772 },
+    );
+
+    expect(circle).not.toBeNull();
+    const toCanvas = { x: 1117 / 2 - center.x, y: 772 / 2 - center.y };
+    const centerDistance = Math.hypot(toCanvas.x, toCanvas.y);
+    const normal = { x: toCanvas.x / centerDistance, y: toCanvas.y / centerDistance };
+    const tangentPoint = {
+      x: center.x + normal.x * radius,
+      y: center.y + normal.y * radius,
+    };
+    const tangent = { x: -normal.y, y: normal.x };
+    for (const point of [circle!.start, circle!.end]) {
+      expect(Number.isFinite(point.x)).toBe(true);
+      expect(Number.isFinite(point.y)).toBe(true);
+      expect(point.x).toBeGreaterThanOrEqual(0);
+      expect(point.x).toBeLessThanOrEqual(1117);
+      expect(point.y).toBeGreaterThanOrEqual(0);
+      expect(point.y).toBeLessThanOrEqual(772);
+
+      const fromTangentPoint = { x: point.x - tangentPoint.x, y: point.y - tangentPoint.y };
+      expect(fromTangentPoint.x * normal.x + fromTangentPoint.y * normal.y).toBeCloseTo(0, 8);
+      const alongTangent = Math.abs(fromTangentPoint.x * tangent.x + fromTangentPoint.y * tangent.y);
+      const sagitta = (alongTangent * alongTangent) /
+        (radius + Math.sqrt(radius * radius - alongTangent * alongTangent));
+      expect(sagitta).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it("keeps visibly curved and off-screen circles out of the tangent fallback", () => {
+    expect(approximateVisibleCircleAsLine({ x: 500, y: 350 }, 200, size)).toBeNull();
+    expect(approximateVisibleCircleAsLine({ x: 50_000, y: 50_000 }, 100, size)).toBeNull();
+  });
+
+  it("keeps a near-threshold circle curved when tangent error exceeds one pixel", () => {
+    expect(
+      approximateVisibleCircleAsLine(
+        { x: 500, y: -124_998 },
+        124_999,
+        size,
+      ),
+    ).toBeNull();
   });
 
   it("chooses stable human-readable grid steps", () => {

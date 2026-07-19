@@ -70,6 +70,38 @@ describe("ConstructionToolController", () => {
     expectValidAdditions(baseDocument, result.createdObjects!);
   });
 
+  it("creates two tangent_pc lines by selecting a point and a circle", () => {
+    const controller = new ConstructionToolController();
+    controller.activate("tangent");
+    const document: GeometryDocument = {
+      ...baseDocument,
+      objects: [
+        ...baseDocument.objects,
+        freePoint("O", 0, 0),
+        freePoint("R", 3, 0),
+        freePoint("P", 5, 0),
+        {
+          id: "circ1",
+          label: "circ1",
+          kind: "circle",
+          visible: true,
+          definition: { type: "center_through_point", center: "O", point: "R" },
+        },
+      ],
+    };
+
+    controller.handleObjectClick("P", document);
+    const result = controller.handleObjectClick("circ1", document);
+
+    expect(result.createdObjects).toHaveLength(2);
+    const [line1, line2] = result.createdObjects!;
+    expect(line1.kind).toBe("line");
+    expect(line2.kind).toBe("line");
+    expect(line1.definition).toMatchObject({ type: "tangent_pc", point: "P", circle: "circ1", index: 1 });
+    expect(line2.definition).toMatchObject({ type: "tangent_pc", point: "P", circle: "circ1", index: 2 });
+    expectValidAdditions(document, result.createdObjects!);
+  });
+
   it("creates a numeric homothety of a complete transformable object", () => {
     const controller = new ConstructionToolController();
     controller.activate("homothety_scalar");

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 
 import {
-  approximateVisibleCircleAsLine,
+  approximateVisibleCircleAsPolyline,
   clientToSvgScreen,
   clipImplicitLineToBounds,
   getEffectiveGridStep,
@@ -685,7 +685,11 @@ function renderCircle(
       value={value}
       center={screenCenter}
       radius={screenRadius}
-      screenLineApproximation={approximateVisibleCircleAsLine(screenCenter, screenRadius, size)}
+      screenPolylineApproximation={approximateVisibleCircleAsPolyline(
+        screenCenter,
+        screenRadius,
+        size,
+      )}
       color={color}
       strokeWidth={strokeWidth}
       strokeDash={strokeDash}

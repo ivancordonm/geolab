@@ -25,7 +25,27 @@ describe("CircleView", () => {
     expect(container.querySelectorAll("line")).toHaveLength(0);
   });
 
-  it("renders a bounded line while preserving circle behavior for near-flat circles", () => {
+  it("ignores an approximation that has too few points", () => {
+    const { container } = render(
+      <svg>
+        <CircleView
+          objectId="c1"
+          label="c1"
+          value={value}
+          center={{ x: 100, y: 80 }}
+          radius={60}
+          screenPolylineApproximation={{ points: [{ x: 10, y: 10 }] }}
+          selected={false}
+          onPointerDown={vi.fn()}
+        />
+      </svg>,
+    );
+
+    expect(container.querySelectorAll("circle")).toHaveLength(2);
+    expect(container.querySelectorAll("polyline")).toHaveLength(0);
+  });
+
+  it("renders a bounded polyline while preserving circle behavior for huge circles", () => {
     const onPointerDown = vi.fn();
     const { container } = render(
       <svg>
@@ -35,7 +55,13 @@ describe("CircleView", () => {
           value={value}
           center={{ x: 344_000, y: -114_000 }}
           radius={362_400}
-          screenLineApproximation={{ start: { x: 10, y: 0 }, end: { x: 250, y: 300 } }}
+          screenPolylineApproximation={{
+            points: [
+              { x: 10, y: 0 },
+              { x: 125, y: 145 },
+              { x: 250, y: 300 },
+            ],
+          }}
           color="#2563eb"
           strokeWidth={3}
           strokeDash="dashed"
@@ -46,15 +72,15 @@ describe("CircleView", () => {
     );
 
     const group = container.querySelector('[data-object-id="ivc1"]');
-    const visibleLine = container.querySelector(".geometry-circle");
+    const visiblePolyline = container.querySelector(".geometry-circle");
     expect(group).toHaveAttribute("data-object-kind", "circle");
     expect(container.querySelectorAll("circle")).toHaveLength(0);
-    expect(container.querySelectorAll("line")).toHaveLength(2);
-    expect(visibleLine).toHaveAttribute("x1", "10");
-    expect(visibleLine).toHaveAttribute("x2", "250");
-    expect(visibleLine).toHaveAttribute("stroke-width", "3");
-    expect(visibleLine).toHaveAttribute("stroke-dasharray", "10 6");
-    expect(visibleLine).toHaveAttribute("aria-label", "Circle ivc1, radius 3.00");
+    expect(container.querySelectorAll("line")).toHaveLength(0);
+    expect(container.querySelectorAll("polyline")).toHaveLength(2);
+    expect(visiblePolyline).toHaveAttribute("points", "10,0 125,145 250,300");
+    expect(visiblePolyline).toHaveAttribute("stroke-width", "3");
+    expect(visiblePolyline).toHaveAttribute("stroke-dasharray", "10 6");
+    expect(visiblePolyline).toHaveAttribute("aria-label", "Circle ivc1, radius 3.00");
 
     fireEvent.pointerDown(group!);
     expect(onPointerDown).toHaveBeenCalledWith("ivc1", expect.anything());

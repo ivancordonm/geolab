@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import {
   Code2,
   PanelRight,
@@ -29,8 +29,11 @@ import { ShareDialog } from "./components/persistence/ShareDialog";
 import { SidebarTabs } from "./components/SidebarTabs";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { useTheme } from "./theme/useTheme";
+import type { ConstructionTool } from "./geometry/constructionTools";
 import { exampleGeometryDocument } from "./geometry/example";
 import { parseFunctionObjectCommand } from "./geometry/functionExpression";
+import { polyhedronForTool } from "./geometry/polyhedra";
+import type { PolyhedronDefinition } from "./geometry/polyhedra/types";
 import { useConstructionTools } from "./geometry/useConstructionTools";
 import { useGeometryState } from "./geometry/useGeometryState";
 import { useGridSettings } from "./geometry/useGridSettings";
@@ -53,6 +56,8 @@ import type { DocumentDetail } from "./types/documents";
 import type { GeometryDocument } from "./types/geometry";
 import type { FunctionGraph } from "./types/geometry";
 import type { ScriptErrorDetail } from "./types/script";
+
+const PolyhedronStudio = lazy(() => import("./components/polyhedra/PolyhedronStudio"));
 
 export const DEFAULT_CONSTRUCTION_SCRIPT = `A = Point(0, 0)
 B = Point(4, 0)
@@ -102,6 +107,8 @@ export function App() {
   }>({ message: null, error: startup.error });
   const [panelOpen, setPanelOpen] = useState(true);
   const [captureMode, setCaptureMode] = useState<"none" | "area">("none");
+  const [activePolyhedron, setActivePolyhedron] = useState<PolyhedronDefinition | null>(null);
+  const [pendingPolyhedron, setPendingPolyhedron] = useState<PolyhedronDefinition | null>(null);
 
   useEffect(() => {
     if (persistenceNotice.message === null && persistenceNotice.error === null) return;
@@ -148,6 +155,24 @@ export function App() {
     (): GeometryDocument => ({ ...geometry.document, viewport: geometry.viewport }),
     [geometry.document, geometry.viewport],
   );
+
+  const handleActivateTool = useCallback(
+    (tool: ConstructionTool) => {
+      const def = polyhedronForTool(tool);
+      if (def) {
+        setPendingPolyhedron(def);
+        return;
+      }
+      constructionTools.activateTool(tool);
+    },
+    [constructionTools],
+  );
+  const confirmOpenPolyhedron = useCallback(() => {
+    if (!pendingPolyhedron) return;
+    replaceConstruction(createEmptyDocument(geometry.viewport));
+    setActivePolyhedron(pendingPolyhedron);
+    setPendingPolyhedron(null);
+  }, [pendingPolyhedron, geometry.viewport, replaceConstruction]);
 
   const sharing = useSharing({
     cloudId,
@@ -217,6 +242,7 @@ export function App() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
+      if (activePolyhedron !== null || pendingPolyhedron !== null) return;
       if (
         (event.key === "Delete" || event.key === "Backspace") &&
         selectedObjectId !== null &&
@@ -230,7 +256,7 @@ export function App() {
         const tool = SHORTCUT_TO_TOOL[event.key.toLowerCase()];
         if (tool !== undefined) {
           event.preventDefault();
-          constructionTools.activateTool(tool);
+          handleActivateTool(tool);
           return;
         }
       }
@@ -244,7 +270,15 @@ export function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [constructionTools, geometry, handleDeleteObject, selectedObjectId]);
+  }, [
+    activePolyhedron,
+    pendingPolyhedron,
+    constructionTools,
+    geometry,
+    handleActivateTool,
+    handleDeleteObject,
+    selectedObjectId,
+  ]);
 
   const handleClear = useCallback(() => {
     clearDocument();
@@ -521,7 +555,7 @@ export function App() {
       {/* Tira vertical flotante izquierda: herramientas + divisor + controles */}
       <ConstructionToolbar
         activeTool={constructionTools.activeTool}
-        onActivateTool={constructionTools.activateTool}
+        onActivateTool={handleActivateTool}
         regularPolygonSides={constructionTools.regularPolygonSides}
         onRegularPolygonSidesChange={constructionTools.setRegularPolygonSides}
         rotationAngle={constructionTools.rotationAngle}
@@ -685,6 +719,29 @@ export function App() {
         onStopSharing={sharing.handleStopSharing}
       />
       <Analytics />
+
+      {pendingPolyhedron && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/40">
+          <div role="dialog" aria-label="Abrir visor 3D" className="w-80 rounded-card border border-edge bg-surface p-4 shadow-pop">
+            <p className="mb-3 text-sm text-content">
+              Se borrará el dibujo actual y se abrirá el visor 3D del {pendingPolyhedron.name.toLowerCase()}. ¿Continuar?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setPendingPolyhedron(null)} className="rounded-md border border-edge px-3 py-1 text-xs font-semibold text-muted hover:text-content">
+                Cancelar
+              </button>
+              <button type="button" onClick={confirmOpenPolyhedron} className="rounded-md bg-brand-600 px-3 py-1 text-xs font-semibold text-white hover:bg-brand-700">
+                Continuar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {activePolyhedron && (
+        <Suspense fallback={<div className="absolute inset-0 z-30 flex items-center justify-center bg-surface text-sm text-muted">Cargando visor 3D…</div>}>
+          <PolyhedronStudio definition={activePolyhedron} onExit={() => setActivePolyhedron(null)} />
+        </Suspense>
+      )}
     </div>
   );
 }

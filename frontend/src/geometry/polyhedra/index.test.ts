@@ -15,6 +15,7 @@ describe("polyhedron registry", () => {
   it("resolves implemented polyhedra and leaves pending ones undefined", () => {
     expect(polyhedronForTool("tetrahedron")?.id).toBe("tetrahedron");
     expect(polyhedronForTool("cube")?.id).toBe("cube");
+    expect(polyhedronForTool("octahedron")?.id).toBe("octahedron");
     expect(polyhedronForTool("point")).toBeUndefined();
   });
 });

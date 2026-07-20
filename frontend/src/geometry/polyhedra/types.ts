@@ -37,6 +37,10 @@ export interface SymmetryElementImproper {
   direction: Vec3;
   angle: number;
   label: string;
+  axisId?: string;
+  axisLabel?: string;
+  order?: number;
+  rotationSense?: "positive" | "negative";
 }
 
 export type SymmetryElement =
@@ -56,6 +60,7 @@ export interface PolyhedronDefinition {
     reflections: SymmetryElementPlane[];
     rotoreflections: SymmetryElementImproper[];
   };
+  symmetryLabels?: Partial<Record<SymmetryClass, string>>;
   defaultColor: string;
 }
 

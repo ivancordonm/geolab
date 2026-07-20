@@ -77,8 +77,8 @@ const reflections: SymmetryElementPlane[] = PAIRS.map(([a, b], i) => ({
 }));
 
 const rotoreflections: SymmetryElementImproper[] = AXES.flatMap((dir, i) => [
-  { kind: "improper", point: [0, 0, 0], direction: dir, angle: Math.PI / 2, label: `S4(${i})+` },
-  { kind: "improper", point: [0, 0, 0], direction: dir, angle: -Math.PI / 2, label: `S4(${i})-` },
+  { kind: "improper", point: [0, 0, 0], direction: dir, angle: Math.PI / 2, label: `S4(${i})+`, axisId: `axis-${i}`, axisLabel: `Eje ${i + 1}`, order: 4, rotationSense: "positive" },
+  { kind: "improper", point: [0, 0, 0], direction: dir, angle: -Math.PI / 2, label: `S4(${i})-`, axisId: `axis-${i}`, axisLabel: `Eje ${i + 1}`, order: 4, rotationSense: "negative" },
 ]);
 
 export const TETRAHEDRON: PolyhedronDefinition = {
@@ -100,5 +100,6 @@ export const TETRAHEDRON: PolyhedronDefinition = {
     [2, 3],
   ],
   symmetry: { rotations3, halfTurns, reflections, rotoreflections },
+  symmetryLabels: { rotoreflections: "Rotorreflexiones ±90° (6)" },
   defaultColor: "#3b82f6",
 };

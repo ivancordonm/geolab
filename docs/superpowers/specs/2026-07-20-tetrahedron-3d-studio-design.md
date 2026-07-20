@@ -200,8 +200,33 @@ otro elemento la reinicia.
 - Sin persistencia del estado 3D.
 - Sin composición de transformaciones (cada animación es un único elemento que va
   y vuelve).
-- Solo el tetraedro tiene definición; el resto de poliedros son trabajo posterior
-  (solo-datos gracias a este patrón).
+- Solo el tetraedro tiene definición; el resto de poliedros son trabajo posterior.
+
+## Alcance real del patrón "solo-datos" (importante)
+
+Tras la implementación, el límite exacto de la extensibilidad es este:
+
+- **Es solo-datos** (añadir un poliedro cuyo grupo comparta la misma taxonomía
+  de clases que el tetraedro): vértices, caras, aristas, elementos de simetría
+  (`axis`/`plane`/`improper`), colores. La malla (`PolyhedronMesh`), la animación
+  (`animation.ts`), el render de ejes/planos y el registro
+  (`POLYHEDRON_DEFINITIONS`) son **genéricos** y no se tocan.
+- **NO es solo-datos** para poliedros con otra taxonomía de simetría. La
+  clasificación por clases está fijada al tetraedro (grupo **Td**) en tres
+  sitios: el union `SymmetryClass` (`types.ts`), `CLASS_LABELS`/`CLASS_ORDER`
+  (`SymmetryMenu.tsx`) y los bloques literales `visibleClasses.has(...)`
+  (`SymmetryOverlay.tsx`). El cubo/octaedro (grupo **Oh**, orden 48) tienen
+  clases que no encajan en los cuatro buckets actuales
+  (`rotations3 | halfTurns | reflections | rotoreflections`): C4 (±90°), C3, C2,
+  S4 **y** S6, más un centro de inversión. Añadir un cubo requiere, por tanto,
+  **generalizar la taxonomía de clases** para que sea parte de la
+  `PolyhedronDefinition` (una lista de clases con su etiqueta, en vez de un union
+  fijo) y hacer que `SymmetryMenu`/`SymmetryOverlay` iteren sobre esa lista.
+
+Esa generalización es el **primer paso del trabajo del siguiente poliedro**, no
+del tetraedro. Se difiere deliberadamente (YAGNI) hasta que se aborde un poliedro
+concreto, momento en el que su taxonomía real fija cómo debe quedar el modelo de
+datos de clases.
 
 ## Archivos afectados (previsión)
 

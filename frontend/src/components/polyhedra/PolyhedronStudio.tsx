@@ -5,8 +5,10 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { PolyhedronMesh } from "./PolyhedronMesh";
 import { SymmetryOverlay } from "./SymmetryOverlay";
 import { SymmetryMenu } from "./SymmetryMenu";
+import { wrapReflectionIndex } from "../../geometry/polyhedra/types";
 import type {
   PolyhedronDefinition,
+  ReflectionDisplayMode,
   SymmetryClass,
 } from "../../geometry/polyhedra/types";
 
@@ -19,7 +21,12 @@ export default function PolyhedronStudio({ definition, onExit }: PolyhedronStudi
   const [visibleClasses, setVisibleClasses] = useState<Set<SymmetryClass>>(new Set());
   const [opacity, setOpacity] = useState(0.6);
   const [color, setColor] = useState(definition.defaultColor);
+  const [reflectionMode, setReflectionMode] =
+    useState<ReflectionDisplayMode>("individual");
+  const [selectedReflectionIndex, setSelectedReflectionIndex] = useState(0);
+  const [showOtherReflections, setShowOtherReflections] = useState(false);
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
+  const reflections = definition.symmetry.reflections;
 
   const toggleClass = useCallback((cls: SymmetryClass) => {
     setVisibleClasses((prev) => {
@@ -40,7 +47,14 @@ export default function PolyhedronStudio({ definition, onExit }: PolyhedronStudi
         <ambientLight intensity={0.7} />
         <directionalLight position={[4, 5, 3]} intensity={0.8} />
         <PolyhedronMesh definition={definition} color={color} opacity={opacity} />
-        <SymmetryOverlay definition={definition} visibleClasses={visibleClasses} />
+        <SymmetryOverlay
+          definition={definition}
+          visibleClasses={visibleClasses}
+          reflectionMode={reflectionMode}
+          selectedReflectionIndex={selectedReflectionIndex}
+          showOtherReflections={showOtherReflections}
+          color={color}
+        />
         <OrbitControls ref={controlsRef} enablePan={false} />
       </Canvas>
 
@@ -52,6 +66,23 @@ export default function PolyhedronStudio({ definition, onExit }: PolyhedronStudi
         onOpacityChange={setOpacity}
         color={color}
         onColorChange={setColor}
+        reflectionMode={reflectionMode}
+        onReflectionModeChange={setReflectionMode}
+        selectedReflectionIndex={selectedReflectionIndex}
+        reflectionCount={reflections.length}
+        selectedReflection={reflections[selectedReflectionIndex]}
+        onPreviousReflection={() =>
+          setSelectedReflectionIndex((index) =>
+            wrapReflectionIndex(index, -1, reflections.length),
+          )
+        }
+        onNextReflection={() =>
+          setSelectedReflectionIndex((index) =>
+            wrapReflectionIndex(index, 1, reflections.length),
+          )
+        }
+        showOtherReflections={showOtherReflections}
+        onShowOtherReflectionsChange={setShowOtherReflections}
         onResetView={resetView}
         onExit={onExit}
       />

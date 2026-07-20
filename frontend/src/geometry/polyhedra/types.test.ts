@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { Vector3 } from "three";
-import { matrixForElement } from "./types";
+import { matrixForElement, wrapReflectionIndex } from "./types";
+
+describe("wrapReflectionIndex", () => {
+  it("wraps previous from the first reflection to the last", () => {
+    expect(wrapReflectionIndex(0, -1, 6)).toBe(5);
+  });
+
+  it("wraps next from the last reflection to the first", () => {
+    expect(wrapReflectionIndex(5, 1, 6)).toBe(0);
+  });
+});
 
 describe("matrixForElement", () => {
   it("axis rotation of 120deg about (1,1,1) has determinant +1", () => {

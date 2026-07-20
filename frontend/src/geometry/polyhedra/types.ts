@@ -9,6 +9,8 @@ export type SymmetryClass =
   | "reflections"
   | "rotoreflections";
 
+export type ReflectionDisplayMode = "individual" | "cumulative" | "all";
+
 export interface SymmetryElementAxis {
   kind: "axis";
   point: Vec3;
@@ -19,9 +21,14 @@ export interface SymmetryElementAxis {
 
 export interface SymmetryElementPlane {
   kind: "plane";
+  id?: string;
   point: Vec3;
   normal: Vec3;
   label: string;
+  fixedVertices?: string[];
+  swappedVertices?: [string, string][];
+  containedEdges?: string[];
+  permutationLabel?: string;
 }
 
 export interface SymmetryElementImproper {
@@ -43,8 +50,22 @@ export interface PolyhedronDefinition {
   vertices: Vec3[];
   faces: number[][];
   edges: readonly (readonly [number, number])[];
-  symmetry: Record<SymmetryClass, SymmetryElement[]>;
+  symmetry: {
+    rotations3: SymmetryElementAxis[];
+    halfTurns: SymmetryElementAxis[];
+    reflections: SymmetryElementPlane[];
+    rotoreflections: SymmetryElementImproper[];
+  };
   defaultColor: string;
+}
+
+export function wrapReflectionIndex(
+  currentIndex: number,
+  delta: -1 | 1,
+  count: number,
+): number {
+  if (count <= 0) return 0;
+  return (currentIndex + delta + count) % count;
 }
 
 // Reflection (Householder) as a 4x4 linear matrix: I - 2 n n^T.

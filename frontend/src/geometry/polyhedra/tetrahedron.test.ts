@@ -38,6 +38,26 @@ describe("TETRAHEDRON definition", () => {
     expect(allElements()).toHaveLength(23);
   });
 
+  it("describes each reflection with its fixed edge and swapped vertices", () => {
+    const reflections = TETRAHEDRON.symmetry.reflections;
+    expect(reflections[0]).toMatchObject({
+      kind: "plane",
+      id: "reflection-AB",
+      containedEdges: ["AB"],
+      fixedVertices: ["A", "B"],
+      swappedVertices: [["C", "D"]],
+      permutationLabel: "(C D)",
+    });
+    expect(reflections[5]).toMatchObject({
+      kind: "plane",
+      id: "reflection-CD",
+      containedEdges: ["CD"],
+      fixedVertices: ["C", "D"],
+      swappedVertices: [["A", "B"]],
+      permutationLabel: "(A B)",
+    });
+  });
+
   it("every symmetry element permutes the vertex set", () => {
     for (const el of allElements()) {
       expect(permutesVertices(matrixForElement(el))).toBe(true);

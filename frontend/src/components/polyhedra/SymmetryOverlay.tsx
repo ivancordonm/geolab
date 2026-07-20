@@ -5,6 +5,7 @@ import type {} from "@react-three/fiber";
 import { Quaternion, Vector3 } from "three";
 import type {
   PolyhedronDefinition,
+  ReflectionDisplayMode,
   SymmetryClass,
   SymmetryElement,
 } from "../../geometry/polyhedra/types";
@@ -12,6 +13,10 @@ import type {
 interface SymmetryOverlayProps {
   definition: PolyhedronDefinition;
   visibleClasses: ReadonlySet<SymmetryClass>;
+  reflectionMode: ReflectionDisplayMode;
+  selectedReflectionIndex: number;
+  showOtherReflections: boolean;
+  color: string;
 }
 
 const AXIS_LEN = 1.6;
@@ -52,30 +57,84 @@ function AxisLine({
 
 function PlaneQuad({
   element,
+  selected,
+  color,
 }: {
   element: SymmetryElement & { normal: readonly [number, number, number] };
+  selected: boolean;
+  color: string;
 }) {
   const normal = new Vector3(...element.normal).normalize();
   const quat = new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), normal);
   return (
-    <mesh quaternion={quat}>
-      <planeGeometry args={[2.4, 2.4]} />
-      <meshBasicMaterial
-        color="#a855f7"
-        transparent
-        opacity={0.18}
-        side={2 /* THREE.DoubleSide */}
-        depthWrite={false}
-      />
-    </mesh>
+    <group quaternion={quat}>
+      <mesh>
+        <planeGeometry args={[2.4, 2.4]} />
+        <meshBasicMaterial
+          color={color}
+          transparent
+          opacity={selected ? 0.32 : 0.04}
+          side={2 /* THREE.DoubleSide */}
+          depthWrite={false}
+        />
+      </mesh>
+      <lineSegments>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            args={[
+              new Float32Array([
+                -1.2, -1.2, 0.001, 1.2, -1.2, 0.001, 1.2, -1.2, 0.001,
+                1.2, 1.2, 0.001, 1.2, 1.2, 0.001, -1.2, 1.2, 0.001, -1.2,
+                1.2, 0.001, -1.2, -1.2, 0.001,
+              ]),
+              3,
+            ]}
+          />
+        </bufferGeometry>
+        <lineBasicMaterial
+          color={color}
+          transparent
+          opacity={selected ? 0.9 : 0.12}
+          depthWrite={false}
+        />
+      </lineSegments>
+    </group>
   );
+}
+
+export function reflectionIndicesToRender(
+  count: number,
+  selectedIndex: number,
+  mode: ReflectionDisplayMode,
+  showOthersAsReference: boolean,
+): number[] {
+  if (count <= 0) return [];
+  const selected = Math.min(Math.max(selectedIndex, 0), count - 1);
+  if (mode === "all" || (mode === "individual" && showOthersAsReference)) {
+    return Array.from({ length: count }, (_, index) => index);
+  }
+  if (mode === "cumulative") {
+    return Array.from({ length: selected + 1 }, (_, index) => index);
+  }
+  return [selected];
 }
 
 export function SymmetryOverlay({
   definition,
   visibleClasses,
+  reflectionMode,
+  selectedReflectionIndex,
+  showOtherReflections,
+  color,
 }: SymmetryOverlayProps) {
   const s = definition.symmetry;
+  const reflectionIndices = reflectionIndicesToRender(
+    s.reflections.length,
+    selectedReflectionIndex,
+    reflectionMode,
+    showOtherReflections,
+  );
   return (
     <group>
       {visibleClasses.has("rotations3") &&
@@ -91,9 +150,17 @@ export function SymmetryOverlay({
           ) : null,
         )}
       {visibleClasses.has("reflections") &&
-        s.reflections.map((el, i) =>
-          el.kind === "plane" ? <PlaneQuad key={`rf-${i}`} element={el} /> : null,
-        )}
+        reflectionIndices.map((i) => {
+          const el = s.reflections[i];
+          return (
+            <PlaneQuad
+              key={el.id ?? `rf-${i}`}
+              element={el}
+              selected={i === selectedReflectionIndex}
+              color={color}
+            />
+          );
+        })}
       {visibleClasses.has("rotoreflections") &&
         s.rotoreflections.map((el, i) =>
           el.kind === "improper" ? (

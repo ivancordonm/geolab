@@ -573,8 +573,8 @@ export function App() {
         </button>
       )}
 
-      {/* Leyenda a la derecha del toolbar izquierdo */}
-      <div className="pointer-events-none absolute bottom-3 left-[72px] z-10 text-[11px] text-muted/50 select-none">
+      {/* Leyenda en la esquina inferior izquierda */}
+      <div className="pointer-events-none absolute bottom-3 left-3 z-10 text-[11px] text-muted/50 select-none">
         <div>v.{__APP_VERSION__}</div>
         <div>An Anticentro Lab project</div>
       </div>

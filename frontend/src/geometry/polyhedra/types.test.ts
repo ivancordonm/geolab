@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Vector3 } from "three";
-import { matrixForElement, wrapReflectionIndex } from "./types";
+import { axisCount, axisKeyForElement, axisOrdinal, matrixForElement, wrapReflectionIndex } from "./types";
 
 describe("wrapReflectionIndex", () => {
   it("wraps previous from the first reflection to the last", () => {
@@ -9,6 +9,30 @@ describe("wrapReflectionIndex", () => {
 
   it("wraps next from the last reflection to the first", () => {
     expect(wrapReflectionIndex(5, 1, 6)).toBe(0);
+  });
+
+  it("wraps rotation and half-turn selections with their own family totals", () => {
+    expect(wrapReflectionIndex(0, -1, 8)).toBe(7);
+    expect(wrapReflectionIndex(2, 1, 3)).toBe(0);
+  });
+});
+
+describe("axis grouping", () => {
+  it("uses one physical-axis key for opposite directions", () => {
+    expect(axisKeyForElement({ direction: [1, 2, 3] })).toBe(
+      axisKeyForElement({ direction: [-1, -2, -3] }),
+    );
+  });
+
+  it("prefers an explicit axis id and counts each physical axis once", () => {
+    const axes = [
+      { direction: [1, 0, 0] as const, axisId: "x" },
+      { direction: [-1, 0, 0] as const, axisId: "x" },
+      { direction: [0, 1, 0] as const, axisId: "y" },
+    ];
+    expect(axisCount(axes)).toBe(2);
+    expect(axisOrdinal(axes, 1)).toBe(1);
+    expect(axisOrdinal(axes, 2)).toBe(2);
   });
 });
 

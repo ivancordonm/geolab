@@ -100,6 +100,6 @@ export const TETRAHEDRON: PolyhedronDefinition = {
     [2, 3],
   ],
   symmetry: { rotations3, halfTurns, reflections, rotoreflections },
-  symmetryLabels: { rotoreflections: "Rotorreflexiones ±90° (6)" },
+  symmetryLabels: { rotoreflections: "Rotorreflexiones ±90°" },
   defaultColor: "#3b82f6",
 };

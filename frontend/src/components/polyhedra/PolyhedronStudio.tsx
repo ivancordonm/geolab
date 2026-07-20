@@ -33,8 +33,16 @@ function AnimationRunner({
   onDone: () => void;
 }) {
   const elapsed = useRef(0);
+  const prevElement = useRef<SymmetryElement | null>(null);
   useFrame((_, delta) => {
-    if (!animation) return;
+    if (!animation) {
+      prevElement.current = null; // idle: next run starts fresh
+      return;
+    }
+    if (animation.element !== prevElement.current) {
+      elapsed.current = 0; // new element picked (possibly mid-flight): restart
+      prevElement.current = animation.element;
+    }
     elapsed.current += delta;
     const t = Math.min(1, elapsed.current / DURATION);
     // Triangle wave: 0 -> 1 -> 0 with ease.

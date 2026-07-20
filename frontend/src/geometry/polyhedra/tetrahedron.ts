@@ -1,4 +1,10 @@
-import type { PolyhedronDefinition, SymmetryElement, Vec3 } from "./types";
+import type {
+  PolyhedronDefinition,
+  SymmetryElementAxis,
+  SymmetryElementImproper,
+  SymmetryElementPlane,
+  Vec3,
+} from "./types";
 
 const RAW: Vec3[] = [
   [1, 1, 1],
@@ -22,7 +28,7 @@ function cross(a: Vec3, b: Vec3): Vec3 {
   ];
 }
 
-const rotations3: SymmetryElement[] = V.flatMap((dir, i) => [
+const rotations3: SymmetryElementAxis[] = V.flatMap((dir, i) => [
   { kind: "axis", point: [0, 0, 0], direction: dir, angle: (2 * Math.PI) / 3, label: `C3(${i})+` },
   { kind: "axis", point: [0, 0, 0], direction: dir, angle: (-2 * Math.PI) / 3, label: `C3(${i})-` },
 ]);
@@ -33,7 +39,7 @@ const AXES: Vec3[] = [
   [0, 0, 1],
 ];
 
-const halfTurns: SymmetryElement[] = AXES.map((dir, i) => ({
+const halfTurns: SymmetryElementAxis[] = AXES.map((dir, i) => ({
   kind: "axis",
   point: [0, 0, 0],
   direction: dir,
@@ -50,14 +56,27 @@ const PAIRS: [number, number][] = [
   [2, 3],
 ];
 
-const reflections: SymmetryElement[] = PAIRS.map(([a, b], i) => ({
+const reflections: SymmetryElementPlane[] = PAIRS.map(([a, b], i) => ({
   kind: "plane",
+  id: `reflection-${String.fromCharCode(65 + a)}${String.fromCharCode(65 + b)}`,
   point: [0, 0, 0],
   normal: normalize(cross(V[a], V[b])),
   label: `σ(${i})`,
+  fixedVertices: [a, b].map((vertex) => String.fromCharCode(65 + vertex)),
+  swappedVertices: [
+    PAIRS[PAIRS.length - 1 - i].map((vertex) =>
+      String.fromCharCode(65 + vertex),
+    ) as [string, string],
+  ],
+  containedEdges: [
+    `${String.fromCharCode(65 + a)}${String.fromCharCode(65 + b)}`,
+  ],
+  permutationLabel: `(${PAIRS[PAIRS.length - 1 - i]
+    .map((vertex) => String.fromCharCode(65 + vertex))
+    .join(" ")})`,
 }));
 
-const rotoreflections: SymmetryElement[] = AXES.flatMap((dir, i) => [
+const rotoreflections: SymmetryElementImproper[] = AXES.flatMap((dir, i) => [
   { kind: "improper", point: [0, 0, 0], direction: dir, angle: Math.PI / 2, label: `S4(${i})+` },
   { kind: "improper", point: [0, 0, 0], direction: dir, angle: -Math.PI / 2, label: `S4(${i})-` },
 ]);

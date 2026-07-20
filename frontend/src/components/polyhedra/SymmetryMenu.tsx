@@ -1,4 +1,8 @@
-import type { SymmetryClass } from "../../geometry/polyhedra/types";
+import type {
+  ReflectionDisplayMode,
+  SymmetryClass,
+  SymmetryElementPlane,
+} from "../../geometry/polyhedra/types";
 
 interface SymmetryMenuProps {
   polyhedronName: string;
@@ -8,6 +12,15 @@ interface SymmetryMenuProps {
   onOpacityChange: (value: number) => void;
   color: string;
   onColorChange: (value: string) => void;
+  reflectionMode: ReflectionDisplayMode;
+  onReflectionModeChange: (mode: ReflectionDisplayMode) => void;
+  selectedReflectionIndex: number;
+  reflectionCount: number;
+  selectedReflection?: SymmetryElementPlane;
+  onPreviousReflection: () => void;
+  onNextReflection: () => void;
+  showOtherReflections: boolean;
+  onShowOtherReflectionsChange: (value: boolean) => void;
   onResetView: () => void;
   onExit: () => void;
 }
@@ -34,6 +47,15 @@ export function SymmetryMenu({
   onOpacityChange,
   color,
   onColorChange,
+  reflectionMode,
+  onReflectionModeChange,
+  selectedReflectionIndex,
+  reflectionCount,
+  selectedReflection,
+  onPreviousReflection,
+  onNextReflection,
+  showOtherReflections,
+  onShowOtherReflectionsChange,
   onResetView,
   onExit,
 }: SymmetryMenuProps) {
@@ -41,7 +63,7 @@ export function SymmetryMenu({
     <div
       role="dialog"
       aria-label="Estudio de simetrías"
-      className="absolute left-4 top-4 z-10 w-60 rounded-xl border border-edge bg-surface/95 p-3 shadow-pop backdrop-blur"
+      className="absolute left-4 top-4 z-10 max-h-[calc(100vh-2rem)] w-60 overflow-y-auto rounded-xl border border-edge bg-surface/95 p-3 shadow-pop backdrop-blur"
     >
       <div className="mb-2 flex items-center justify-between">
         <p className="text-sm font-semibold text-content">{polyhedronName}</p>
@@ -58,16 +80,104 @@ export function SymmetryMenu({
         Simetrías
       </p>
       {CLASS_ORDER.map((cls) => (
-        <label key={cls} className="mb-1.5 flex cursor-pointer items-center gap-2">
-          <input
-            type="checkbox"
-            aria-label={CLASS_LABELS[cls]}
-            checked={visibleClasses.has(cls)}
-            onChange={() => onToggleClass(cls)}
-            className="h-3.5 w-3.5 rounded accent-brand-600"
-          />
-          <span className="text-xs text-content">{CLASS_LABELS[cls]}</span>
-        </label>
+        <div key={cls}>
+          <label className="mb-1.5 flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              aria-label={CLASS_LABELS[cls]}
+              checked={visibleClasses.has(cls)}
+              onChange={() => onToggleClass(cls)}
+              className="h-3.5 w-3.5 rounded accent-brand-600"
+            />
+            <span className="text-xs text-content">{CLASS_LABELS[cls]}</span>
+          </label>
+          {cls === "reflections" && visibleClasses.has("reflections") && (
+            <div className="mb-2 ml-5 rounded-md border border-edge p-2">
+              <label className="mb-2 block text-[0.65rem] font-semibold text-muted">
+                Modo
+                <select
+                  aria-label="Modo de reflexiones"
+                  value={reflectionMode}
+                  onChange={(event) =>
+                    onReflectionModeChange(
+                      event.target.value as ReflectionDisplayMode,
+                    )
+                  }
+                  className="mt-1 w-full rounded border border-edge bg-surface px-1.5 py-1 text-xs text-content"
+                >
+                  <option value="individual">Individual</option>
+                  <option value="cumulative">Acumulativo</option>
+                  <option value="all">Todos</option>
+                </select>
+              </label>
+
+              <div className="flex items-center justify-between gap-1">
+                <button
+                  type="button"
+                  aria-label="Plano anterior"
+                  onClick={onPreviousReflection}
+                  disabled={reflectionCount === 0}
+                  className="rounded border border-edge px-2 py-0.5 text-xs text-muted hover:text-content disabled:opacity-40"
+                >
+                  ‹
+                </button>
+                <span aria-live="polite" className="text-[0.7rem] text-content">
+                  Plano {reflectionCount === 0 ? 0 : selectedReflectionIndex + 1}{" "}
+                  de {reflectionCount}
+                </span>
+                <button
+                  type="button"
+                  aria-label="Plano siguiente"
+                  onClick={onNextReflection}
+                  disabled={reflectionCount === 0}
+                  className="rounded border border-edge px-2 py-0.5 text-xs text-muted hover:text-content disabled:opacity-40"
+                >
+                  ›
+                </button>
+              </div>
+
+              {reflectionMode === "individual" && (
+                <label className="mt-2 flex cursor-pointer items-start gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={showOtherReflections}
+                    onChange={(event) =>
+                      onShowOtherReflectionsChange(event.target.checked)
+                    }
+                    className="mt-0.5 h-3.5 w-3.5 rounded accent-brand-600"
+                  />
+                  <span className="text-[0.65rem] leading-tight text-content">
+                    Mostrar los demás como referencia
+                  </span>
+                </label>
+              )}
+
+              {selectedReflection && (
+                <ul
+                  aria-live="polite"
+                  className="mt-2 space-y-0.5 text-[0.65rem] leading-tight text-muted"
+                >
+                  {selectedReflection.containedEdges?.map((edge) => (
+                    <li key={edge}>Contiene la arista {edge}.</li>
+                  ))}
+                  {selectedReflection.fixedVertices?.length ? (
+                    <li>
+                      Deja fijos {selectedReflection.fixedVertices.join(" y ")}.
+                    </li>
+                  ) : null}
+                  {selectedReflection.swappedVertices?.map(([a, b]) => (
+                    <li key={`${a}-${b}`}>
+                      Intercambia {a} ↔ {b}.
+                    </li>
+                  ))}
+                  {selectedReflection.permutationLabel && (
+                    <li>Permutación: {selectedReflection.permutationLabel}.</li>
+                  )}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
       ))}
 
       <p className="mb-1 mt-3 text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-muted">

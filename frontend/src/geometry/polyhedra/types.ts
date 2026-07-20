@@ -1,8 +1,6 @@
 import { Matrix4, Vector3 } from "three";
 import type { ConstructionTool } from "../constructionTools";
 
-export const POLYHEDRON_EPSILON = 1e-9;
-
 export type Vec3 = readonly [number, number, number];
 
 export type SymmetryClass =

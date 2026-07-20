@@ -242,6 +242,7 @@ export function App() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
+      if (activePolyhedron !== null || pendingPolyhedron !== null) return;
       if (
         (event.key === "Delete" || event.key === "Backspace") &&
         selectedObjectId !== null &&
@@ -269,7 +270,15 @@ export function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [constructionTools, geometry, handleActivateTool, handleDeleteObject, selectedObjectId]);
+  }, [
+    activePolyhedron,
+    pendingPolyhedron,
+    constructionTools,
+    geometry,
+    handleActivateTool,
+    handleDeleteObject,
+    selectedObjectId,
+  ]);
 
   const handleClear = useCallback(() => {
     clearDocument();

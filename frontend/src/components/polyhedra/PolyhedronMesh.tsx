@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 // Side-effect-only type import: pulls in @react-three/fiber's module
 // augmentation of the JSX.IntrinsicElements namespace (mesh, group,
 // meshStandardMaterial, lineSegments, lineBasicMaterial, etc). r3f v9
@@ -74,10 +74,12 @@ export function PolyhedronMesh({
     () => faceGeometry(vertices, definition.faces),
     [vertices, definition.faces],
   );
+  useEffect(() => () => faces.dispose(), [faces]);
   const edges = useMemo(
     () => edgeGeometry(vertices, definition.edges),
     [vertices, definition.edges],
   );
+  useEffect(() => () => edges.dispose(), [edges]);
 
   return (
     <group>

@@ -81,7 +81,7 @@ export default function PolyhedronStudio({ definition, onExit }: PolyhedronStudi
   }, []);
 
   return (
-    <div className="absolute inset-0 z-30 bg-surface">
+    <div className="absolute inset-0 z-[10000] bg-surface">
       <Canvas camera={{ position: [3, 2, 3], fov: 50 }}>
         <ambientLight intensity={0.7} />
         <directionalLight position={[4, 5, 3]} intensity={0.8} />

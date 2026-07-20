@@ -30,6 +30,17 @@ function setup(overrides: Record<string, unknown> = {}) {
     onNextReflection: vi.fn(),
     showOtherReflections: false,
     onShowOtherReflectionsChange: vi.fn(),
+    rotoreflectionLabel: "Rotorreflexiones ±90° (6)",
+    rotoreflectionCount: 6,
+    rotoreflectionAxisCount: 3,
+    selectedRotoreflectionIndex: 0,
+    selectedRotoreflection: { kind: "improper" as const, point: [0,0,0] as const, direction: [1,0,0] as const, angle: Math.PI/2, label: "S4+", axisId: "axis-0", axisLabel: "Eje 1", order: 4, rotationSense: "positive" as const },
+    onPreviousRotoreflection: vi.fn(),
+    onNextRotoreflection: vi.fn(),
+    showOtherRotoreflectionAxes: false,
+    onShowOtherRotoreflectionAxesChange: vi.fn(),
+    showRotoreflectionPlane: true,
+    onShowRotoreflectionPlaneChange: vi.fn(),
     onResetView: vi.fn(),
     onExit: vi.fn(),
     ...overrides,
@@ -41,6 +52,7 @@ function setup(overrides: Record<string, unknown> = {}) {
     onReflectionModeChange: ReturnType<typeof vi.fn>;
     onPreviousReflection: ReturnType<typeof vi.fn>;
     onNextReflection: ReturnType<typeof vi.fn>;
+    onNextRotoreflection: ReturnType<typeof vi.fn>;
     onShowOtherReflectionsChange: ReturnType<typeof vi.fn>;
   };
 }
@@ -64,7 +76,7 @@ describe("SymmetryMenu", () => {
     expect(screen.getByLabelText("Rotaciones ±120°")).toBeInTheDocument();
     expect(screen.getByLabelText("Medias vueltas (180°)")).toBeInTheDocument();
     expect(screen.getByLabelText("Reflexiones")).toBeInTheDocument();
-    expect(screen.getByLabelText("Rotoreflexiones (S4)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Rotorreflexiones ±90° (6)")).toBeInTheDocument();
   });
 
   it("shows reflection controls and forwards their changes", async () => {
@@ -89,5 +101,14 @@ describe("SymmetryMenu", () => {
     expect(screen.getByText("Deja fijos A y B.")).toBeInTheDocument();
     expect(screen.getByText("Intercambia C ↔ D.")).toBeInTheDocument();
     expect(screen.getByText("Permutación: (C D).")).toBeInTheDocument();
+  });
+
+  it("shows rotorreflections controls", async () => {
+    const props = setup({ visibleClasses: new Set(["rotoreflections"]), rotoreflectionLabel: "Rotorreflexiones ±90° (6)" });
+    expect(screen.getByLabelText("Rotorreflexiones ±90° (6)")).toBeInTheDocument();
+    expect(screen.getByText("Rotorreflexión 1 de 6")).toBeInTheDocument();
+    expect(screen.getByText(/Eje 1 de 3/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Rotorreflexión siguiente" }));
+    expect(props.onNextRotoreflection).toHaveBeenCalled();
   });
 });

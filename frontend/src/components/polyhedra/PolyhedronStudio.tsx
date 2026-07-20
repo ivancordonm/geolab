@@ -24,7 +24,10 @@ export default function PolyhedronStudio({ definition, onExit }: PolyhedronStudi
   const [reflectionMode, setReflectionMode] =
     useState<ReflectionDisplayMode>("individual");
   const [selectedReflectionIndex, setSelectedReflectionIndex] = useState(0);
+  const [selectedRotoreflectionIndex, setSelectedRotoreflectionIndex] = useState(0);
   const [showOtherReflections, setShowOtherReflections] = useState(false);
+  const [showOtherRotoreflectionAxes, setShowOtherRotoreflectionAxes] = useState(false);
+  const [showRotoreflectionPlane, setShowRotoreflectionPlane] = useState(true);
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const reflections = definition.symmetry.reflections;
 
@@ -52,8 +55,12 @@ export default function PolyhedronStudio({ definition, onExit }: PolyhedronStudi
           visibleClasses={visibleClasses}
           reflectionMode={reflectionMode}
           selectedReflectionIndex={selectedReflectionIndex}
+          selectedRotoreflectionIndex={selectedRotoreflectionIndex}
           showOtherReflections={showOtherReflections}
           color={color}
+          opacity={opacity}
+          showOtherRotoreflectionAxes={showOtherRotoreflectionAxes}
+          showRotoreflectionPlane={showRotoreflectionPlane}
         />
         <OrbitControls ref={controlsRef} enablePan={false} />
       </Canvas>
@@ -83,6 +90,17 @@ export default function PolyhedronStudio({ definition, onExit }: PolyhedronStudi
         }
         showOtherReflections={showOtherReflections}
         onShowOtherReflectionsChange={setShowOtherReflections}
+        rotoreflectionLabel={definition.symmetryLabels?.rotoreflections}
+        selectedRotoreflectionIndex={selectedRotoreflectionIndex}
+        rotoreflectionCount={definition.symmetry.rotoreflections.length}
+        rotoreflectionAxisCount={new Set(definition.symmetry.rotoreflections.map((el) => el.axisId).filter(Boolean)).size}
+        selectedRotoreflection={definition.symmetry.rotoreflections[selectedRotoreflectionIndex]}
+        onPreviousRotoreflection={() => setSelectedRotoreflectionIndex((index) => wrapReflectionIndex(index, -1, definition.symmetry.rotoreflections.length))}
+        onNextRotoreflection={() => setSelectedRotoreflectionIndex((index) => wrapReflectionIndex(index, 1, definition.symmetry.rotoreflections.length))}
+        showOtherRotoreflectionAxes={showOtherRotoreflectionAxes}
+        onShowOtherRotoreflectionAxesChange={setShowOtherRotoreflectionAxes}
+        showRotoreflectionPlane={showRotoreflectionPlane}
+        onShowRotoreflectionPlaneChange={setShowRotoreflectionPlane}
         onResetView={resetView}
         onExit={onExit}
       />

@@ -2,6 +2,7 @@ import type {
   ReflectionDisplayMode,
   SymmetryClass,
   SymmetryElementPlane,
+  SymmetryElementImproper,
 } from "../../geometry/polyhedra/types";
 
 interface SymmetryMenuProps {
@@ -23,13 +24,24 @@ interface SymmetryMenuProps {
   onShowOtherReflectionsChange: (value: boolean) => void;
   onResetView: () => void;
   onExit: () => void;
+  rotoreflectionLabel?: string;
+  selectedRotoreflectionIndex?: number;
+  rotoreflectionCount?: number;
+  rotoreflectionAxisCount?: number;
+  selectedRotoreflection?: SymmetryElementImproper;
+  onPreviousRotoreflection?: () => void;
+  onNextRotoreflection?: () => void;
+  showOtherRotoreflectionAxes?: boolean;
+  onShowOtherRotoreflectionAxesChange?: (value: boolean) => void;
+  showRotoreflectionPlane?: boolean;
+  onShowRotoreflectionPlaneChange?: (value: boolean) => void;
 }
 
 const CLASS_LABELS: Record<SymmetryClass, string> = {
   rotations3: "Rotaciones ±120°",
   halfTurns: "Medias vueltas (180°)",
   reflections: "Reflexiones",
-  rotoreflections: "Rotoreflexiones (S4)",
+  rotoreflections: "Rotorreflexiones",
 };
 
 const CLASS_ORDER: SymmetryClass[] = [
@@ -58,7 +70,19 @@ export function SymmetryMenu({
   onShowOtherReflectionsChange,
   onResetView,
   onExit,
+  rotoreflectionLabel,
+  selectedRotoreflectionIndex = 0,
+  rotoreflectionCount = 0,
+  rotoreflectionAxisCount = 0,
+  selectedRotoreflection,
+  onPreviousRotoreflection,
+  onNextRotoreflection,
+  showOtherRotoreflectionAxes = false,
+  onShowOtherRotoreflectionAxesChange,
+  showRotoreflectionPlane = true,
+  onShowRotoreflectionPlaneChange,
 }: SymmetryMenuProps) {
+  const labels = { ...CLASS_LABELS, rotoreflections: rotoreflectionLabel ?? CLASS_LABELS.rotoreflections };
   return (
     <div
       role="dialog"
@@ -84,12 +108,12 @@ export function SymmetryMenu({
           <label className="mb-1.5 flex cursor-pointer items-center gap-2">
             <input
               type="checkbox"
-              aria-label={CLASS_LABELS[cls]}
+              aria-label={labels[cls]}
               checked={visibleClasses.has(cls)}
               onChange={() => onToggleClass(cls)}
               className="h-3.5 w-3.5 rounded accent-brand-600"
             />
-            <span className="text-xs text-content">{CLASS_LABELS[cls]}</span>
+            <span className="text-xs text-content">{labels[cls]}</span>
           </label>
           {cls === "reflections" && visibleClasses.has("reflections") && (
             <div className="mb-2 ml-5 rounded-md border border-edge p-2">
@@ -175,6 +199,18 @@ export function SymmetryMenu({
                   )}
                 </ul>
               )}
+            </div>
+          )}
+          {cls === "rotoreflections" && visibleClasses.has("rotoreflections") && (
+            <div className="mb-2 ml-5 rounded-md border border-edge p-2">
+              <div className="flex items-center justify-between gap-1">
+                <button type="button" aria-label="Rotorreflexión anterior" onClick={onPreviousRotoreflection} disabled={!rotoreflectionCount} className="rounded border border-edge px-2 py-0.5 text-xs disabled:opacity-40">‹</button>
+                <span aria-live="polite" className="text-[0.65rem] text-content">Rotorreflexión {rotoreflectionCount ? selectedRotoreflectionIndex + 1 : 0} de {rotoreflectionCount}</span>
+                <button type="button" aria-label="Rotorreflexión siguiente" onClick={onNextRotoreflection} disabled={!rotoreflectionCount} className="rounded border border-edge px-2 py-0.5 text-xs disabled:opacity-40">›</button>
+              </div>
+              {selectedRotoreflection && <p className="mt-1 text-[0.65rem] text-muted">{selectedRotoreflection.axisLabel ?? "Eje"}{rotoreflectionAxisCount ? ` de ${rotoreflectionAxisCount}` : ""} · Sentido: {(() => { const degrees = selectedRotoreflection.angle ? Math.round(Math.abs(selectedRotoreflection.angle) * 180 / Math.PI) : 0; const negative = selectedRotoreflection.angle ? selectedRotoreflection.angle < 0 : selectedRotoreflection.rotationSense === "negative"; return `${negative ? "−" : "+"}${degrees}°`; })()}</p>}
+              <label className="mt-1 flex items-start gap-1.5 text-[0.65rem] text-content"><input type="checkbox" checked={showOtherRotoreflectionAxes} onChange={(e) => onShowOtherRotoreflectionAxesChange?.(e.target.checked)} />Mostrar los demás ejes como referencia</label>
+              <label className="mt-1 flex items-start gap-1.5 text-[0.65rem] text-content"><input type="checkbox" checked={showRotoreflectionPlane} onChange={(e) => onShowRotoreflectionPlaneChange?.(e.target.checked)} />Mostrar plano perpendicular</label>
             </div>
           )}
         </div>

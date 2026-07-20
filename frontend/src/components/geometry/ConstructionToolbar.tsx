@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowLeftRight,
+  Box,
   Circle,
   CircleDot,
   Compass,
@@ -12,10 +13,12 @@ import {
   Divide,
   Dot,
   Equal,
+  Hexagon,
   Maximize2,
   Minus,
   MousePointer2,
   Move,
+  Octagon,
   Pentagon,
   Ratio,
   RefreshCcw,
@@ -24,6 +27,7 @@ import {
   Slash,
   Spline,
   Star,
+  Triangle,
   Waypoints,
 } from "lucide-react";
 
@@ -124,6 +128,19 @@ const TOOLS: readonly ToolEntry[] = [
       { tool: "polygon", label: "Polygon", icon: Pentagon },
       { tool: "regular_polygon", label: "Regular polygon", icon: Star },
       { tool: "vector_polygon", label: "Vector polygon", icon: Waypoints },
+    ],
+  },
+  { divider: true },
+  {
+    group: "regular-polyhedra",
+    label: "Regular polyhedra",
+    instruction: "Choose a regular polyhedron",
+    tools: [
+      { tool: "tetrahedron", label: "Tetrahedron", icon: Triangle },
+      { tool: "cube", label: "Cube", icon: Box },
+      { tool: "octahedron", label: "Octahedron", icon: Octagon },
+      { tool: "dodecahedron", label: "Dodecahedron", icon: Pentagon },
+      { tool: "icosahedron", label: "Icosahedron", icon: Hexagon },
     ],
   },
 ] as const;

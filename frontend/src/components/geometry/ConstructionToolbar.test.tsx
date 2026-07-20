@@ -88,6 +88,33 @@ describe("ConstructionToolbar", () => {
     expect(screen.getByRole("button", { name: "Polygons" })).toHaveAttribute("aria-pressed", "true");
   });
 
+  it("groups the five regular polyhedra under a single flyout button", async () => {
+    const user = userEvent.setup();
+    const onActivateTool = vi.fn();
+    render(<ConstructionToolbar activeTool="select" onActivateTool={onActivateTool} />);
+
+    expect(screen.queryByRole("button", { name: "Tetrahedron" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Cube" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Octahedron" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Dodecahedron" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Icosahedron" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Regular polyhedra" }));
+    await user.click(screen.getByRole("menuitem", { name: "Icosahedron" }));
+
+    expect(onActivateTool).toHaveBeenCalledWith("icosahedron");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("marks Regular polyhedra active while a submenu item is selected", () => {
+    render(<ConstructionToolbar activeTool="cube" onActivateTool={() => undefined} />);
+
+    expect(screen.getByRole("button", { name: "Regular polyhedra" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
   it("groups intersection, tangent and circumcircle under Circle constructions", async () => {
     const user = userEvent.setup();
     const onActivateTool = vi.fn();

@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Grid3x3 } from "lucide-react";
 
 import type { GridSettings } from "../../geometry/viewport";
+import { ToolbarTooltip } from "./ToolbarTooltip";
 
 interface GridMenuProps {
   settings: GridSettings;
@@ -69,17 +70,18 @@ export function GridMenu({ settings, onChange }: GridMenuProps) {
 
   return (
     <div>
-      <button
-        ref={triggerRef}
-        type="button"
-        title="Grid"
-        aria-label="Grid settings"
-        aria-expanded={open}
-        onClick={handleToggle}
-        className="flex items-center justify-center rounded-lg p-2 text-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-      >
-        <Grid3x3 size={18} aria-hidden />
-      </button>
+      <ToolbarTooltip label="Grid" instruction="Configure the grid, axes, and snapping">
+        <button
+          ref={triggerRef}
+          type="button"
+          aria-label="Grid settings"
+          aria-expanded={open}
+          onClick={handleToggle}
+          className="flex items-center justify-center rounded-lg p-2 text-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+        >
+          <Grid3x3 size={18} aria-hidden />
+        </button>
+      </ToolbarTooltip>
 
       {open && pos !== null
         ? createPortal(

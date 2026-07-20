@@ -3,6 +3,7 @@ import { useMemo } from "react";
 // <mesh>/<group>/<lineSegments>/... intrinsics typecheck in this file.
 import type {} from "@react-three/fiber";
 import { Quaternion, Vector3 } from "three";
+import { axisIndicesToRender } from "../../geometry/polyhedra/types";
 import type {
   PolyhedronDefinition,
   ReflectionDisplayMode,
@@ -16,6 +17,10 @@ interface SymmetryOverlayProps {
   reflectionMode: ReflectionDisplayMode;
   selectedReflectionIndex: number;
   showOtherReflections: boolean;
+  selectedRotationIndex?: number;
+  showOtherRotationAxes?: boolean;
+  selectedHalfTurnIndex?: number;
+  showOtherHalfTurnAxes?: boolean;
   selectedRotoreflectionIndex?: number;
   showOtherRotoreflectionAxes?: boolean;
   showRotoreflectionPlane?: boolean;
@@ -30,19 +35,11 @@ export function rotoreflectionAxisIndicesToRender(
   selectedIndex: number,
   showOthers: boolean,
 ): number[] {
-  const impropers = elements.filter((el) => el.kind === "improper");
-  if (!impropers.length) return [];
-  const selected = Math.min(Math.max(selectedIndex, 0), impropers.length - 1);
-  if (!showOthers) return [selected];
-  const axisKey = (el: SymmetryElement) => el.kind === "improper"
-    ? (el.axisId ?? new Vector3(...el.direction).normalize().toArray().map((v) => v.toFixed(4)).join(","))
-    : "";
-  const selectedAxis = axisKey(impropers[selected]);
-  return impropers.reduce<number[]>((indices, el, i) => {
-    const key = axisKey(el);
-    if (i === selected || (key !== selectedAxis && !indices.some((j) => axisKey(impropers[j]) === key))) indices.push(i);
-    return indices;
-  }, []);
+  return axisIndicesToRender(
+    elements.filter((element) => element.kind === "improper"),
+    selectedIndex,
+    showOthers,
+  );
 }
 
 function AxisLine({
@@ -83,17 +80,44 @@ function AxisLine({
   );
 }
 
-function RotationArc({ direction, angle, color }: { direction: readonly [number, number, number]; angle: number; color: string }) {
+function RotationArc({
+  direction,
+  angle,
+  color,
+}: {
+  direction: readonly [number, number, number];
+  angle: number;
+  color: string;
+}) {
   const axis = new Vector3(...direction).normalize();
   const ref = Math.abs(axis.y) < 0.9 ? new Vector3(0, 1, 0) : new Vector3(1, 0, 0);
   const u = new Vector3().crossVectors(axis, ref).normalize();
   const v = new Vector3().crossVectors(axis, u).normalize();
-  const points = Array.from({ length: 25 }, (_, i) => { const t = (i / 24) * Math.abs(angle) * Math.sign(angle || 1); return u.clone().multiplyScalar(Math.cos(t) * 0.8).add(v.clone().multiplyScalar(Math.sin(t) * 0.8)); });
+  const points = Array.from({ length: 25 }, (_, index) => {
+    const t = (index / 24) * Math.abs(angle) * Math.sign(angle || 1);
+    return u
+      .clone()
+      .multiplyScalar(Math.cos(t) * 0.8)
+      .add(v.clone().multiplyScalar(Math.sin(t) * 0.8));
+  });
   const positions = new Float32Array(points.flatMap((p) => [p.x, p.y, p.z]));
   const tip = points[points.length - 1];
   const tangent = points[points.length - 1].clone().sub(points[points.length - 2]).normalize();
   const quat = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), tangent);
-  return <group renderOrder={5}><line><bufferGeometry><bufferAttribute attach="attributes-position" args={[positions, 3]} /></bufferGeometry><lineBasicMaterial color={color} transparent opacity={0.95} depthTest={false} /></line><mesh position={tip} quaternion={quat}><coneGeometry args={[0.09, 0.2, 8]} /><meshBasicMaterial color={color} depthTest={false} /></mesh></group>;
+  return (
+    <group renderOrder={5}>
+      <line>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+        </bufferGeometry>
+        <lineBasicMaterial color={color} transparent opacity={0.95} depthTest={false} />
+      </line>
+      <mesh position={tip} quaternion={quat}>
+        <coneGeometry args={[0.09, 0.2, 8]} />
+        <meshBasicMaterial color={color} depthTest={false} />
+      </mesh>
+    </group>
+  );
 }
 
 function PlaneQuad({
@@ -170,6 +194,10 @@ export function SymmetryOverlay({
   selectedReflectionIndex,
   showOtherReflections,
   color,
+  selectedRotationIndex = 0,
+  showOtherRotationAxes = false,
+  selectedHalfTurnIndex = 0,
+  showOtherHalfTurnAxes = false,
   selectedRotoreflectionIndex = 0,
   showOtherRotoreflectionAxes = false,
   showRotoreflectionPlane = true,
@@ -182,20 +210,64 @@ export function SymmetryOverlay({
     reflectionMode,
     showOtherReflections,
   );
+  const rotationAxisIndices = axisIndicesToRender(
+    s.rotations3,
+    selectedRotationIndex,
+    showOtherRotationAxes,
+  );
+  const halfTurnAxisIndices = axisIndicesToRender(
+    s.halfTurns,
+    selectedHalfTurnIndex,
+    showOtherHalfTurnAxes,
+  );
+  const selectedRotationIndexToRender = rotationAxisIndices[0];
+  const selectedHalfTurnIndexToRender = halfTurnAxisIndices[0];
+  const selectedRotation = s.rotations3[selectedRotationIndexToRender];
+  const selectedHalfTurn = s.halfTurns[selectedHalfTurnIndexToRender];
   return (
     <group>
       {visibleClasses.has("rotations3") &&
-        s.rotations3.map((el, i) =>
-          el.kind === "axis" ? (
-            <AxisLine key={`r3-${i}`} element={el} dashed={false} />
-          ) : null,
-        )}
+        rotationAxisIndices.map((index) => {
+          const element = s.rotations3[index];
+          const selected = index === selectedRotationIndexToRender;
+          return (
+            <AxisLine
+              key={`r3-${index}`}
+              element={element}
+              dashed={!selected}
+              color={color}
+              opacity={selected ? 0.95 : 0.18}
+            />
+          );
+        })}
+      {visibleClasses.has("rotations3") && selectedRotation && (
+        <RotationArc
+          direction={selectedRotation.direction}
+          angle={selectedRotation.angle}
+          color={color}
+        />
+      )}
       {visibleClasses.has("halfTurns") &&
-        s.halfTurns.map((el, i) =>
-          el.kind === "axis" ? (
-            <AxisLine key={`ht-${i}`} element={el} dashed={false} />
-          ) : null,
-        )}
+        halfTurnAxisIndices.map((index) => {
+          const element = s.halfTurns[index];
+          const selected = index === selectedHalfTurnIndexToRender;
+          return (
+            <AxisLine
+              key={`ht-${index}`}
+              element={element}
+              dashed={!selected}
+              color={color}
+              opacity={selected ? 0.95 : 0.18}
+            />
+          );
+        })}
+      {visibleClasses.has("halfTurns") && selectedHalfTurn && (
+        <RotationArc
+          direction={selectedHalfTurn.direction}
+          angle={selectedHalfTurn.angle}
+          color={color}
+        />
+      )}
       {visibleClasses.has("reflections") &&
         reflectionIndices.map((i) => {
           const el = s.reflections[i];
@@ -212,13 +284,37 @@ export function SymmetryOverlay({
         s.rotoreflections[selectedRotoreflectionIndex]?.kind === "improper" && (() => {
           const selected = s.rotoreflections[selectedRotoreflectionIndex];
           if (selected.kind !== "improper") return null;
-          const axes = rotoreflectionAxisIndicesToRender(s.rotoreflections, selectedRotoreflectionIndex, true)
+          const axes = rotoreflectionAxisIndicesToRender(
+            s.rotoreflections,
+            selectedRotoreflectionIndex,
+            showOtherRotoreflectionAxes,
+          )
             .filter((i) => i !== selectedRotoreflectionIndex)
             .map((i) => s.rotoreflections[i]);
           return <>
             <AxisLine element={selected} dashed={false} color={color} opacity={0.95} />
-            {showOtherRotoreflectionAxes && axes.map((el) => el.kind === "improper" ? <AxisLine key={`s4-ref-${el.axisId}`} element={el} dashed={true} color={color} opacity={0.18} /> : null)}
-            {showRotoreflectionPlane && <PlaneQuad element={{ kind: "plane", point: selected.point, normal: selected.direction, label: "plano" }} selected selectedOpacity={Math.min(0.25, opacity * 0.35)} color={color} />}
+            {axes.map((element, index) => (
+              <AxisLine
+                key={`rotoreflection-reference-${index}`}
+                element={element}
+                dashed
+                color={color}
+                opacity={0.18}
+              />
+            ))}
+            {showRotoreflectionPlane && (
+              <PlaneQuad
+                element={{
+                  kind: "plane",
+                  point: selected.point,
+                  normal: selected.direction,
+                  label: "plano",
+                }}
+                selected
+                selectedOpacity={Math.min(0.25, opacity * 0.35)}
+                color={color}
+              />
+            )}
             <RotationArc direction={selected.direction} angle={selected.angle} color={color} />
           </>;
         })()}

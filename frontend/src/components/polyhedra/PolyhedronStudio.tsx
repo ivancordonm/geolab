@@ -5,7 +5,7 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { PolyhedronMesh } from "./PolyhedronMesh";
 import { SymmetryOverlay } from "./SymmetryOverlay";
 import { SymmetryMenu } from "./SymmetryMenu";
-import { wrapReflectionIndex } from "../../geometry/polyhedra/types";
+import { axisCount, axisOrdinal, wrapReflectionIndex } from "../../geometry/polyhedra/types";
 import type {
   PolyhedronDefinition,
   ReflectionDisplayMode,
@@ -24,21 +24,32 @@ export default function PolyhedronStudio({ definition, onExit }: PolyhedronStudi
   const [reflectionMode, setReflectionMode] =
     useState<ReflectionDisplayMode>("individual");
   const [selectedReflectionIndex, setSelectedReflectionIndex] = useState(0);
+  const [selectedRotationIndex, setSelectedRotationIndex] = useState(0);
+  const [selectedHalfTurnIndex, setSelectedHalfTurnIndex] = useState(0);
   const [selectedRotoreflectionIndex, setSelectedRotoreflectionIndex] = useState(0);
   const [showOtherReflections, setShowOtherReflections] = useState(false);
+  const [showOtherRotationAxes, setShowOtherRotationAxes] = useState(false);
+  const [showOtherHalfTurnAxes, setShowOtherHalfTurnAxes] = useState(false);
   const [showOtherRotoreflectionAxes, setShowOtherRotoreflectionAxes] = useState(false);
   const [showRotoreflectionPlane, setShowRotoreflectionPlane] = useState(true);
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
-  const reflections = definition.symmetry.reflections;
+  const { symmetry } = definition;
+  const reflections = symmetry.reflections;
 
   const toggleClass = useCallback((cls: SymmetryClass) => {
+    if (!visibleClasses.has(cls)) {
+      if (cls === "rotations3") setSelectedRotationIndex(0);
+      if (cls === "halfTurns") setSelectedHalfTurnIndex(0);
+      if (cls === "reflections") setSelectedReflectionIndex(0);
+      if (cls === "rotoreflections") setSelectedRotoreflectionIndex(0);
+    }
     setVisibleClasses((prev) => {
       const next = new Set(prev);
       if (next.has(cls)) next.delete(cls);
       else next.add(cls);
       return next;
     });
-  }, []);
+  }, [visibleClasses]);
 
   const resetView = useCallback(() => {
     controlsRef.current?.reset();
@@ -55,6 +66,10 @@ export default function PolyhedronStudio({ definition, onExit }: PolyhedronStudi
           visibleClasses={visibleClasses}
           reflectionMode={reflectionMode}
           selectedReflectionIndex={selectedReflectionIndex}
+          selectedRotationIndex={selectedRotationIndex}
+          showOtherRotationAxes={showOtherRotationAxes}
+          selectedHalfTurnIndex={selectedHalfTurnIndex}
+          showOtherHalfTurnAxes={showOtherHalfTurnAxes}
           selectedRotoreflectionIndex={selectedRotoreflectionIndex}
           showOtherReflections={showOtherReflections}
           color={color}
@@ -90,13 +105,61 @@ export default function PolyhedronStudio({ definition, onExit }: PolyhedronStudi
         }
         showOtherReflections={showOtherReflections}
         onShowOtherReflectionsChange={setShowOtherReflections}
-        rotoreflectionLabel={definition.symmetryLabels?.rotoreflections}
+        symmetryLabels={definition.symmetryLabels}
+        symmetryCounts={{
+          rotations3: symmetry.rotations3.length,
+          halfTurns: symmetry.halfTurns.length,
+          reflections: symmetry.reflections.length,
+          rotoreflections: symmetry.rotoreflections.length,
+        }}
+        selectedRotationIndex={selectedRotationIndex}
+        rotationCount={symmetry.rotations3.length}
+        rotationAxisCount={axisCount(symmetry.rotations3)}
+        rotationAxisOrdinal={axisOrdinal(symmetry.rotations3, selectedRotationIndex)}
+        selectedRotation={symmetry.rotations3[selectedRotationIndex]}
+        onPreviousRotation={() =>
+          setSelectedRotationIndex((index) =>
+            wrapReflectionIndex(index, -1, symmetry.rotations3.length),
+          )
+        }
+        onNextRotation={() =>
+          setSelectedRotationIndex((index) =>
+            wrapReflectionIndex(index, 1, symmetry.rotations3.length),
+          )
+        }
+        showOtherRotationAxes={showOtherRotationAxes}
+        onShowOtherRotationAxesChange={setShowOtherRotationAxes}
+        selectedHalfTurnIndex={selectedHalfTurnIndex}
+        halfTurnCount={symmetry.halfTurns.length}
+        halfTurnAxisCount={axisCount(symmetry.halfTurns)}
+        halfTurnAxisOrdinal={axisOrdinal(symmetry.halfTurns, selectedHalfTurnIndex)}
+        selectedHalfTurn={symmetry.halfTurns[selectedHalfTurnIndex]}
+        onPreviousHalfTurn={() =>
+          setSelectedHalfTurnIndex((index) =>
+            wrapReflectionIndex(index, -1, symmetry.halfTurns.length),
+          )
+        }
+        onNextHalfTurn={() =>
+          setSelectedHalfTurnIndex((index) =>
+            wrapReflectionIndex(index, 1, symmetry.halfTurns.length),
+          )
+        }
+        showOtherHalfTurnAxes={showOtherHalfTurnAxes}
+        onShowOtherHalfTurnAxesChange={setShowOtherHalfTurnAxes}
         selectedRotoreflectionIndex={selectedRotoreflectionIndex}
-        rotoreflectionCount={definition.symmetry.rotoreflections.length}
-        rotoreflectionAxisCount={new Set(definition.symmetry.rotoreflections.map((el) => el.axisId).filter(Boolean)).size}
-        selectedRotoreflection={definition.symmetry.rotoreflections[selectedRotoreflectionIndex]}
-        onPreviousRotoreflection={() => setSelectedRotoreflectionIndex((index) => wrapReflectionIndex(index, -1, definition.symmetry.rotoreflections.length))}
-        onNextRotoreflection={() => setSelectedRotoreflectionIndex((index) => wrapReflectionIndex(index, 1, definition.symmetry.rotoreflections.length))}
+        rotoreflectionCount={symmetry.rotoreflections.length}
+        rotoreflectionAxisCount={axisCount(symmetry.rotoreflections)}
+        selectedRotoreflection={symmetry.rotoreflections[selectedRotoreflectionIndex]}
+        onPreviousRotoreflection={() =>
+          setSelectedRotoreflectionIndex((index) =>
+            wrapReflectionIndex(index, -1, symmetry.rotoreflections.length),
+          )
+        }
+        onNextRotoreflection={() =>
+          setSelectedRotoreflectionIndex((index) =>
+            wrapReflectionIndex(index, 1, symmetry.rotoreflections.length),
+          )
+        }
         showOtherRotoreflectionAxes={showOtherRotoreflectionAxes}
         onShowOtherRotoreflectionAxesChange={setShowOtherRotoreflectionAxes}
         showRotoreflectionPlane={showRotoreflectionPlane}

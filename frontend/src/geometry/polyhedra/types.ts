@@ -17,6 +17,8 @@ export interface SymmetryElementAxis {
   direction: Vec3;
   angle: number;
   label: string;
+  /** Identifies a physical axis shared by multiple transformations, when known. */
+  axisId?: string;
 }
 
 export interface SymmetryElementPlane {
@@ -71,6 +73,62 @@ export function wrapReflectionIndex(
 ): number {
   if (count <= 0) return 0;
   return (currentIndex + delta + count) % count;
+}
+
+type AxisBearingElement = Pick<SymmetryElementAxis, "direction" | "axisId"> | Pick<SymmetryElementImproper, "direction" | "axisId">;
+
+/**
+ * Returns a stable physical-axis key. Opposite direction vectors describe the
+ * same geometric line, so their sign is canonicalised when no data id exists.
+ */
+export function axisKeyForElement(element: AxisBearingElement): string {
+  if (element.axisId) return element.axisId;
+
+  const direction = new Vector3(...element.direction).normalize();
+  const components = [direction.x, direction.y, direction.z];
+  const firstNonZero = components.find((component) => Math.abs(component) > 1e-8) ?? 1;
+  const sign = firstNonZero < 0 ? -1 : 1;
+  return components.map((component) => (component * sign).toFixed(4)).join(",");
+}
+
+export function axisCount(elements: readonly AxisBearingElement[]): number {
+  return new Set(elements.map(axisKeyForElement)).size;
+}
+
+export function axisOrdinal(
+  elements: readonly AxisBearingElement[],
+  selectedIndex: number,
+): number {
+  if (elements.length === 0) return 0;
+  const selected = Math.min(Math.max(selectedIndex, 0), elements.length - 1);
+  const selectedKey = axisKeyForElement(elements[selected]);
+  return [...new Set(elements.map(axisKeyForElement))].indexOf(selectedKey) + 1;
+}
+
+/**
+ * Keeps the selected transformation and, optionally, one representative of
+ * every other physical axis. This prevents +θ and −θ from duplicating an axis.
+ */
+export function axisIndicesToRender(
+  elements: readonly AxisBearingElement[],
+  selectedIndex: number,
+  showOthers: boolean,
+): number[] {
+  if (elements.length === 0) return [];
+  const selected = Math.min(Math.max(selectedIndex, 0), elements.length - 1);
+  if (!showOthers) return [selected];
+
+  const selectedAxisKey = axisKeyForElement(elements[selected]);
+  const seen = new Set<string>([selectedAxisKey]);
+  const references: number[] = [];
+  elements.forEach((element, index) => {
+    const key = axisKeyForElement(element);
+    if (key !== selectedAxisKey && !seen.has(key)) {
+      seen.add(key);
+      references.push(index);
+    }
+  });
+  return [selected, ...references];
 }
 
 // Reflection (Householder) as a 4x4 linear matrix: I - 2 n n^T.

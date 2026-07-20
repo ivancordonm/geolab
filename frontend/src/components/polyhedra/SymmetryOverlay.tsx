@@ -1,4 +1,7 @@
 import { useMemo } from "react";
+// Pulls in react-three-fiber v9's JSX.IntrinsicElements augmentation so the
+// <mesh>/<group>/<lineSegments>/... intrinsics typecheck in this file.
+import type {} from "@react-three/fiber";
 import { Quaternion, Vector3 } from "three";
 import type {
   PolyhedronDefinition,
@@ -38,6 +41,12 @@ function AxisLine({
       <lineSegments>
         <bufferGeometry>
           <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+          {dashed && (
+            <bufferAttribute
+              attach="attributes-lineDistance"
+              args={[new Float32Array([0, AXIS_LEN * 2]), 1]}
+            />
+          )}
         </bufferGeometry>
         {dashed ? (
           <lineDashedMaterial color="#f59e0b" dashSize={0.15} gapSize={0.1} />

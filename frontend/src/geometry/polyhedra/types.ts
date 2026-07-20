@@ -4,8 +4,10 @@ import type { ConstructionTool } from "../constructionTools";
 export type Vec3 = readonly [number, number, number];
 
 export type SymmetryClass =
+  | "identity"
   | "rotations3"
   | "halfTurns"
+  | "inversion"
   | "reflections"
   | "rotoreflections";
 
@@ -49,10 +51,23 @@ export interface SymmetryElementImproper {
   rotationSense?: "positive" | "negative";
 }
 
+export interface SymmetryElementIdentity {
+  kind: "identity";
+  label: string;
+}
+
+export interface SymmetryElementInversion {
+  kind: "inversion";
+  point: Vec3;
+  label: string;
+}
+
 export type SymmetryElement =
   | SymmetryElementAxis
   | SymmetryElementPlane
-  | SymmetryElementImproper;
+  | SymmetryElementImproper
+  | SymmetryElementIdentity
+  | SymmetryElementInversion;
 
 export interface PolyhedronDefinition {
   id: string;
@@ -61,11 +76,15 @@ export interface PolyhedronDefinition {
   faces: number[][];
   edges: readonly (readonly [number, number])[];
   symmetry: {
+    identity: SymmetryElementIdentity[];
     rotations3: SymmetryElementAxis[];
     halfTurns: SymmetryElementAxis[];
+    inversion: SymmetryElementInversion[];
     reflections: SymmetryElementPlane[];
     rotoreflections: SymmetryElementImproper[];
   };
+  /** Classes to expose in this polyhedron's study menu. */
+  symmetryClassOrder: readonly SymmetryClass[];
   symmetryLabels?: Partial<Record<SymmetryClass, string>>;
   defaultColor: string;
 }
@@ -155,6 +174,8 @@ function rotationMatrix(direction: Vec3, angle: number): Matrix4 {
 // Linear 3x3 matrix (as Matrix4) for a symmetry element, centered at origin.
 export function matrixForElement(element: SymmetryElement): Matrix4 {
   switch (element.kind) {
+    case "identity":
+      return new Matrix4();
     case "axis":
       return rotationMatrix(element.direction, element.angle);
     case "plane":
@@ -165,6 +186,9 @@ export function matrixForElement(element: SymmetryElement): Matrix4 {
       const mirror = reflectionMatrix(element.direction);
       return mirror.multiply(rot);
     }
+    case "inversion":
+      // Central inversion sends every vector v to −v.
+      return new Matrix4().makeScale(-1, -1, -1);
   }
 }
 

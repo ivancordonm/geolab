@@ -24,7 +24,8 @@ interface SymmetryMenuProps {
   showOtherReflections: boolean;
   onShowOtherReflectionsChange: (value: boolean) => void;
   symmetryLabels?: Partial<Record<SymmetryClass, string>>;
-  symmetryCounts: Record<SymmetryClass, number>;
+  symmetryCounts: Partial<Record<SymmetryClass, number>>;
+  symmetryClassOrder?: readonly SymmetryClass[];
   selectedRotationIndex: number;
   rotationCount: number;
   rotationAxisCount: number;
@@ -58,8 +59,10 @@ interface SymmetryMenuProps {
 }
 
 const CLASS_LABELS: Record<SymmetryClass, string> = {
+  identity: "Identidad",
   rotations3: "Rotaciones ±120°",
   halfTurns: "Medias vueltas 180°",
+  inversion: "Simetría central",
   reflections: "Reflexiones",
   rotoreflections: "Rotorreflexiones",
 };
@@ -173,6 +176,7 @@ export function SymmetryMenu({
   onShowOtherReflectionsChange,
   symmetryLabels,
   symmetryCounts,
+  symmetryClassOrder = CLASS_ORDER,
   selectedRotationIndex,
   rotationCount,
   rotationAxisCount,
@@ -205,9 +209,9 @@ export function SymmetryMenu({
   onShowRotoreflectionPlaneChange,
 }: SymmetryMenuProps) {
   const labels = Object.fromEntries(
-    CLASS_ORDER.map((symmetryClass) => [
+    symmetryClassOrder.map((symmetryClass) => [
       symmetryClass,
-      `${symmetryLabels?.[symmetryClass] ?? CLASS_LABELS[symmetryClass]} (${symmetryCounts[symmetryClass]})`,
+      `${symmetryLabels?.[symmetryClass] ?? CLASS_LABELS[symmetryClass]} (${symmetryCounts[symmetryClass] ?? 0})`,
     ]),
   ) as Record<SymmetryClass, string>;
   return (
@@ -230,7 +234,7 @@ export function SymmetryMenu({
       <p className="mb-1 text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-muted">
         Simetrías
       </p>
-      {CLASS_ORDER.map((cls) => (
+      {symmetryClassOrder.map((cls) => (
         <div key={cls}>
           <label className="mb-1.5 flex cursor-pointer items-center gap-2">
             <input
@@ -242,6 +246,11 @@ export function SymmetryMenu({
             />
             <span className="text-xs text-content">{labels[cls]}</span>
           </label>
+          {cls === "identity" && visibleClasses.has("identity") && (
+            <p className="mb-2 ml-5 text-[0.65rem] leading-tight text-muted">
+              Deja todos los puntos del poliedro invariantes.
+            </p>
+          )}
           {cls === "rotations3" && visibleClasses.has("rotations3") && (
             <AxisFamilyControls
               singularName="Rotación"
@@ -269,6 +278,11 @@ export function SymmetryMenu({
               showOtherAxes={showOtherHalfTurnAxes}
               onShowOtherAxesChange={onShowOtherHalfTurnAxesChange}
             />
+          )}
+          {cls === "inversion" && visibleClasses.has("inversion") && (
+            <p className="mb-2 ml-5 text-[0.65rem] leading-tight text-muted">
+              Envía cada punto al opuesto respecto del centro.
+            </p>
           )}
           {cls === "reflections" && visibleClasses.has("reflections") && (
             <div className="mb-2 ml-5 rounded-md border border-edge p-2">

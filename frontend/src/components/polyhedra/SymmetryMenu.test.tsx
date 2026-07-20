@@ -31,7 +31,9 @@ function setup(overrides: Record<string, unknown> = {}) {
     showOtherReflections: false,
     onShowOtherReflectionsChange: vi.fn(),
     symmetryLabels: { rotoreflections: "Rotorreflexiones ±90°" },
+    symmetryClassOrder: ["identity", "rotations3", "halfTurns", "reflections", "rotoreflections"] as const,
     symmetryCounts: {
+      identity: 1,
       rotations3: 8,
       halfTurns: 3,
       reflections: 6,
@@ -112,13 +114,25 @@ describe("SymmetryMenu", () => {
     expect(props.onExit).toHaveBeenCalled();
   });
 
-  it("shows all four symmetry classes and the polyhedron name", () => {
+  it("shows all five tetrahedron symmetry classes and the polyhedron name", () => {
     setup();
     expect(screen.getByText("Tetraedro")).toBeInTheDocument();
+    expect(screen.getByLabelText("Identidad (1)")).toBeInTheDocument();
     expect(screen.getByLabelText("Rotaciones ±120° (8)")).toBeInTheDocument();
     expect(screen.getByLabelText("Medias vueltas 180° (3)")).toBeInTheDocument();
     expect(screen.getByLabelText("Reflexiones (6)")).toBeInTheDocument();
     expect(screen.getByLabelText("Rotorreflexiones ±90° (6)")).toBeInTheDocument();
+  });
+
+  it("uses a polyhedron's declared symmetry-class order", () => {
+    setup({
+      polyhedronName: "Cubo",
+      symmetryClassOrder: ["identity", "inversion"],
+      symmetryCounts: { identity: 1, inversion: 1 },
+    });
+    expect(screen.getByLabelText("Identidad (1)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Simetría central (1)")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Reflexiones/)).not.toBeInTheDocument();
   });
 
   it("shows reflection controls and forwards their changes", async () => {

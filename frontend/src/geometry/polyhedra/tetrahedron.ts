@@ -108,7 +108,8 @@ export const TETRAHEDRON: PolyhedronDefinition = {
     [1, 3],
     [2, 3],
   ],
-  symmetry: { rotations3, halfTurns, reflections, rotoreflections },
+  symmetry: { identity: [{ kind: "identity", label: "E" }], rotations3, halfTurns, inversion: [], reflections, rotoreflections },
+  symmetryClassOrder: ["identity", "rotations3", "halfTurns", "reflections", "rotoreflections"],
   symmetryLabels: { rotoreflections: "Rotorreflexiones ±90°" },
   defaultColor: "#3b82f6",
 };

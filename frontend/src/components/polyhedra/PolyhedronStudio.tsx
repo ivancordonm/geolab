@@ -55,6 +55,25 @@ export default function PolyhedronStudio({ definition, onExit }: PolyhedronStudi
     controlsRef.current?.reset();
   }, []);
 
+  if (definition.underConstruction) {
+    return (
+      <div className="absolute inset-0 z-[10000] bg-surface">
+        <Canvas camera={{ position: [3, 2, 3], fov: 50 }}>
+          <ambientLight intensity={0.7} />
+          <directionalLight position={[4, 5, 3]} intensity={0.8} />
+          <PolyhedronMesh definition={definition} color={definition.defaultColor} opacity={0.6} />
+          <OrbitControls ref={controlsRef} enablePan={false} />
+        </Canvas>
+        <div className="absolute left-4 top-4 flex items-center gap-3 rounded-card border border-edge bg-surface/95 px-3 py-2 shadow-pop">
+          <p className="text-sm font-semibold text-content">Under construction</p>
+          <button type="button" onClick={onExit} className="text-xs font-semibold text-muted hover:text-content">
+            Salir
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="absolute inset-0 z-[10000] bg-surface">
       <Canvas camera={{ position: [3, 2, 3], fov: 50 }}>

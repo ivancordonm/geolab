@@ -4,8 +4,9 @@ import userEvent from "@testing-library/user-event";
 
 // Stub the heavy 3D studio so the test never loads three.js/WebGL.
 vi.mock("./components/polyhedra/PolyhedronStudio", () => ({
-  default: ({ onExit }: { onExit: () => void }) => (
+  default: ({ definition, onExit }: { definition: { underConstruction?: boolean }; onExit: () => void }) => (
     <div data-testid="studio">
+      {definition.underConstruction && <p>Under construction</p>}
       <button onClick={onExit}>Salir a 2D</button>
     </div>
   ),
@@ -27,5 +28,14 @@ describe("polyhedron entry from toolbar", () => {
     // Accept -> studio renders.
     await userEvent.click(screen.getByRole("button", { name: /continuar/i }));
     expect(await screen.findByTestId("studio")).toBeInTheDocument();
+  });
+
+  it.each(["Dodecahedron", "Icosahedron"])("opens the temporary figure for %s", async (tool) => {
+    render(<App />);
+    await userEvent.click(screen.getByRole("button", { name: "Regular polyhedra" }));
+    await userEvent.click(screen.getByRole("menuitem", { name: tool }));
+    await userEvent.click(await screen.findByRole("button", { name: /continuar/i }));
+
+    expect(await screen.findByText("Under construction")).toBeInTheDocument();
   });
 });

@@ -107,11 +107,14 @@ export default function PolyhedronStudio({ definition, onExit }: PolyhedronStudi
         onShowOtherReflectionsChange={setShowOtherReflections}
         symmetryLabels={definition.symmetryLabels}
         symmetryCounts={{
+          identity: symmetry.identity.length,
           rotations3: symmetry.rotations3.length,
           halfTurns: symmetry.halfTurns.length,
+          inversion: symmetry.inversion.length,
           reflections: symmetry.reflections.length,
           rotoreflections: symmetry.rotoreflections.length,
         }}
+        symmetryClassOrder={definition.symmetryClassOrder}
         selectedRotationIndex={selectedRotationIndex}
         rotationCount={symmetry.rotations3.length}
         rotationAxisCount={axisCount(symmetry.rotations3)}

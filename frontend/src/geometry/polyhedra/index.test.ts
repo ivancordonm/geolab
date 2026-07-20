@@ -12,9 +12,9 @@ describe("polyhedron registry", () => {
     ]);
   });
 
-  it("resolves the tetrahedron and returns undefined for unimplemented ones", () => {
+  it("resolves implemented polyhedra and leaves pending ones undefined", () => {
     expect(polyhedronForTool("tetrahedron")?.id).toBe("tetrahedron");
-    expect(polyhedronForTool("cube")).toBeUndefined();
+    expect(polyhedronForTool("cube")?.id).toBe("cube");
     expect(polyhedronForTool("point")).toBeUndefined();
   });
 });

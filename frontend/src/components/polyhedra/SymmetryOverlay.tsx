@@ -268,6 +268,12 @@ export function SymmetryOverlay({
           color={color}
         />
       )}
+      {visibleClasses.has("inversion") && s.inversion.length > 0 && (
+        <mesh position={s.inversion[0].point}>
+          <sphereGeometry args={[0.12, 16, 16]} />
+          <meshBasicMaterial color={color} transparent opacity={0.95} depthTest={false} />
+        </mesh>
+      )}
       {visibleClasses.has("reflections") &&
         reflectionIndices.map((i) => {
           const el = s.reflections[i];

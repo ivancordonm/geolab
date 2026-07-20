@@ -57,7 +57,13 @@ export type ConstructionTool =
   | "rotation"
   | "polygon"
   | "regular_polygon"
-  | "vector_polygon";
+  | "vector_polygon"
+  // UI-only placeholders: construction behavior will be added in a later task.
+  | "tetrahedron"
+  | "cube"
+  | "octahedron"
+  | "dodecahedron"
+  | "icosahedron";
 
 type LineObject = Extract<GeometryObject, { kind: "line" }>;
 type CircleObject = Extract<GeometryObject, { kind: "circle" }>;
@@ -115,6 +121,11 @@ export const TOOL_INSTRUCTIONS: Record<ConstructionTool, string> = {
   polygon: "Click 3+ points to define a polygon. Click the first point again or press Enter to close.",
   regular_polygon: "Click two adjacent vertices, then set the number of sides in the toolbar.",
   vector_polygon: "Click an anchor point and then additional vertices; drag the anchor to translate the whole polygon.",
+  tetrahedron: "Regular tetrahedron construction will be available soon.",
+  cube: "Regular cube construction will be available soon.",
+  octahedron: "Regular octahedron construction will be available soon.",
+  dodecahedron: "Regular dodecahedron construction will be available soon.",
+  icosahedron: "Regular icosahedron construction will be available soon.",
 };
 
 type RequiredKind = "point" | "line" | "circle" | "line_or_circle" | "invertible";
@@ -177,6 +188,11 @@ function toolLabel(tool: ConstructionTool): string {
     polygon: "Polygon",
     regular_polygon: "Regular polygon",
     vector_polygon: "Vector polygon",
+    tetrahedron: "Tetrahedron",
+    cube: "Cube",
+    octahedron: "Octahedron",
+    dodecahedron: "Dodecahedron",
+    icosahedron: "Icosahedron",
   };
   return labels[tool] ?? "Construction";
 }

@@ -39,12 +39,21 @@ const AXES: Vec3[] = [
   [0, 0, 1],
 ];
 
+const HALF_TURN_AXIS_LABELS = [
+  "puntos medios de AB y CD",
+  "puntos medios de AC y BD",
+  "puntos medios de AD y BC",
+] as const;
+
 const halfTurns: SymmetryElementAxis[] = AXES.map((dir, i) => ({
   kind: "axis",
   point: [0, 0, 0],
   direction: dir,
   angle: Math.PI,
   label: `C2(${i})`,
+  axisId: `half-turn-axis-${i}`,
+  axisLabel: HALF_TURN_AXIS_LABELS[i],
+  order: 2,
 }));
 
 const PAIRS: [number, number][] = [

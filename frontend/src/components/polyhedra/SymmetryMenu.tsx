@@ -117,10 +117,20 @@ function AxisFamilyControls({
         </button>
       </div>
       {selected && (
-        <p className="mt-1 text-[0.65rem] text-muted">
-          Eje {axisCount > 0 ? `${axisOrdinal} de ${axisCount}` : ""}
-          {degrees > 0 ? ` · Giro: ${sense}${degrees}°` : ""}
-        </p>
+        singularName === "Media vuelta" ? (
+          <div className="mt-1 text-[0.65rem] text-muted">
+            <p>
+              Eje: {selected.axisLabel ?? (axisCount > 0 ? `Eje ${axisOrdinal} de ${axisCount}` : "")}
+            </p>
+            <p>Ángulo: {degrees}°</p>
+            <p>Orden: {selected.order ?? 2}</p>
+          </div>
+        ) : (
+          <p className="mt-1 text-[0.65rem] text-muted">
+            Eje {axisCount > 0 ? `${axisOrdinal} de ${axisCount}` : ""}
+            {degrees > 0 ? ` · Giro: ${sense}${degrees}°` : ""}
+          </p>
+        )
       )}
       <label className="mt-1 flex cursor-pointer items-start gap-1.5">
         <input

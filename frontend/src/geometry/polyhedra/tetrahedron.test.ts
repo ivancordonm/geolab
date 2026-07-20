@@ -33,6 +33,11 @@ describe("TETRAHEDRON definition", () => {
   it("lists 8+3+6+6 = 23 non-identity elements", () => {
     expect(TETRAHEDRON.symmetry.rotations3).toHaveLength(8);
     expect(TETRAHEDRON.symmetry.halfTurns).toHaveLength(3);
+    expect(TETRAHEDRON.symmetry.halfTurns.map((element) => element.axisLabel)).toEqual([
+      "puntos medios de AB y CD",
+      "puntos medios de AC y BD",
+      "puntos medios de AD y BC",
+    ]);
     expect(TETRAHEDRON.symmetry.reflections).toHaveLength(6);
     expect(TETRAHEDRON.symmetry.rotoreflections).toHaveLength(6);
     expect(allElements()).toHaveLength(23);

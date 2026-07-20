@@ -62,6 +62,8 @@ function setup(overrides: Record<string, unknown> = {}) {
       direction: [1, 0, 0] as const,
       angle: Math.PI,
       label: "C2",
+      axisLabel: "puntos medios de AB y CD",
+      order: 2,
     },
     onPreviousHalfTurn: vi.fn(),
     onNextHalfTurn: vi.fn(),
@@ -167,6 +169,9 @@ describe("SymmetryMenu", () => {
     const props = setup({ visibleClasses: new Set(["halfTurns"]) });
 
     expect(screen.getByText("Media vuelta 1 de 3")).toBeInTheDocument();
+    expect(screen.getByText("Eje: puntos medios de AB y CD")).toBeInTheDocument();
+    expect(screen.getByText("Ángulo: 180°")).toBeInTheDocument();
+    expect(screen.getByText("Orden: 2")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: "Media vuelta siguiente" }));
     await userEvent.click(screen.getByText("Mostrar los demás ejes como referencia"));
 

@@ -17,6 +17,10 @@ export interface SymmetryElementAxis {
   direction: Vec3;
   angle: number;
   label: string;
+  /** Human-readable geometric description of this physical axis. */
+  axisLabel?: string;
+  /** Order of the rotation represented by this element. */
+  order?: number;
   /** Identifies a physical axis shared by multiple transformations, when known. */
   axisId?: string;
 }

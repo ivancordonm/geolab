@@ -353,7 +353,6 @@ Expected: FAIL ("Cannot find module './tetrahedron'").
 
 Create `frontend/src/geometry/polyhedra/tetrahedron.ts`:
 ```ts
-import { Vector3 } from "three";
 import type { PolyhedronDefinition, SymmetryElement, Vec3 } from "./types";
 
 const RAW: Vec3[] = [
@@ -439,12 +438,7 @@ export const TETRAHEDRON: PolyhedronDefinition = {
   symmetry: { rotations3, halfTurns, reflections, rotoreflections },
   defaultColor: "#3b82f6",
 };
-
-// Referenced so `Vector3` import stays meaningful for future callers; no-op.
-void Vector3;
 ```
-
-Note: remove the trailing `void Vector3;` line and the `Vector3` import if the linter flags the unused import; they are only there to keep the block self-contained. Prefer deleting both.
 
 - [ ] **Step 4: Run test to verify it passes**
 

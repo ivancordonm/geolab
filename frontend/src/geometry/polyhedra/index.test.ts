@@ -12,10 +12,12 @@ describe("polyhedron registry", () => {
     ]);
   });
 
-  it("resolves implemented polyhedra and leaves pending ones undefined", () => {
+  it("resolves implemented and temporary mesh-only polyhedra", () => {
     expect(polyhedronForTool("tetrahedron")?.id).toBe("tetrahedron");
     expect(polyhedronForTool("cube")?.id).toBe("cube");
     expect(polyhedronForTool("octahedron")?.id).toBe("octahedron");
+    expect(polyhedronForTool("dodecahedron")).toMatchObject({ id: "dodecahedron", underConstruction: true });
+    expect(polyhedronForTool("icosahedron")).toMatchObject({ id: "icosahedron", underConstruction: true });
     expect(polyhedronForTool("point")).toBeUndefined();
   });
 });

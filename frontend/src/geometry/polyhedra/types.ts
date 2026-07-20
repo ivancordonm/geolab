@@ -87,6 +87,8 @@ export interface PolyhedronDefinition {
   symmetryClassOrder: readonly SymmetryClass[];
   symmetryLabels?: Partial<Record<SymmetryClass, string>>;
   defaultColor: string;
+  /** Temporary mesh-only entry while its symmetry study is being prepared. */
+  underConstruction?: boolean;
 }
 
 export function wrapReflectionIndex(

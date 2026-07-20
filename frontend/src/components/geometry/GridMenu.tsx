@@ -72,7 +72,7 @@ export function GridMenu({ settings, onChange }: GridMenuProps) {
       <button
         ref={triggerRef}
         type="button"
-        title="Cuadrícula"
+        title="Grid"
         aria-label="Grid settings"
         aria-expanded={open}
         onClick={handleToggle}
@@ -91,7 +91,7 @@ export function GridMenu({ settings, onChange }: GridMenuProps) {
               className="rounded-xl border border-edge bg-surface p-3 shadow-pop"
             >
               <p className="mb-2 text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-muted">
-                Cuadrícula
+                Grid
               </p>
               <label className="mb-2 flex cursor-pointer items-center gap-2">
                 <input
@@ -100,7 +100,7 @@ export function GridMenu({ settings, onChange }: GridMenuProps) {
                   onChange={(event) => onChange({ ...settings, showGrid: event.target.checked })}
                   className="h-3.5 w-3.5 rounded accent-brand-600"
                 />
-                <span className="text-xs text-content">Mostrar cuadrícula</span>
+                <span className="text-xs text-content">Show grid</span>
               </label>
               <label className="mb-2 flex cursor-pointer items-center gap-2">
                 <input
@@ -109,7 +109,7 @@ export function GridMenu({ settings, onChange }: GridMenuProps) {
                   onChange={(event) => onChange({ ...settings, showAxes: event.target.checked })}
                   className="h-3.5 w-3.5 rounded accent-brand-600"
                 />
-                <span className="text-xs text-content">Mostrar ejes</span>
+                <span className="text-xs text-content">Show axes</span>
               </label>
               <label className="mb-3 flex cursor-pointer items-center gap-2">
                 <input
@@ -118,11 +118,11 @@ export function GridMenu({ settings, onChange }: GridMenuProps) {
                   onChange={(event) => onChange({ ...settings, snapToGrid: event.target.checked })}
                   className="h-3.5 w-3.5 rounded accent-brand-600"
                 />
-                <span className="text-xs text-content">Ajustar a cuadrícula</span>
+                <span className="text-xs text-content">Snap to grid</span>
               </label>
 
               <p className="mb-1 text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-muted">
-                Paso
+                Step
               </p>
               <label className="mb-1.5 flex cursor-pointer items-center gap-2">
                 <input
@@ -132,7 +132,7 @@ export function GridMenu({ settings, onChange }: GridMenuProps) {
                   onChange={() => onChange({ ...settings, stepMode: "auto" })}
                   className="h-3.5 w-3.5 accent-brand-600"
                 />
-                <span className="text-xs text-content">Automático</span>
+                <span className="text-xs text-content">Auto</span>
               </label>
               <label className="flex cursor-pointer items-center gap-2">
                 <input

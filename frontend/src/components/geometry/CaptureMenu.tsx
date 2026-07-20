@@ -65,7 +65,7 @@ export function CaptureMenu({ onCaptureFull, onCaptureArea }: CaptureMenuProps) 
       <button
         ref={triggerRef}
         type="button"
-        title="Capturas"
+        title="Capture"
         aria-label="Capture menu"
         aria-expanded={open}
         onClick={handleToggle}
@@ -89,7 +89,7 @@ export function CaptureMenu({ onCaptureFull, onCaptureArea }: CaptureMenuProps) 
                 className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left text-sm text-content hover:bg-surface-hover focus-visible:bg-surface-hover focus-visible:outline-none"
               >
                 <Fullscreen size={16} className="text-muted" />
-                Capturar todo
+                Capture full
               </button>
               <button
                 type="button"
@@ -97,7 +97,7 @@ export function CaptureMenu({ onCaptureFull, onCaptureArea }: CaptureMenuProps) 
                 className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left text-sm text-content hover:bg-surface-hover focus-visible:bg-surface-hover focus-visible:outline-none"
               >
                 <Crop size={16} className="text-muted" />
-                Capturar selección
+                Capture area
               </button>
             </div>,
             document.body,

@@ -2,6 +2,7 @@ import type { ConstructionTool } from "../constructionTools";
 import type { PolyhedronDefinition } from "./types";
 import { TETRAHEDRON } from "./tetrahedron";
 import { CUBE } from "./cube";
+import { OCTAHEDRON } from "./octahedron";
 
 export const POLYHEDRON_TOOLS: readonly ConstructionTool[] = [
   "tetrahedron",
@@ -16,6 +17,7 @@ export const POLYHEDRON_DEFINITIONS: Partial<
 > = {
   tetrahedron: TETRAHEDRON,
   cube: CUBE,
+  octahedron: OCTAHEDRON,
 };
 
 export function polyhedronForTool(

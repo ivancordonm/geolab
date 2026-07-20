@@ -9,18 +9,12 @@ import { useEffect, useMemo } from "react";
 // intrinsic elements below are unrecognized.
 import type {} from "@react-three/fiber";
 import { BufferGeometry, DoubleSide, Float32BufferAttribute } from "three";
-import { transformedVertices } from "../../geometry/polyhedra/animation";
-import type {
-  PolyhedronDefinition,
-  SymmetryElement,
-  Vec3,
-} from "../../geometry/polyhedra/types";
+import type { PolyhedronDefinition, Vec3 } from "../../geometry/polyhedra/types";
 
 interface PolyhedronMeshProps {
   definition: PolyhedronDefinition;
   color: string;
   opacity: number;
-  animation: { element: SymmetryElement; progress: number } | null;
 }
 
 function faceGeometry(vertices: Vec3[], faces: number[][]): BufferGeometry {
@@ -52,32 +46,15 @@ function edgeGeometry(
   return geom;
 }
 
-export function PolyhedronMesh({
-  definition,
-  color,
-  opacity,
-  animation,
-}: PolyhedronMeshProps) {
-  const vertices = useMemo<Vec3[]>(
-    () =>
-      animation
-        ? transformedVertices(
-            definition.vertices,
-            animation.element,
-            animation.progress,
-          )
-        : definition.vertices,
-    [definition.vertices, animation],
-  );
-
+export function PolyhedronMesh({ definition, color, opacity }: PolyhedronMeshProps) {
   const faces = useMemo(
-    () => faceGeometry(vertices, definition.faces),
-    [vertices, definition.faces],
+    () => faceGeometry(definition.vertices, definition.faces),
+    [definition.vertices, definition.faces],
   );
   useEffect(() => () => faces.dispose(), [faces]);
   const edges = useMemo(
-    () => edgeGeometry(vertices, definition.edges),
-    [vertices, definition.edges],
+    () => edgeGeometry(definition.vertices, definition.edges),
+    [definition.vertices, definition.edges],
   );
   useEffect(() => () => edges.dispose(), [edges]);
 

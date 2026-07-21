@@ -4,6 +4,7 @@ import { Grid3x3 } from "lucide-react";
 
 import type { GridSettings } from "../../geometry/viewport";
 import { ToolbarTooltip } from "./ToolbarTooltip";
+import { useLanguage } from "../../i18n/useLanguage";
 
 interface GridMenuProps {
   settings: GridSettings;
@@ -21,6 +22,7 @@ const MENU_WIDTH = 220;
 const MENU_HEIGHT_ESTIMATE = 250;
 
 export function GridMenu({ settings, onChange }: GridMenuProps) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<MenuPos | null>(null);
   const [manualStepText, setManualStepText] = useState(String(settings.manualStep));
@@ -70,11 +72,11 @@ export function GridMenu({ settings, onChange }: GridMenuProps) {
 
   return (
     <div>
-      <ToolbarTooltip label="Grid" instruction="Configure the grid, axes, and snapping">
+      <ToolbarTooltip label={t("Cuadrícula", "Grid")} instruction={t("Configura la cuadrícula, los ejes y el ajuste", "Configure the grid, axes, and snapping")}>
         <button
           ref={triggerRef}
           type="button"
-          aria-label="Grid settings"
+          aria-label={t("Ajustes de cuadrícula", "Grid settings")}
           aria-expanded={open}
           onClick={handleToggle}
           className="flex items-center justify-center rounded-lg p-2 text-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
@@ -88,12 +90,12 @@ export function GridMenu({ settings, onChange }: GridMenuProps) {
             <div
               ref={panelRef}
               role="dialog"
-              aria-label="Grid settings"
+              aria-label={t("Ajustes de cuadrícula", "Grid settings")}
               style={{ position: "fixed", top: pos.top, left: pos.left, width: MENU_WIDTH, zIndex: 9999 }}
               className="rounded-xl border border-edge bg-surface p-3 shadow-pop"
             >
               <p className="mb-2 text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-muted">
-                Grid
+                {t("Cuadrícula", "Grid")}
               </p>
               <label className="mb-2 flex cursor-pointer items-center gap-2">
                 <input
@@ -102,7 +104,7 @@ export function GridMenu({ settings, onChange }: GridMenuProps) {
                   onChange={(event) => onChange({ ...settings, showGrid: event.target.checked })}
                   className="h-3.5 w-3.5 rounded accent-brand-600"
                 />
-                <span className="text-xs text-content">Show grid</span>
+                <span className="text-xs text-content">{t("Mostrar cuadrícula", "Show grid")}</span>
               </label>
               <label className="mb-2 flex cursor-pointer items-center gap-2">
                 <input
@@ -111,7 +113,7 @@ export function GridMenu({ settings, onChange }: GridMenuProps) {
                   onChange={(event) => onChange({ ...settings, showAxes: event.target.checked })}
                   className="h-3.5 w-3.5 rounded accent-brand-600"
                 />
-                <span className="text-xs text-content">Show axes</span>
+                <span className="text-xs text-content">{t("Mostrar ejes", "Show axes")}</span>
               </label>
               <label className="mb-3 flex cursor-pointer items-center gap-2">
                 <input
@@ -120,11 +122,11 @@ export function GridMenu({ settings, onChange }: GridMenuProps) {
                   onChange={(event) => onChange({ ...settings, snapToGrid: event.target.checked })}
                   className="h-3.5 w-3.5 rounded accent-brand-600"
                 />
-                <span className="text-xs text-content">Snap to grid</span>
+                <span className="text-xs text-content">{t("Ajustar a la cuadrícula", "Snap to grid")}</span>
               </label>
 
               <p className="mb-1 text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-muted">
-                Step
+                {t("Paso", "Step")}
               </p>
               <label className="mb-1.5 flex cursor-pointer items-center gap-2">
                 <input
@@ -134,7 +136,7 @@ export function GridMenu({ settings, onChange }: GridMenuProps) {
                   onChange={() => onChange({ ...settings, stepMode: "auto" })}
                   className="h-3.5 w-3.5 accent-brand-600"
                 />
-                <span className="text-xs text-content">Auto</span>
+                <span className="text-xs text-content">{t("Automático", "Auto")}</span>
               </label>
               <label className="flex cursor-pointer items-center gap-2">
                 <input
@@ -144,7 +146,7 @@ export function GridMenu({ settings, onChange }: GridMenuProps) {
                   onChange={() => onChange({ ...settings, stepMode: "manual" })}
                   className="h-3.5 w-3.5 accent-brand-600"
                 />
-                <span className="text-xs text-content">Manual:</span>
+                <span className="text-xs text-content">{t("Manual:", "Manual:")}</span>
                 <input
                   type="number"
                   min="0.1"

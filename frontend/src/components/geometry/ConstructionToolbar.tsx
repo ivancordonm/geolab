@@ -33,6 +33,9 @@ import {
 
 import { TOOL_INSTRUCTIONS, type ConstructionTool } from "../../geometry/constructionTools";
 import { ToolGroupButton, type GroupToolOption } from "./ToolGroupButton";
+import { useLanguage } from "../../i18n/useLanguage";
+import { toolLabel as translatedToolLabel } from "../../i18n/translateTool";
+import { groupSpanishInstruction, groupSpanishLabel } from "./toolbarTranslations";
 
 interface ConstructionToolbarProps {
   activeTool: ConstructionTool;
@@ -178,6 +181,12 @@ export function ConstructionToolbar({
   onHomothetyRatioChange,
   controls,
 }: ConstructionToolbarProps) {
+  const { language, t } = useLanguage();
+  const tools = TOOLS.map((entry) => {
+    if ("divider" in entry) return entry;
+    if ("group" in entry) return { ...entry, label: t(groupSpanishLabel(entry.group), entry.label), instruction: t(groupSpanishInstruction(entry.group), entry.instruction), tools: entry.tools.map((option) => ({ ...option, label: translatedToolLabel(language, option.tool) })) };
+    return { ...entry, label: translatedToolLabel(language, entry.tool) };
+  });
   const hasInput =
     (activeTool === "rotation" && onRotationAngleChange !== undefined) ||
     (activeTool === "homothety_scalar" && onHomothetyRatioChange !== undefined) ||
@@ -217,7 +226,7 @@ export function ConstructionToolbar({
           style={{ scrollbarWidth: "none" }}
           className="flex flex-col gap-1 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden min-h-0 flex-1"
         >
-          {TOOLS.map((entry, i) => {
+          {tools.map((entry, i) => {
             if ("divider" in entry) {
               return <div key={`div-${i}`} className="my-0.5 h-px bg-edge" role="separator" />;
             }

@@ -2,8 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SymmetryMenu } from "./SymmetryMenu";
+import { LanguageProvider } from "../../i18n/useLanguage";
 
 function setup(overrides: Record<string, unknown> = {}) {
+  sessionStorage.setItem("geolab-language", "es");
   const props = {
     polyhedronName: "Tetraedro",
     visibleClasses: new Set<string>(),
@@ -85,7 +87,7 @@ function setup(overrides: Record<string, unknown> = {}) {
     onExit: vi.fn(),
     ...overrides,
   };
-  render(<SymmetryMenu {...(props as Parameters<typeof SymmetryMenu>[0])} />);
+  render(<LanguageProvider><SymmetryMenu {...(props as Parameters<typeof SymmetryMenu>[0])} /></LanguageProvider>);
   return props as {
     onToggleClass: ReturnType<typeof vi.fn>;
     onExit: ReturnType<typeof vi.fn>;

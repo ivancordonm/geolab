@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Sparkles, Trash2 } from "lucide-react";
 
@@ -12,6 +12,7 @@ import type {
 } from "../../agent/types";
 import type { GeometryDocument } from "../../types/geometry";
 import { ConfigPopover } from "./ConfigPopover";
+import { useLanguage } from "../../i18n/useLanguage";
 
 interface AssistantPanelProps {
   document: GeometryDocument;
@@ -28,8 +29,9 @@ const INITIAL_MESSAGE: AssistantMessage = {
 };
 
 export function AssistantPanel({ document, applyingScript, onApplyScript }: AssistantPanelProps) {
+  const { language, t } = useLanguage();
   const [config, setConfig, remember, apiKeys, models] = useAssistantConfig();
-  const [messages, setMessages] = useState<AssistantMessage[]>([INITIAL_MESSAGE]);
+  const [messages, setMessages] = useState<AssistantMessage[]>(() => [{ ...INITIAL_MESSAGE, content: t("Describe una construcción en lenguaje natural (en cualquier idioma). Generaré un script validado de forma determinista para que lo revises.", "Describe a construction in natural language (any language). I will generate a deterministically validated script for your review.") }]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -40,6 +42,10 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
   const [streamProposals, setStreamProposals] = useState<ToolCallProposal[] | null>(null);
   const requestControllerRef = useRef<AbortController | null>(null);
   const streamControllerRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    setMessages((current) => current.length === 1 && current[0].id === "welcome" ? [{ ...INITIAL_MESSAGE, content: t("Describe una construcción en lenguaje natural (en cualquier idioma). Generaré un script validado de forma determinista para que lo revises.", "Describe a construction in natural language (any language). I will generate a deterministically validated script for your review.") }] : current);
+  }, [language, t]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -183,24 +189,24 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
       <div className="mb-2 flex items-center justify-between gap-2">
         <div>
           <p className="m-0 text-xs font-semibold uppercase tracking-[0.13em] text-brand-600">
-            AI planner
+            {t("Planificador de IA", "AI planner")}
           </p>
           <h2
             id="assistant-heading"
             className="m-0 mt-0.5 flex items-center gap-1.5 text-lg font-bold tracking-tight text-content"
           >
             <Sparkles size={18} aria-hidden className="text-brand-600" />
-            Assistant
+            {t("Asistente", "Assistant")}
           </h2>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="rounded-full bg-success-soft px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-success-fg">
-            Validated
+            {t("Validado", "Validated")}
           </span>
           <button
             type="button"
-            title="Start a new conversation"
-            aria-label="Start a new conversation"
+            title={t("Iniciar una conversación nueva", "Start a new conversation")}
+            aria-label={t("Iniciar una conversación nueva", "Start a new conversation")}
             disabled={applying || applyingScript}
             onClick={handleClearConversation}
             className="rounded-lg p-1.5 text-muted transition-colors hover:bg-danger-soft hover:text-danger-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-55"
@@ -222,7 +228,7 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
 
       <div
         className="flex max-h-64 flex-col gap-2 overflow-y-auto"
-        aria-label="Assistant chat history"
+        aria-label={t("Historial de chat del asistente", "Assistant chat history")}
         aria-live="polite"
       >
         {messages.map((message) => (
@@ -235,19 +241,19 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
             }`}
           >
             <strong className="mb-0.5 block text-[0.65rem] font-semibold uppercase tracking-wide opacity-80">
-              {message.role === "user" ? "You" : "Assistant"}
+              {message.role === "user" ? t("Tú", "You") : t("Asistente", "Assistant")}
             </strong>
             <p className="m-0">{message.content}</p>
           </article>
         ))}
         {loading ? (
-          <p className="m-0 text-sm font-semibold text-brand-600">Planning and validating…</p>
+          <p className="m-0 text-sm font-semibold text-brand-600">{t("Planificando y validando…", "Planning and validating…")}</p>
         ) : null}
       </div>
 
       <form className="mt-3 flex flex-col gap-2" onSubmit={handleSubmit}>
         <label className="sr-only" htmlFor="assistant-request">
-          Describe a geometry construction
+          {t("Describe una construcción geométrica", "Describe a geometry construction")}
         </label>
         <textarea
           id="assistant-request"
@@ -264,7 +270,7 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
             onClick={handleCancel}
             className="w-full rounded-lg border border-danger-edge bg-surface-muted px-4 py-2.5 text-sm font-semibold text-danger-fg transition-colors hover:bg-danger-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
           >
-            Cancel
+            {t("Cancelar", "Cancel")}
           </button>
         ) : (
           <button
@@ -272,17 +278,17 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
             disabled={!input.trim()}
             className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-55"
           >
-            Send
+            {t("Enviar", "Send")}
           </button>
         )}
         <button
           type="button"
           onClick={handleStreamPreview}
           disabled={!input.trim() || streaming || loading}
-          title="Preview the tool-calling planner's reasoning as it streams (Claude)"
+          title={t("Previsualiza el razonamiento del planificador mientras se transmite", "Preview the tool-calling planner's reasoning as it streams (Claude)")}
           className="rounded-lg border border-edge bg-surface-muted px-4 py-2 text-xs font-semibold text-muted transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-55"
         >
-          {streaming ? "Streaming…" : "Preview streaming plan (beta)"}
+          {streaming ? t("Transmitiendo…", "Streaming…") : t("Previsualizar plan en directo (beta)", "Preview streaming plan (beta)")}
         </button>
       </form>
 
@@ -298,11 +304,11 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
       {streaming || streamThinking || streamProposals ? (
         <section
           className="mt-4 border-t border-edge pt-3"
-          aria-label="Streaming planner preview"
+          aria-label={t("Previsualización del planificador en directo", "Streaming planner preview")}
           aria-live="polite"
         >
           <h3 className="m-0 mb-1.5 text-sm font-semibold text-content">
-            Streaming planner {streaming ? "(thinking…)" : "(proposal)"}
+            {t("Planificador en directo", "Streaming planner")} {streaming ? t("(pensando…)", "(thinking…)") : t("(propuesta)", "(proposal)")}
           </h3>
           {streamThinking ? (
             <p className="m-0 whitespace-pre-wrap rounded-lg bg-surface-muted p-2.5 text-sm leading-snug text-muted">
@@ -322,7 +328,7 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
           ) : null}
           {streamProposals ? (
             <p className="mt-2 mb-0 text-[0.7rem] italic text-muted">
-              Preview only — proposed tool calls are not applied automatically.
+              {t("Solo previsualización: las llamadas propuestas no se aplican automáticamente.", "Preview only — proposed tool calls are not applied automatically.")}
             </p>
           ) : null}
         </section>
@@ -331,9 +337,9 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
       {response ? (
         <section
           className="mt-4 border-t border-edge pt-3"
-          aria-label="Generated construction preview"
+          aria-label={t("Previsualización de la construcción generada", "Generated construction preview")}
         >
-          <h3 className="m-0 mb-1.5 text-sm font-semibold text-content">Plan</h3>
+          <h3 className="m-0 mb-1.5 text-sm font-semibold text-content">{t("Plan", "Plan")}</h3>
           <ol className="m-0 list-decimal pl-5 text-sm leading-relaxed text-muted">
             {response.plan.map((step) => (
               <li key={step}>{step}</li>
@@ -347,7 +353,7 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
               {warning}
             </p>
           ))}
-          <h3 className="m-0 mb-1.5 mt-3 text-sm font-semibold text-content">Generated script</h3>
+          <h3 className="m-0 mb-1.5 mt-3 text-sm font-semibold text-content">{t("Script generado", "Generated script")}</h3>
           <pre className="m-0 max-h-60 overflow-auto whitespace-pre rounded-lg border border-edge bg-surface-muted p-3 font-mono text-[0.75rem] leading-relaxed text-content">
             <code>{response.generatedScript}</code>
           </pre>
@@ -358,7 +364,7 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
             style={{ backgroundColor: "var(--geo-segment)" }}
             className="mt-2.5 w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-55"
           >
-            {applying || applyingScript ? "Applying…" : "Apply Script"}
+            {applying || applyingScript ? t("Aplicando…", "Applying…") : t("Aplicar script", "Apply Script")}
           </button>
         </section>
       ) : null}

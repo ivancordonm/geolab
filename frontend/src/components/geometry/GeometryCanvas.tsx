@@ -33,6 +33,7 @@ import type {
 import { ArcView } from "./ArcView";
 import { CircleView } from "./CircleView";
 import { FunctionView } from "./FunctionView";
+import { useLanguage } from "../../i18n/useLanguage";
 import { Grid } from "./Grid";
 import { LineView } from "./LineView";
 import { PointView } from "./PointView";
@@ -85,6 +86,7 @@ export function GeometryCanvas({
   panelOpen = false,
   gridSettings = DEFAULT_GRID_SETTINGS,
 }: GeometryCanvasProps) {
+  const { t } = useLanguage();
   const svgRef = useRef<SVGSVGElement>(null);
   const draggedPointRef = useRef<{ objectId: string; pointerId: number } | null>(null);
   const draggedObjectRef = useRef<{
@@ -429,13 +431,13 @@ export function GeometryCanvas({
           className="inline-block h-2.5 w-2.5 rounded-full"
           style={{ background: "var(--geo-point)" }}
         />
-        Drag free points
+        {t("Arrastra los puntos libres", "Drag free points")}
         <span
           className="ml-1.5 inline-block h-2.5 w-2.5 rotate-45 rounded-[1px]"
           style={{ background: "var(--geo-accent)" }}
         />
-        Derived points
-        <span className="ml-1.5 border-l border-edge pl-2.5">Drag to pan · Scroll to zoom</span>
+        {t("Puntos derivados", "Derived points")}
+        <span className="ml-1.5 border-l border-edge pl-2.5">{t("Arrastra para desplazar · Rueda para ampliar", "Drag to pan · Scroll to zoom")}</span>
       </div>
     </div>
   );

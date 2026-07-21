@@ -18,7 +18,14 @@ export function ToolbarTooltip({ label, instruction, children }: ToolbarTooltipP
   const [position, setPosition] = useState<TooltipPosition | null>(null);
 
   const showTooltip = (event: React.MouseEvent<HTMLSpanElement>): void => {
-    const rect = event.currentTarget.getBoundingClientRect();
+    // The wrapper intentionally uses `display: contents`, so it has no box of
+    // its own. Anchor to the hovered control instead of the wrapper, otherwise
+    // the portal tooltip is positioned at the viewport origin.
+    const target = event.target;
+    const anchor = target instanceof Element
+      ? target.closest<HTMLElement>("button, [role='button'], [aria-label]")
+      : null;
+    const rect = (anchor ?? event.currentTarget).getBoundingClientRect();
     const rawTop = rect.top + rect.height / 2;
     setPosition({
       top: Math.max(30, Math.min(rawTop, window.innerHeight - 30)),

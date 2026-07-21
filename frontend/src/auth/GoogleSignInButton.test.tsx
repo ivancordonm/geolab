@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GoogleSignInButton } from "./GoogleSignInButton";
@@ -47,6 +48,17 @@ describe("GoogleSignInButton", () => {
     const callback = initialize.mock.calls[0][0].callback as (r: { credential: string }) => void;
     callback({ credential: "fake-jwt" });
     expect(onCredential).toHaveBeenCalledWith("fake-jwt");
+  });
+
+  it("uses the shared toolbar tooltip instead of a native title", async () => {
+    vi.stubEnv("VITE_GOOGLE_CLIENT_ID", "test-client-id");
+    const user = userEvent.setup();
+    render(<GoogleSignInButton onCredential={vi.fn()} />);
+
+    const button = screen.getByLabelText("Sign in with Google");
+    expect(button).not.toHaveAttribute("title");
+    await user.hover(button);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Sign in with Google");
   });
 
   it("does not re-initialize when the parent re-renders with a new onCredential reference", () => {

@@ -15,6 +15,17 @@ const baseProps = {
 };
 
 describe("PersistenceControls cloud actions", () => {
+  it("uses the shared toolbar tooltip instead of a native title", async () => {
+    const user = userEvent.setup();
+    render(<PersistenceControls {...baseProps} />);
+
+    const button = screen.getByRole("button", { name: "Construction actions" });
+    expect(button).not.toHaveAttribute("title");
+
+    await user.hover(button);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Import, export, save, share, or clear the construction");
+  });
+
   it("hides cloud menu items when cloudEnabled is false", async () => {
     render(<PersistenceControls {...baseProps} />);
     await userEvent.click(screen.getByRole("button", { name: "Construction actions" }));

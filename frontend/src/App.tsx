@@ -28,6 +28,7 @@ import { PersistenceControls } from "./components/persistence/PersistenceControl
 import { ShareDialog } from "./components/persistence/ShareDialog";
 import { SidebarTabs } from "./components/SidebarTabs";
 import { ThemeToggle } from "./components/ThemeToggle";
+import { ToolbarTooltip } from "./components/geometry/ToolbarTooltip";
 import { useTheme } from "./theme/useTheme";
 import type { ConstructionTool } from "./geometry/constructionTools";
 import { exampleGeometryDocument } from "./geometry/example";
@@ -439,37 +440,40 @@ export function App() {
   const toolbarControls = (
     <>
       <ThemeToggle theme={theme} onToggle={toggleTheme} />
-      <button
-        type="button"
-        title="Undo"
-        aria-label="Undo last change"
-        aria-keyshortcuts="Meta+Z Control+Z"
-        onClick={geometry.undo}
-        disabled={!geometry.canUndo}
-        className="flex items-center justify-center rounded-lg p-2 text-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted"
-      >
-        <Undo2 size={18} aria-hidden />
-      </button>
-      <button
-        type="button"
-        title="Redo"
-        aria-label="Redo last change"
-        aria-keyshortcuts="Meta+Shift+Z Control+Shift+Z"
-        onClick={geometry.redo}
-        disabled={!geometry.canRedo}
-        className="flex items-center justify-center rounded-lg p-2 text-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted"
-      >
-        <Redo2 size={18} aria-hidden />
-      </button>
-      <button
-        type="button"
-        title="Reset view"
-        aria-label="Reset viewport"
-        onClick={geometry.resetViewport}
-        className="flex items-center justify-center rounded-lg p-2 text-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
-      >
-        <RotateCcw size={18} aria-hidden />
-      </button>
+      <ToolbarTooltip label="Undo" instruction="Revert the last change (Cmd/Ctrl+Z)">
+        <button
+          type="button"
+          aria-label="Undo last change"
+          aria-keyshortcuts="Meta+Z Control+Z"
+          onClick={geometry.undo}
+          disabled={!geometry.canUndo}
+          className="flex items-center justify-center rounded-lg p-2 text-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted"
+        >
+          <Undo2 size={18} aria-hidden />
+        </button>
+      </ToolbarTooltip>
+      <ToolbarTooltip label="Redo" instruction="Restore the last undone change (Cmd/Ctrl+Shift+Z)">
+        <button
+          type="button"
+          aria-label="Redo last change"
+          aria-keyshortcuts="Meta+Shift+Z Control+Shift+Z"
+          onClick={geometry.redo}
+          disabled={!geometry.canRedo}
+          className="flex items-center justify-center rounded-lg p-2 text-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted"
+        >
+          <Redo2 size={18} aria-hidden />
+        </button>
+      </ToolbarTooltip>
+      <ToolbarTooltip label="Reset view" instruction="Center and reset the zoom">
+        <button
+          type="button"
+          aria-label="Reset viewport"
+          onClick={geometry.resetViewport}
+          className="flex items-center justify-center rounded-lg p-2 text-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
+        >
+          <RotateCcw size={18} aria-hidden />
+        </button>
+      </ToolbarTooltip>
       <GridMenu settings={gridSettings} onChange={setGridSettings} />
       <CaptureMenu onCaptureFull={handleCaptureFull} onCaptureArea={handleCaptureArea} />
       <AuthControl

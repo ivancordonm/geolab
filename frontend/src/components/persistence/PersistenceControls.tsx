@@ -12,6 +12,7 @@ import {
   Upload,
   UploadCloud,
 } from "lucide-react";
+import { ToolbarTooltip } from "../geometry/ToolbarTooltip";
 
 interface PersistenceControlsProps {
   message: string | null;
@@ -116,24 +117,25 @@ export function PersistenceControls({
 
   return (
     <div className="relative flex flex-col items-center gap-2">
-      <button
-        ref={buttonRef}
-        type="button"
-        title="Actions"
-        aria-label="Construction actions"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={handleToggle}
-        className={`flex items-center justify-center rounded-lg p-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${
-          open ? "bg-brand-600 text-white" : "text-muted hover:bg-accent-soft hover:text-accent-soft-fg"
-        }`}
-      >
-        <ChevronDown
-          size={18}
-          aria-hidden
-          className={`transition-transform ${open ? "rotate-180" : ""}`}
-        />
-      </button>
+      <ToolbarTooltip label="Actions" instruction="Import, export, save, share, or clear the construction">
+        <button
+          ref={buttonRef}
+          type="button"
+          aria-label="Construction actions"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          onClick={handleToggle}
+          className={`flex items-center justify-center rounded-lg p-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${
+            open ? "bg-brand-600 text-white" : "text-muted hover:bg-accent-soft hover:text-accent-soft-fg"
+          }`}
+        >
+          <ChevronDown
+            size={18}
+            aria-hidden
+            className={`transition-transform ${open ? "rotate-180" : ""}`}
+          />
+        </button>
+      </ToolbarTooltip>
 
       {open ? createPortal(
         <div

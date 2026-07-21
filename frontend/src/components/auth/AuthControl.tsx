@@ -4,6 +4,7 @@ import { LogOut } from "lucide-react";
 
 import { GoogleSignInButton } from "../../auth/GoogleSignInButton";
 import type { UserProfile } from "../../types/auth";
+import { ToolbarTooltip } from "../geometry/ToolbarTooltip";
 
 interface AuthControlProps {
   user: UserProfile | null;
@@ -59,27 +60,28 @@ export function AuthControl({ user, onCredential, onSignOut }: AuthControlProps)
 
   return (
     <div className="relative">
-      <button
-        ref={buttonRef}
-        type="button"
-        title={user.name ?? user.email}
-        aria-label="Account menu"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={handleToggle}
-        className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-edge text-xs font-semibold text-content"
-      >
-        {user.pictureUrl !== null ? (
-          <img
-            src={user.pictureUrl}
-            alt=""
-            className="h-full w-full object-cover"
-            referrerPolicy="no-referrer"
-          />
-        ) : (
-          <span>{(user.name ?? user.email).charAt(0).toUpperCase()}</span>
-        )}
-      </button>
+      <ToolbarTooltip label="Account" instruction="Open account options">
+        <button
+          ref={buttonRef}
+          type="button"
+          aria-label="Account menu"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          onClick={handleToggle}
+          className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border border-edge text-xs font-semibold text-content"
+        >
+          {user.pictureUrl !== null ? (
+            <img
+              src={user.pictureUrl}
+              alt=""
+              className="h-full w-full object-cover"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <span>{(user.name ?? user.email).charAt(0).toUpperCase()}</span>
+          )}
+        </button>
+      </ToolbarTooltip>
 
       {open
         ? createPortal(

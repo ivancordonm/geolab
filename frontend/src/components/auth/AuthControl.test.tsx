@@ -32,6 +32,22 @@ describe("AuthControl", () => {
     expect(onSignOut).toHaveBeenCalled();
   });
 
+  it("uses the shared toolbar tooltip for the account trigger", async () => {
+    const user = userEvent.setup();
+    render(
+      <AuthControl
+        user={{ id: "1", email: "a@example.com", name: "Ada", pictureUrl: null }}
+        onCredential={vi.fn()}
+        onSignOut={vi.fn()}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "Account menu" });
+    expect(button).not.toHaveAttribute("title");
+    await user.hover(button);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Open account options");
+  });
+
   it("anchors the menu to the button's bottom edge when it would overflow the viewport", async () => {
     render(
       <AuthControl

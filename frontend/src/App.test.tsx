@@ -300,6 +300,25 @@ describe("script editor flow", () => {
     expect(screen.getByRole("button", { name: "Hide A" })).toBeInTheDocument();
   });
 
+  it("uses shared tooltips for undo, redo, and reset view", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const controls = [
+      ["Undo last change", "Revert the last change"],
+      ["Redo last change", "Restore the last undone change"],
+      ["Reset viewport", "Center and reset the zoom"],
+    ] as const;
+
+    for (const [name, tooltipText] of controls) {
+      const button = screen.getByRole("button", { name });
+      expect(button).not.toHaveAttribute("title");
+      await user.hover(button);
+      expect(await screen.findByRole("tooltip")).toHaveTextContent(tooltipText);
+      await user.unhover(button);
+    }
+  });
+
   it("adds a function from the Objects panel without showing a separate button", async () => {
     const user = userEvent.setup();
     render(<App />);

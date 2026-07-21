@@ -199,7 +199,7 @@ export const en = {
     continue: "Continue", loading: "Loading 3D studio…",
   },
   symmetry: {
-    studio: "Symmetry studio", exit: "Exit to 2D", title: "Symmetries", appearance: "Appearance", opacity: "Opacity", color: "Color",
+    studio: "Symmetry studio", exit: "Exit to 2D", title: "Symmetries", appearance: "Appearance", opacity: "Opacity", color: "Color", axisThickness: "Axis thickness", axisColor: "Axis color", planeThickness: "Plane thickness", planeColor: "Plane color",
     classes: { identity: "Identity", rotations3: "Rotations ±120°", rotations3And4: "Rotations (C3 and C4)", halfTurns: "Half turns 180°", inversion: "Central inversion", reflections: "Reflections", rotoreflections: "Rotoreflections", rotoreflectionsQuarter: "Rotoreflections ±90°" },
     classWithCount: "{{label}} ({{count}})", previous: "{{name}} previous", next: "{{name}} next", position: "{{name}} {{current}} of {{count}}",
     rotation: "Rotation", halfTurn: "Half turn", axis: "Axis", axisPosition: "Axis {{current}} of {{count}}", angle: "Angle", order: "Order", turn: "Turn",

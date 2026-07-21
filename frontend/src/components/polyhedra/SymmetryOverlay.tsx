@@ -27,6 +27,10 @@ interface SymmetryOverlayProps {
   showRotoreflectionPlane?: boolean;
   color: string;
   opacity?: number;
+  axisColor?: string;
+  axisThickness?: number;
+  planeColor?: string;
+  planeThickness?: number;
 }
 
 const AXIS_LEN = 1.6;
@@ -48,41 +52,41 @@ function AxisLine({
   dashed,
   color,
   opacity,
+  thickness = 1,
 }: {
   element: SymmetryElement & { direction: readonly [number, number, number] };
   dashed: boolean;
   color?: string;
   opacity?: number;
+  thickness?: number;
 }) {
-  const dir = new Vector3(...element.direction).normalize();
-  const a = dir.clone().multiplyScalar(AXIS_LEN);
-  const b = dir.clone().multiplyScalar(-AXIS_LEN);
-  const positions = useMemo(
-    () => new Float32Array([a.x, a.y, a.z, b.x, b.y, b.z]),
-    [a.x, a.y, a.z, b.x, b.y, b.z],
+  const dir = useMemo(
+    () => new Vector3(...element.direction).normalize(),
+    [element.direction],
   );
+
+  const quat = useMemo(
+    () => new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), dir),
+    [dir],
+  );
+
+  const radius = Math.max(0.002, 0.0055 * (thickness + 1) * (dashed ? 0.75 : 1));
+  const activeOpacity = opacity ?? (dashed ? 0.3 : 0.95);
+
   return (
-    <lineSegments>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-        {dashed && (
-          <bufferAttribute
-            attach="attributes-lineDistance"
-            args={[new Float32Array([0, AXIS_LEN * 2]), 1]}
-          />
-        )}
-      </bufferGeometry>
-      {dashed ? (
-        <lineDashedMaterial color={color ?? "#f59e0b"} transparent opacity={opacity ?? 1} dashSize={0.15} gapSize={0.1} />
-      ) : (
-        <lineBasicMaterial color={color ?? "#ef4444"} transparent opacity={opacity ?? 1} />
-      )}
-    </lineSegments>
+    <mesh quaternion={quat} renderOrder={1}>
+      <cylinderGeometry args={[radius, radius, AXIS_LEN * 2, 12]} />
+      <meshBasicMaterial
+        color={color ?? (dashed ? "#f59e0b" : "#ef4444")}
+        transparent
+        opacity={activeOpacity}
+        depthTest={true}
+      />
+    </mesh>
   );
 }
 
 function RotationArc({
-
   direction,
   angle,
   color = "#000000",
@@ -127,16 +131,27 @@ function PlaneQuad({
   selected,
   color,
   selectedOpacity,
+  thickness = 0,
 }: {
   element: SymmetryElement & { normal: readonly [number, number, number] };
   selected: boolean;
   color: string;
   selectedOpacity?: number;
+  thickness?: number;
 }) {
-  const normal = new Vector3(...element.normal).normalize();
-  const quat = new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), normal);
+  const normal = useMemo(
+    () => new Vector3(...element.normal).normalize(),
+    [element.normal],
+  );
+  const quat = useMemo(
+    () => new Quaternion().setFromUnitVectors(new Vector3(0, 0, 1), normal),
+    [normal],
+  );
+
+  const borderRadius = Math.max(0.002, 0.0045 * (thickness + 1) * (selected ? 1 : 0.7));
+
   return (
-    <group quaternion={quat}>
+    <group quaternion={quat} renderOrder={2}>
       <mesh>
         <planeGeometry args={[2.4, 2.4]} />
         <meshBasicMaterial
@@ -147,27 +162,24 @@ function PlaneQuad({
           depthWrite={false}
         />
       </mesh>
-      <lineSegments>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            args={[
-              new Float32Array([
-                -1.2, -1.2, 0.001, 1.2, -1.2, 0.001, 1.2, -1.2, 0.001,
-                1.2, 1.2, 0.001, 1.2, 1.2, 0.001, -1.2, 1.2, 0.001, -1.2,
-                1.2, 0.001, -1.2, -1.2, 0.001,
-              ]),
-              3,
-            ]}
-          />
-        </bufferGeometry>
-        <lineBasicMaterial
-          color={color}
-          transparent
-          opacity={selected ? 0.9 : 0.12}
-          depthWrite={false}
-        />
-      </lineSegments>
+      <group renderOrder={3}>
+        <mesh position={[0, 1.2, 0.001]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[borderRadius, borderRadius, 2.4, 8]} />
+          <meshBasicMaterial color={color} transparent opacity={selected ? 0.9 : 0.2} depthWrite={false} />
+        </mesh>
+        <mesh position={[0, -1.2, 0.001]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[borderRadius, borderRadius, 2.4, 8]} />
+          <meshBasicMaterial color={color} transparent opacity={selected ? 0.9 : 0.2} depthWrite={false} />
+        </mesh>
+        <mesh position={[-1.2, 0, 0.001]}>
+          <cylinderGeometry args={[borderRadius, borderRadius, 2.4, 8]} />
+          <meshBasicMaterial color={color} transparent opacity={selected ? 0.9 : 0.2} depthWrite={false} />
+        </mesh>
+        <mesh position={[1.2, 0, 0.001]}>
+          <cylinderGeometry args={[borderRadius, borderRadius, 2.4, 8]} />
+          <meshBasicMaterial color={color} transparent opacity={selected ? 0.9 : 0.2} depthWrite={false} />
+        </mesh>
+      </group>
     </group>
   );
 }
@@ -205,6 +217,10 @@ export function SymmetryOverlay({
   showOtherRotoreflectionAxes = false,
   showRotoreflectionPlane = true,
   opacity = 0.6,
+  axisColor,
+  axisThickness = 1,
+  planeColor,
+  planeThickness = 0,
 }: SymmetryOverlayProps) {
   const s = definition.symmetry;
   const reflectionIndices = reflectionIndicesToRender(
@@ -228,6 +244,8 @@ export function SymmetryOverlay({
   const selectedHalfTurnIndexToRender = halfTurnAxisIndices[0];
   const selectedRotation = rotationsToRender[selectedRotationIndexToRender];
   const selectedHalfTurn = s.halfTurns[selectedHalfTurnIndexToRender];
+  const activeAxisColor = axisColor ?? color;
+  const activePlaneColor = planeColor ?? color;
   return (
     <group>
       {visibleClasses.has("rotations3") &&
@@ -239,7 +257,8 @@ export function SymmetryOverlay({
               key={`r3-${index}`}
               element={element}
               dashed={!selected}
-              color={color}
+              color={activeAxisColor}
+              thickness={axisThickness}
               opacity={selected ? 0.95 : 0.18}
             />
           );
@@ -261,7 +280,8 @@ export function SymmetryOverlay({
               key={`ht-${index}`}
               element={element}
               dashed={!selected}
-              color={color}
+              color={activeAxisColor}
+              thickness={axisThickness}
               opacity={selected ? 0.95 : 0.18}
             />
           );
@@ -287,7 +307,8 @@ export function SymmetryOverlay({
               key={el.id ?? `rf-${i}`}
               element={el}
               selected={i === selectedReflectionIndex}
-              color={color}
+              color={activePlaneColor}
+              thickness={planeThickness}
             />
           );
         })}
@@ -303,13 +324,20 @@ export function SymmetryOverlay({
             .filter((i) => i !== selectedRotoreflectionIndex)
             .map((i) => s.rotoreflections[i]);
           return <>
-            <AxisLine element={selected} dashed={false} color={color} opacity={0.95} />
+            <AxisLine
+              element={selected}
+              dashed={false}
+              color={activeAxisColor}
+              thickness={axisThickness}
+              opacity={0.95}
+            />
             {axes.map((element, index) => (
               <AxisLine
                 key={`rotoreflection-reference-${index}`}
                 element={element}
                 dashed
-                color={color}
+                color={activeAxisColor}
+                thickness={axisThickness}
                 opacity={0.18}
               />
             ))}
@@ -324,7 +352,8 @@ export function SymmetryOverlay({
                 }}
                 selected
                 selectedOpacity={Math.min(0.25, opacity * 0.35)}
-                color={color}
+                color={activePlaneColor}
+                thickness={planeThickness}
               />
             )}
             <RotationArc direction={selected.direction} angle={selected.angle} color="#000000" />

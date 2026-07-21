@@ -22,6 +22,14 @@ interface SymmetryMenuProps {
   onOpacityChange: (value: number) => void;
   color: string;
   onColorChange: (value: string) => void;
+  axisThickness: number;
+  onAxisThicknessChange: (value: number) => void;
+  axisColor: string;
+  onAxisColorChange: (value: string) => void;
+  planeThickness: number;
+  onPlaneThicknessChange: (value: number) => void;
+  planeColor: string;
+  onPlaneColorChange: (value: string) => void;
   reflectionMode: ReflectionDisplayMode;
   onReflectionModeChange: (mode: ReflectionDisplayMode) => void;
   selectedReflectionIndex: number;
@@ -211,6 +219,14 @@ export function SymmetryMenu({
   onOpacityChange,
   color,
   onColorChange,
+  axisThickness,
+  onAxisThicknessChange,
+  axisColor,
+  onAxisColorChange,
+  planeThickness,
+  onPlaneThicknessChange,
+  planeColor,
+  onPlaneColorChange,
   reflectionMode,
   onReflectionModeChange,
   selectedReflectionIndex,
@@ -544,13 +560,59 @@ export function SymmetryMenu({
           className="flex-1 accent-brand-600"
         />
       </label>
-      <label className="mb-3 flex items-center gap-2">
+      <label className="mb-2 flex items-center gap-2">
         <span className="w-16 text-xs text-content">{t("symmetry.color")}</span>
         <input
           type="color"
           value={color}
           aria-label={t("symmetry.color")}
           onChange={(e) => onColorChange(e.target.value)}
+          className="h-6 w-10 cursor-pointer rounded border border-edge bg-transparent"
+        />
+      </label>
+      <label className="mb-2 flex items-center gap-2">
+        <span className="w-16 text-xs text-content">{t("symmetry.axisThickness")}</span>
+        <input
+          type="range"
+          min="0"
+          max="4"
+          step="0.5"
+          value={axisThickness}
+          aria-label={t("symmetry.axisThickness")}
+          onChange={(e) => onAxisThicknessChange(Number(e.target.value))}
+          className="flex-1 accent-brand-600"
+        />
+      </label>
+      <label className="mb-2 flex items-center gap-2">
+        <span className="w-16 text-xs text-content">{t("symmetry.axisColor")}</span>
+        <input
+          type="color"
+          value={axisColor}
+          aria-label={t("symmetry.axisColor")}
+          onChange={(e) => onAxisColorChange(e.target.value)}
+          className="h-6 w-10 cursor-pointer rounded border border-edge bg-transparent"
+        />
+      </label>
+      <label className="mb-2 flex items-center gap-2">
+        <span className="w-16 text-xs text-content">{t("symmetry.planeThickness")}</span>
+        <input
+          type="range"
+          min="-1"
+          max="3"
+          step="0.5"
+          value={planeThickness}
+          aria-label={t("symmetry.planeThickness")}
+          onChange={(e) => onPlaneThicknessChange(Number(e.target.value))}
+          className="flex-1 accent-brand-600"
+        />
+      </label>
+      <label className="mb-3 flex items-center gap-2">
+        <span className="w-16 text-xs text-content">{t("symmetry.planeColor")}</span>
+        <input
+          type="color"
+          value={planeColor}
+          aria-label={t("symmetry.planeColor")}
+          onChange={(e) => onPlaneColorChange(e.target.value)}
           className="h-6 w-10 cursor-pointer rounded border border-edge bg-transparent"
         />
       </label>

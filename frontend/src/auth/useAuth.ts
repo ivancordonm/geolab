@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { fetchCurrentUser, loginWithGoogle, logout as logoutRequest } from "../api/authApi";
 import type { UserProfile } from "../types/auth";
@@ -12,9 +13,10 @@ export interface UseAuthResult {
 }
 
 export function useAuth(): UseAuthResult {
+  const { t } = useTranslation();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [errorKey, setErrorKey] = useState<"auth.errors.signIn" | "auth.errors.signOut" | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,25 +36,25 @@ export function useAuth(): UseAuthResult {
   }, []);
 
   const signIn = useCallback(async (idToken: string) => {
-    setError(null);
+    setErrorKey(null);
     try {
       const profile = await loginWithGoogle(idToken);
       setUser(profile);
     } catch {
-      setError("Unable to sign in with Google.");
+      setErrorKey("auth.errors.signIn");
     }
   }, []);
 
   const signOut = useCallback(async () => {
-    setError(null);
+    setErrorKey(null);
     try {
       await logoutRequest();
     } catch {
-      setError("Unable to complete sign out on the server.");
+      setErrorKey("auth.errors.signOut");
     } finally {
       setUser(null);
     }
   }, []);
 
-  return { user, loading, error, signIn, signOut };
+  return { user, loading, error: errorKey === null ? null : t(errorKey), signIn, signOut };
 }

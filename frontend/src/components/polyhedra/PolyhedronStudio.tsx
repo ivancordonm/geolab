@@ -11,7 +11,8 @@ import type {
   ReflectionDisplayMode,
   SymmetryClass,
 } from "../../geometry/polyhedra/types";
-import { useLanguage } from "../../i18n/useLanguage";
+import { useTranslation } from "react-i18next";
+import { translatePolyhedronName } from "../../i18n/polyhedra";
 
 interface PolyhedronStudioProps {
   definition: PolyhedronDefinition;
@@ -19,14 +20,8 @@ interface PolyhedronStudioProps {
 }
 
 export default function PolyhedronStudio({ definition, onExit }: PolyhedronStudioProps) {
-  const { t } = useLanguage();
-  const polyhedronName = ({
-    tetrahedron: t("Tetraedro", "Tetrahedron"),
-    cube: t("Cubo", "Cube"),
-    octahedron: t("Octaedro", "Octahedron"),
-    dodecahedron: t("Dodecaedro", "Dodecahedron"),
-    icosahedron: t("Icosaedro", "Icosahedron"),
-  } as Record<string, string>)[definition.id] ?? definition.name;
+  const { t } = useTranslation();
+  const polyhedronName = translatePolyhedronName(t, definition.id);
   const [visibleClasses, setVisibleClasses] = useState<Set<SymmetryClass>>(new Set());
   const [opacity, setOpacity] = useState(0.6);
   const [color, setColor] = useState(definition.defaultColor);
@@ -74,9 +69,9 @@ export default function PolyhedronStudio({ definition, onExit }: PolyhedronStudi
           <OrbitControls ref={controlsRef} enablePan={false} />
         </Canvas>
         <div className="absolute left-4 top-4 flex items-center gap-3 rounded-card border border-edge bg-surface/95 px-3 py-2 shadow-pop">
-          <p className="text-sm font-semibold text-content">Under construction</p>
+          <p className="text-sm font-semibold text-content">{t("polyhedra.underConstruction")}</p>
           <button type="button" onClick={onExit} className="text-xs font-semibold text-muted hover:text-content">
-            Salir
+            {t("polyhedra.exit")}
           </button>
         </div>
       </div>
@@ -109,6 +104,7 @@ export default function PolyhedronStudio({ definition, onExit }: PolyhedronStudi
       </Canvas>
 
       <SymmetryMenu
+        polyhedronId={definition.id}
         polyhedronName={polyhedronName}
         visibleClasses={visibleClasses}
         onToggleClass={toggleClass}
@@ -133,7 +129,6 @@ export default function PolyhedronStudio({ definition, onExit }: PolyhedronStudi
         }
         showOtherReflections={showOtherReflections}
         onShowOtherReflectionsChange={setShowOtherReflections}
-        symmetryLabels={definition.symmetryLabels}
         symmetryCounts={{
           identity: symmetry.identity.length,
           rotations3: symmetry.rotations3.length,

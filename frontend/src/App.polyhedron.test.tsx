@@ -22,11 +22,11 @@ describe("polyhedron entry from toolbar", () => {
     await userEvent.click(screen.getByRole("menuitem", { name: "Tetrahedron" }));
 
     // Confirm dialog appears.
-    const dialog = await screen.findByRole("dialog", { name: /abrir visor 3d/i });
+    const dialog = await screen.findByRole("dialog", { name: /open 3d studio/i });
     expect(dialog).toBeInTheDocument();
 
     // Accept -> studio renders.
-    await userEvent.click(screen.getByRole("button", { name: /continuar/i }));
+    await userEvent.click(screen.getByRole("button", { name: /continue/i }));
     expect(await screen.findByTestId("studio")).toBeInTheDocument();
   });
 
@@ -34,7 +34,7 @@ describe("polyhedron entry from toolbar", () => {
     render(<App />);
     await userEvent.click(screen.getByRole("button", { name: "Regular polyhedra" }));
     await userEvent.click(screen.getByRole("menuitem", { name: tool }));
-    await userEvent.click(await screen.findByRole("button", { name: /continuar/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /continue/i }));
 
     expect(await screen.findByText("Under construction")).toBeInTheDocument();
   });

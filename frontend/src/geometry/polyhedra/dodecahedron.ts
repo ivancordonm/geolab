@@ -7,7 +7,6 @@ const normalize = ([x, y, z]: Vec3): Vec3 => [x / SCALE, y / SCALE, z / SCALE];
 
 export const DODECAHEDRON: PolyhedronDefinition = {
   id: "dodecahedron",
-  name: "Dodecaedro",
   vertices: (
     [
       [-1, -1, -1], [-1, -1, 1], [-1, 1, -1], [-1, 1, 1], [1, -1, -1], [1, -1, 1], [1, 1, -1], [1, 1, 1],

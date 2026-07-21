@@ -2,7 +2,7 @@ import type { ComponentType } from "react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { TOOL_INSTRUCTIONS, type ConstructionTool } from "../../geometry/constructionTools";
+import type { ConstructionTool } from "../../geometry/constructionTools";
 
 export interface IconProps {
   size?: number | string;
@@ -12,6 +12,7 @@ export interface IconProps {
 export interface GroupToolOption {
   tool: ConstructionTool;
   label: string;
+  instruction: string;
   icon: ComponentType<IconProps>;
   shortcut?: string;
 }
@@ -173,7 +174,7 @@ export function ToolGroupButton({
               style={{ position: "fixed", top: pos.top, left: pos.left, width: MENU_WIDTH, zIndex: 9999 }}
               className="rounded-xl border border-edge bg-surface p-1.5 shadow-pop"
             >
-              {tools.map(({ tool, label: toolLabel, icon: Icon, shortcut }, index) => {
+              {tools.map(({ tool, label: toolLabel, instruction: toolInstruction, icon: Icon, shortcut }, index) => {
                 const active = activeTool === tool;
                 return (
                   <button
@@ -185,7 +186,7 @@ export function ToolGroupButton({
                     role="menuitem"
                     aria-keyshortcuts={shortcut}
                     onClick={() => handleSelect(tool)}
-                    onMouseEnter={(e) => onShowTooltip?.(e, toolLabel, TOOL_INSTRUCTIONS[tool], shortcut)}
+                    onMouseEnter={(e) => onShowTooltip?.(e, toolLabel, toolInstruction, shortcut)}
                     onMouseLeave={() => onHideTooltip?.()}
                     className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition-colors ${
                       active

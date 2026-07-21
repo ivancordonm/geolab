@@ -39,11 +39,7 @@ const AXES: Vec3[] = [
   [0, 0, 1],
 ];
 
-const HALF_TURN_AXIS_LABELS = [
-  "puntos medios de AB y CD",
-  "puntos medios de AC y BD",
-  "puntos medios de AD y BC",
-] as const;
+const HALF_TURN_PAIRS = ["AB_CD", "AC_BD", "AD_BC"] as const;
 
 const halfTurns: SymmetryElementAxis[] = AXES.map((dir, i) => ({
   kind: "axis",
@@ -52,7 +48,7 @@ const halfTurns: SymmetryElementAxis[] = AXES.map((dir, i) => ({
   angle: Math.PI,
   label: `C2(${i})`,
   axisId: `half-turn-axis-${i}`,
-  axisLabel: HALF_TURN_AXIS_LABELS[i],
+  axisDescription: { kind: "tetrahedronOppositeEdgeMidpoints", pair: HALF_TURN_PAIRS[i] },
   order: 2,
 }));
 
@@ -86,13 +82,12 @@ const reflections: SymmetryElementPlane[] = PAIRS.map(([a, b], i) => ({
 }));
 
 const rotoreflections: SymmetryElementImproper[] = AXES.flatMap((dir, i) => [
-  { kind: "improper", point: [0, 0, 0], direction: dir, angle: Math.PI / 2, label: `S4(${i})+`, axisId: `axis-${i}`, axisLabel: `Eje ${i + 1}`, order: 4, rotationSense: "positive" },
-  { kind: "improper", point: [0, 0, 0], direction: dir, angle: -Math.PI / 2, label: `S4(${i})-`, axisId: `axis-${i}`, axisLabel: `Eje ${i + 1}`, order: 4, rotationSense: "negative" },
+  { kind: "improper", point: [0, 0, 0], direction: dir, angle: Math.PI / 2, label: `S4(${i})+`, axisId: `axis-${i}`, axisDescription: { kind: "generic", ordinal: i + 1 }, order: 4, rotationSense: "positive" },
+  { kind: "improper", point: [0, 0, 0], direction: dir, angle: -Math.PI / 2, label: `S4(${i})-`, axisId: `axis-${i}`, axisDescription: { kind: "generic", ordinal: i + 1 }, order: 4, rotationSense: "negative" },
 ]);
 
 export const TETRAHEDRON: PolyhedronDefinition = {
   id: "tetrahedron",
-  name: "Tetraedro",
   vertices: V,
   faces: [
     [0, 1, 2],
@@ -110,6 +105,5 @@ export const TETRAHEDRON: PolyhedronDefinition = {
   ],
   symmetry: { identity: [{ kind: "identity", label: "E" }], rotations3, halfTurns, inversion: [], reflections, rotoreflections },
   symmetryClassOrder: ["identity", "rotations3", "halfTurns", "reflections", "rotoreflections"],
-  symmetryLabels: { rotoreflections: "Rotorreflexiones ±90°" },
   defaultColor: "#3b82f6",
 };

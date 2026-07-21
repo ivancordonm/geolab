@@ -4,9 +4,23 @@ import { describe, expect, it, vi } from "vitest";
 
 import { exampleGeometryDocument } from "../../geometry/example";
 import { GeometryGraph } from "../../geometry/engine";
+import { i18n } from "../../i18n";
 import { ObjectList } from "./ObjectList";
 
 describe("ObjectList", () => {
+  it("translates object actions and style controls", async () => {
+    await i18n.changeLanguage("es");
+    const user = userEvent.setup();
+    const graph = new GeometryGraph(exampleGeometryDocument);
+    render(<ObjectList document={graph.document} values={graph.values} selectedObjectId={null} onSelectObject={vi.fn()} onToggleVisibility={vi.fn()} onSetObjectLabel={vi.fn()} onSetObjectColor={vi.fn()} onSetObjectStyle={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: "Ocultar AB" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Editar AB" }));
+    expect(screen.getByText("Editar objeto")).toBeInTheDocument();
+    expect(screen.getByLabelText("Color personalizado")).toBeInTheDocument();
+    expect(screen.getByText("Tipo de línea")).toBeInTheDocument();
+  });
+
   it("renders labels, construction types, and dependencies", () => {
     const graph = new GeometryGraph(exampleGeometryDocument);
     render(
@@ -102,7 +116,7 @@ describe("ObjectList", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Edit A" }));
-    const picker = screen.getByLabelText("Color personalizado");
+    const picker = screen.getByLabelText("Custom color");
 
     expect(picker).toHaveAttribute("type", "color");
     expect(screen.queryByPlaceholderText("#rrggbb")).not.toBeInTheDocument();

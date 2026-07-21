@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useAuth } from "./useAuth";
+import { i18n } from "../i18n";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -107,5 +108,32 @@ describe("useAuth", () => {
 
     expect(result.current.user).toBeNull();
     expect(result.current.error).toBe("Unable to complete sign out on the server.");
+  });
+
+  it("localizes an existing sign-out error when the language changes", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({ id: "1", email: "a@example.com", name: "Ada", pictureUrl: null }),
+            { status: 200 },
+          ),
+        )
+        .mockResolvedValueOnce(new Response(null, { status: 500 })),
+    );
+
+    const { result } = renderHook(() => useAuth());
+    await waitFor(() => expect(result.current.user).not.toBeNull());
+
+    await act(async () => {
+      await result.current.signOut();
+    });
+    await act(async () => {
+      await i18n.changeLanguage("es");
+    });
+
+    expect(result.current.error).toBe("No se pudo cerrar sesión en el servidor.");
   });
 });

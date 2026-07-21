@@ -12,6 +12,7 @@ import {
   Upload,
   UploadCloud,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { ToolbarTooltip } from "../geometry/ToolbarTooltip";
 
 interface PersistenceControlsProps {
@@ -50,6 +51,7 @@ export function PersistenceControls({
   onShare,
   onStopSharing,
 }: PersistenceControlsProps) {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -84,9 +86,9 @@ export function PersistenceControls({
     event.target.value = "";
     if (file !== undefined) {
       try {
-        onImportJson(await readFileAsText(file));
+        onImportJson(await readFileAsText(file, t("persistence.errors.importRead")));
       } catch (error) {
-        onImportError(error instanceof Error ? error : new Error("Unable to read import file."));
+        onImportError(error instanceof Error ? error : new Error(t("persistence.errors.importRead")));
       }
     }
   };
@@ -117,11 +119,11 @@ export function PersistenceControls({
 
   return (
     <div className="relative flex flex-col items-center gap-2">
-      <ToolbarTooltip label="Actions" instruction="Import, export, save, share, or clear the construction">
+      <ToolbarTooltip label={t("persistence.actions")} instruction={t("persistence.instruction")}>
         <button
           ref={buttonRef}
           type="button"
-          aria-label="Construction actions"
+          aria-label={t("persistence.menu")}
           aria-haspopup="menu"
           aria-expanded={open}
           onClick={handleToggle}
@@ -141,21 +143,21 @@ export function PersistenceControls({
         <div
           ref={menuRef}
           role="menu"
-          aria-label="Construction actions"
+          aria-label={t("persistence.menu")}
           style={{ position: "fixed", ...menuPos }}
           className="z-50 w-52 overflow-hidden rounded-xl border border-edge bg-surface p-1.5 shadow-pop"
         >
           <MenuItem icon={<Download size={16} aria-hidden />} onClick={() => run(onExportJson)}>
-            Export JSON
+            {t("persistence.exportJson")}
           </MenuItem>
           <MenuItem
             icon={<Upload size={16} aria-hidden />}
             onClick={() => run(() => inputRef.current?.click())}
           >
-            Import JSON
+            {t("persistence.importJson")}
           </MenuItem>
           <MenuItem icon={<FileCode size={16} aria-hidden />} onClick={() => run(onExportScript)}>
-            Export Script
+            {t("persistence.exportScript")}
           </MenuItem>
           {cloudEnabled ? (
             <>
@@ -164,33 +166,33 @@ export function PersistenceControls({
                 icon={<UploadCloud size={16} aria-hidden />}
                 onClick={() => run(() => onSaveToCloud?.())}
               >
-                Save
+                {t("persistence.save")}
               </MenuItem>
               <MenuItem
                 icon={<Copy size={16} aria-hidden />}
                 onClick={() => run(() => onSaveAsNewToCloud?.())}
               >
-                Save as new...
+                {t("persistence.saveAsNew")}
               </MenuItem>
               <MenuItem
                 icon={<DownloadCloud size={16} aria-hidden />}
                 onClick={() => run(() => onOpenCloudPanel?.())}
               >
-                Open
+                {t("persistence.open")}
               </MenuItem>
               {shared ? (
                 <MenuItem
                   icon={<Share2 size={16} aria-hidden />}
                   onClick={() => run(() => onStopSharing?.())}
                 >
-                  Stop sharing
+                  {t("persistence.stopSharing")}
                 </MenuItem>
               ) : (
                 <MenuItem
                   icon={<Share2 size={16} aria-hidden />}
                   onClick={() => run(() => onShare?.())}
                 >
-                  Share...
+                  {t("persistence.share")}
                 </MenuItem>
               )}
             </>
@@ -201,7 +203,7 @@ export function PersistenceControls({
             onClick={() => run(onClear)}
             tone="danger"
           >
-            Clear
+            {t("persistence.clear")}
           </MenuItem>
         </div>,
         document.body,
@@ -212,7 +214,7 @@ export function PersistenceControls({
         className="sr-only"
         type="file"
         accept="application/json,.json"
-        aria-label="Choose geometry JSON file"
+        aria-label={t("persistence.chooseJsonFile")}
         onChange={(event) => void handleImport(event)}
       />
 
@@ -257,14 +259,14 @@ function MenuItem({
   );
 }
 
-function readFileAsText(file: File): Promise<string> {
+function readFileAsText(file: File, fallbackError: string): Promise<string> {
   if (typeof file.text === "function") {
     return file.text();
   }
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.addEventListener("load", () => resolve(String(reader.result ?? "")));
-    reader.addEventListener("error", () => reject(reader.error ?? new Error("Unable to read file.")));
+    reader.addEventListener("error", () => reject(reader.error ?? new Error(fallbackError)));
     reader.readAsText(file);
   });
 }

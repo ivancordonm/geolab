@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { LogOut } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { GoogleSignInButton } from "../../auth/GoogleSignInButton";
 import type { UserProfile } from "../../types/auth";
@@ -13,6 +14,7 @@ interface AuthControlProps {
 }
 
 export function AuthControl({ user, onCredential, onSignOut }: AuthControlProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -60,11 +62,11 @@ export function AuthControl({ user, onCredential, onSignOut }: AuthControlProps)
 
   return (
     <div className="relative">
-      <ToolbarTooltip label="Account" instruction="Open account options">
+      <ToolbarTooltip label={t("auth.account")} instruction={t("auth.accountOptions")}>
         <button
           ref={buttonRef}
           type="button"
-          aria-label="Account menu"
+          aria-label={t("auth.accountMenu")}
           aria-haspopup="menu"
           aria-expanded={open}
           onClick={handleToggle}
@@ -88,7 +90,7 @@ export function AuthControl({ user, onCredential, onSignOut }: AuthControlProps)
             <div
               ref={menuRef}
               role="menu"
-              aria-label="Account menu"
+              aria-label={t("auth.accountMenu")}
               style={{ position: "fixed", ...menuPos }}
               className="z-50 w-52 overflow-hidden rounded-xl border border-edge bg-surface p-1.5 shadow-pop"
             >
@@ -107,7 +109,7 @@ export function AuthControl({ user, onCredential, onSignOut }: AuthControlProps)
                 className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm font-medium text-content transition-colors hover:bg-accent-soft hover:text-accent-soft-fg"
               >
                 <LogOut size={16} aria-hidden />
-                Sign out
+                {t("auth.signOut")}
               </button>
             </div>,
             document.body,

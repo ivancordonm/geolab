@@ -2,11 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SymmetryMenu } from "./SymmetryMenu";
-import { LanguageProvider } from "../../i18n/useLanguage";
+import { i18n } from "../../i18n";
 
-function setup(overrides: Record<string, unknown> = {}) {
-  sessionStorage.setItem("geolab-language", "es");
+function setup(overrides: Record<string, unknown> = {}, language: "es" | "en" = "es") {
+  void i18n.changeLanguage(language);
   const props = {
+    polyhedronId: "tetrahedron",
     polyhedronName: "Tetraedro",
     visibleClasses: new Set<string>(),
     onToggleClass: vi.fn(),
@@ -32,7 +33,6 @@ function setup(overrides: Record<string, unknown> = {}) {
     onNextReflection: vi.fn(),
     showOtherReflections: false,
     onShowOtherReflectionsChange: vi.fn(),
-    symmetryLabels: { rotoreflections: "Rotorreflexiones ±90°" },
     symmetryClassOrder: ["identity", "rotations3", "halfTurns", "reflections", "rotoreflections"] as const,
     symmetryCounts: {
       identity: 1,
@@ -66,7 +66,8 @@ function setup(overrides: Record<string, unknown> = {}) {
       direction: [1, 0, 0] as const,
       angle: Math.PI,
       label: "C2",
-      axisLabel: "puntos medios de AB y CD",
+      axisId: "half-turn-axis-0",
+      axisDescription: { kind: "tetrahedronOppositeEdgeMidpoints" as const, pair: "AB_CD" as const },
       order: 2,
     },
     onPreviousHalfTurn: vi.fn(),
@@ -76,7 +77,7 @@ function setup(overrides: Record<string, unknown> = {}) {
     rotoreflectionCount: 6,
     rotoreflectionAxisCount: 3,
     selectedRotoreflectionIndex: 0,
-    selectedRotoreflection: { kind: "improper" as const, point: [0,0,0] as const, direction: [1,0,0] as const, angle: Math.PI/2, label: "S4+", axisId: "axis-0", axisLabel: "Eje 1", order: 4, rotationSense: "positive" as const },
+    selectedRotoreflection: { kind: "improper" as const, point: [0,0,0] as const, direction: [1,0,0] as const, angle: Math.PI/2, label: "S4+", axisId: "axis-0", axisDescription: { kind: "generic" as const, ordinal: 1 }, order: 4, rotationSense: "positive" as const },
     onPreviousRotoreflection: vi.fn(),
     onNextRotoreflection: vi.fn(),
     showOtherRotoreflectionAxes: false,
@@ -87,7 +88,7 @@ function setup(overrides: Record<string, unknown> = {}) {
     onExit: vi.fn(),
     ...overrides,
   };
-  render(<LanguageProvider><SymmetryMenu {...(props as Parameters<typeof SymmetryMenu>[0])} /></LanguageProvider>);
+  render(<SymmetryMenu {...(props as Parameters<typeof SymmetryMenu>[0])} />);
   return props as {
     onToggleClass: ReturnType<typeof vi.fn>;
     onExit: ReturnType<typeof vi.fn>;
@@ -193,5 +194,36 @@ describe("SymmetryMenu", () => {
 
     expect(props.onNextHalfTurn).toHaveBeenCalledOnce();
     expect(props.onShowOtherHalfTurnAxesChange).toHaveBeenCalledWith(true);
+  });
+
+  it("translates axis descriptions from stable ids instead of leaking data labels", () => {
+    setup({ polyhedronName: "Tetrahedron", visibleClasses: new Set(["halfTurns"]) }, "en");
+
+    expect(screen.getByText("Axis: midpoints of AB and CD")).toBeInTheDocument();
+    expect(screen.queryByText(/puntos medios/i)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    [{ kind: "oppositeFaceCenters" as const, ordinal: 1 }, "Opposite face centers 1"],
+    [{ kind: "bodyDiagonal" as const, ordinal: 2 }, "Body diagonal 2"],
+  ])("renders the translated cube description from semantic metadata", (axisDescription, description) => {
+    setup({
+      polyhedronId: "cube",
+      polyhedronName: "Cube",
+      visibleClasses: new Set(["rotoreflections"]),
+      selectedRotoreflection: {
+        kind: "improper" as const,
+        point: [0, 0, 0] as const,
+        direction: [1, 0, 0] as const,
+        angle: Math.PI / 2,
+        label: "S",
+        axisId: "stable-axis-id",
+        axisDescription,
+        order: 4,
+        rotationSense: "positive" as const,
+      },
+    }, "en");
+
+    expect(screen.getByText(new RegExp(`${description} of 3`))).toBeInTheDocument();
   });
 });

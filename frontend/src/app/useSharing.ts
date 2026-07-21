@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import type { TFunction } from "i18next";
 
 import { fetchSharedDocument, shareDocument, unshareDocument } from "../api/documentsApi";
 import { readShareTokenFromLocation } from "../persistence/sharedLink";
@@ -17,6 +18,7 @@ interface UseSharingOptions {
   setGeometryDocumentTitle: (title: string) => void;
   detachCloudDocument: () => void;
   replaceConstruction: (document: GeometryDocument) => void;
+  t: TFunction;
   onMessage: (message: string) => void;
   onError: (message: string) => void;
 }
@@ -42,6 +44,7 @@ export function useSharing(options: UseSharingOptions): SharingState {
     setGeometryDocumentTitle,
     detachCloudDocument,
     replaceConstruction,
+    t,
     onMessage,
     onError,
   } = options;
@@ -61,7 +64,7 @@ export function useSharing(options: UseSharingOptions): SharingState {
         setShared(false);
         setViewingShared(true);
       } catch {
-        onError("This shared link is no longer available.");
+        onError(t("persistence.sharing.linkUnavailable"));
       }
     })();
     // Run once on mount.
@@ -78,7 +81,7 @@ export function useSharing(options: UseSharingOptions): SharingState {
     void (async () => {
       let id = cloudId;
       if (id === null) {
-        const title = window.prompt("Title for this construction:", documentTitle);
+        const title = window.prompt(t("persistence.sharing.saveTitle"), documentTitle);
         if (title === null || title.trim() === "") return;
         const result = await saveAsNewCloudDocument(title.trim(), currentDocument());
         if (result.status !== "success") {
@@ -93,10 +96,10 @@ export function useSharing(options: UseSharingOptions): SharingState {
         setShared(true);
         setShareUrl(`${window.location.origin}/?share=${token}`);
       } catch (error) {
-        onError(error instanceof Error ? error.message : "Unable to share construction.");
+        onError(error instanceof Error ? error.message : t("persistence.sharing.shareFailed"));
       }
     })();
-  }, [cloudId, currentDocument, documentTitle, onError, saveAsNewCloudDocument, setGeometryDocumentTitle]);
+  }, [cloudId, currentDocument, documentTitle, onError, saveAsNewCloudDocument, setGeometryDocumentTitle, t]);
 
   const handleStopSharing = useCallback(() => {
     if (cloudId === null) return;
@@ -104,12 +107,12 @@ export function useSharing(options: UseSharingOptions): SharingState {
       try {
         await unshareDocument(cloudId);
         setShared(false);
-        onMessage("Sharing stopped.");
+        onMessage(t("persistence.sharing.stopped"));
       } catch (error) {
-        onError(error instanceof Error ? error.message : "Unable to stop sharing.");
+        onError(error instanceof Error ? error.message : t("persistence.sharing.stopFailed"));
       }
     })();
-  }, [cloudId, onError, onMessage]);
+  }, [cloudId, onError, onMessage, t]);
 
   return {
     shared,

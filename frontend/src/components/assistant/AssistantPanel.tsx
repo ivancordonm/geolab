@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Sparkles, Trash2 } from "lucide-react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 
 import { AgentPlanningError, planStream, plannerClient } from "../../agent/planner";
 import { scriptGenerator } from "../../agent/scriptGenerator";
@@ -12,7 +14,6 @@ import type {
 } from "../../agent/types";
 import type { GeometryDocument } from "../../types/geometry";
 import { ConfigPopover } from "./ConfigPopover";
-import { useLanguage } from "../../i18n/useLanguage";
 
 interface AssistantPanelProps {
   document: GeometryDocument;
@@ -20,18 +21,14 @@ interface AssistantPanelProps {
   onApplyScript: (script: string) => Promise<void>;
 }
 
-const INITIAL_MESSAGE: AssistantMessage = {
-  id: "welcome",
-  role: "assistant",
-  content:
-    "Describe a construction in natural language (any language). I will generate a " +
-    "deterministically validated script for your review.",
-};
+function createWelcomeMessage(t: TFunction): AssistantMessage {
+  return { id: "welcome", role: "assistant", content: t("assistant.welcome") };
+}
 
 export function AssistantPanel({ document, applyingScript, onApplyScript }: AssistantPanelProps) {
-  const { language, t } = useLanguage();
+  const { t, i18n } = useTranslation();
   const [config, setConfig, remember, apiKeys, models] = useAssistantConfig();
-  const [messages, setMessages] = useState<AssistantMessage[]>(() => [{ ...INITIAL_MESSAGE, content: t("Describe una construcción en lenguaje natural (en cualquier idioma). Generaré un script validado de forma determinista para que lo revises.", "Describe a construction in natural language (any language). I will generate a deterministically validated script for your review.") }]);
+  const [messages, setMessages] = useState<AssistantMessage[]>(() => [createWelcomeMessage(t)]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -44,8 +41,8 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
   const streamControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    setMessages((current) => current.length === 1 && current[0].id === "welcome" ? [{ ...INITIAL_MESSAGE, content: t("Describe una construcción en lenguaje natural (en cualquier idioma). Generaré un script validado de forma determinista para que lo revises.", "Describe a construction in natural language (any language). I will generate a deterministically validated script for your review.") }] : current);
-  }, [language, t]);
+    setMessages((current) => current.length === 1 && current[0].id === "welcome" ? [createWelcomeMessage(t)] : current);
+  }, [i18n.resolvedLanguage, t]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -82,7 +79,7 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
         const message =
           planningError instanceof AgentPlanningError
             ? planningError.message
-            : "The planner could not process this request.";
+            : t("assistant.plannerFailed");
         setError(message);
         setMessages((current) => [
           ...current,
@@ -133,7 +130,7 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
         setError(
           streamError instanceof AgentPlanningError
             ? streamError.message
-            : "The streaming planner could not process this request.",
+            : t("assistant.streamingFailed"),
         );
       } finally {
         if (streamControllerRef.current === controller) {
@@ -155,7 +152,7 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
     requestControllerRef.current = null;
     streamControllerRef.current?.abort();
     streamControllerRef.current = null;
-    setMessages([INITIAL_MESSAGE]);
+    setMessages([createWelcomeMessage(t)]);
     setInput("");
     setLoading(false);
     setStreaming(false);
@@ -175,11 +172,11 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
       .then(() => {
         setMessages((current) => [
           ...current,
-          { id: createMessageId(), role: "assistant", content: "The reviewed script was applied." },
+          { id: createMessageId(), role: "assistant", content: t("assistant.scriptApplied") },
         ]);
       })
       .catch((applyError: unknown) => {
-        setError(applyError instanceof Error ? applyError.message : "The script could not be applied.");
+        setError(applyError instanceof Error ? applyError.message : t("assistant.scriptApplyFailed"));
       })
       .finally(() => setApplying(false));
   };
@@ -189,24 +186,24 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
       <div className="mb-2 flex items-center justify-between gap-2">
         <div>
           <p className="m-0 text-xs font-semibold uppercase tracking-[0.13em] text-brand-600">
-            {t("Planificador de IA", "AI planner")}
+            {t("assistant.planner")}
           </p>
           <h2
             id="assistant-heading"
             className="m-0 mt-0.5 flex items-center gap-1.5 text-lg font-bold tracking-tight text-content"
           >
             <Sparkles size={18} aria-hidden className="text-brand-600" />
-            {t("Asistente", "Assistant")}
+            {t("common.assistant")}
           </h2>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="rounded-full bg-success-soft px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-success-fg">
-            {t("Validado", "Validated")}
+            {t("assistant.validated")}
           </span>
           <button
             type="button"
-            title={t("Iniciar una conversación nueva", "Start a new conversation")}
-            aria-label={t("Iniciar una conversación nueva", "Start a new conversation")}
+            title={t("assistant.newConversation")}
+            aria-label={t("assistant.newConversation")}
             disabled={applying || applyingScript}
             onClick={handleClearConversation}
             className="rounded-lg p-1.5 text-muted transition-colors hover:bg-danger-soft hover:text-danger-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-55"
@@ -228,7 +225,7 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
 
       <div
         className="flex max-h-64 flex-col gap-2 overflow-y-auto"
-        aria-label={t("Historial de chat del asistente", "Assistant chat history")}
+        aria-label={t("assistant.chatHistory")}
         aria-live="polite"
       >
         {messages.map((message) => (
@@ -241,25 +238,25 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
             }`}
           >
             <strong className="mb-0.5 block text-[0.65rem] font-semibold uppercase tracking-wide opacity-80">
-              {message.role === "user" ? t("Tú", "You") : t("Asistente", "Assistant")}
+              {message.role === "user" ? t("assistant.you") : t("common.assistant")}
             </strong>
             <p className="m-0">{message.content}</p>
           </article>
         ))}
         {loading ? (
-          <p className="m-0 text-sm font-semibold text-brand-600">{t("Planificando y validando…", "Planning and validating…")}</p>
+          <p className="m-0 text-sm font-semibold text-brand-600">{t("assistant.planning")}</p>
         ) : null}
       </div>
 
       <form className="mt-3 flex flex-col gap-2" onSubmit={handleSubmit}>
         <label className="sr-only" htmlFor="assistant-request">
-          {t("Describe una construcción geométrica", "Describe a geometry construction")}
+          {t("assistant.requestLabel")}
         </label>
         <textarea
           id="assistant-request"
           value={input}
           rows={3}
-          placeholder="Dibuja un triángulo ABC y traza la altura desde C."
+          placeholder={t("assistant.placeholder")}
           disabled={loading}
           onChange={(event) => setInput(event.target.value)}
           className="w-full resize-y rounded-lg border border-edge bg-surface p-3 text-sm leading-snug text-content focus:border-brand-400 focus:outline-2 focus:outline-offset-1 focus:outline-brand-500/30 disabled:opacity-60"
@@ -270,7 +267,7 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
             onClick={handleCancel}
             className="w-full rounded-lg border border-danger-edge bg-surface-muted px-4 py-2.5 text-sm font-semibold text-danger-fg transition-colors hover:bg-danger-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
           >
-            {t("Cancelar", "Cancel")}
+            {t("common.cancel")}
           </button>
         ) : (
           <button
@@ -278,17 +275,17 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
             disabled={!input.trim()}
             className="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-55"
           >
-            {t("Enviar", "Send")}
+            {t("assistant.send")}
           </button>
         )}
         <button
           type="button"
           onClick={handleStreamPreview}
           disabled={!input.trim() || streaming || loading}
-          title={t("Previsualiza el razonamiento del planificador mientras se transmite", "Preview the tool-calling planner's reasoning as it streams (Claude)")}
+          title={t("assistant.streamInstruction")}
           className="rounded-lg border border-edge bg-surface-muted px-4 py-2 text-xs font-semibold text-muted transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-55"
         >
-          {streaming ? t("Transmitiendo…", "Streaming…") : t("Previsualizar plan en directo (beta)", "Preview streaming plan (beta)")}
+          {streaming ? t("assistant.streaming") : t("assistant.previewStream")}
         </button>
       </form>
 
@@ -304,11 +301,11 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
       {streaming || streamThinking || streamProposals ? (
         <section
           className="mt-4 border-t border-edge pt-3"
-          aria-label={t("Previsualización del planificador en directo", "Streaming planner preview")}
+          aria-label={t("assistant.streamPreview")}
           aria-live="polite"
         >
           <h3 className="m-0 mb-1.5 text-sm font-semibold text-content">
-            {t("Planificador en directo", "Streaming planner")} {streaming ? t("(pensando…)", "(thinking…)") : t("(propuesta)", "(proposal)")}
+            {t("assistant.streamingPlanner")} {streaming ? t("assistant.thinking") : t("assistant.proposal")}
           </h3>
           {streamThinking ? (
             <p className="m-0 whitespace-pre-wrap rounded-lg bg-surface-muted p-2.5 text-sm leading-snug text-muted">
@@ -328,7 +325,7 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
           ) : null}
           {streamProposals ? (
             <p className="mt-2 mb-0 text-[0.7rem] italic text-muted">
-              {t("Solo previsualización: las llamadas propuestas no se aplican automáticamente.", "Preview only — proposed tool calls are not applied automatically.")}
+              {t("assistant.previewOnly")}
             </p>
           ) : null}
         </section>
@@ -337,9 +334,9 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
       {response ? (
         <section
           className="mt-4 border-t border-edge pt-3"
-          aria-label={t("Previsualización de la construcción generada", "Generated construction preview")}
+          aria-label={t("assistant.generatedPreview")}
         >
-          <h3 className="m-0 mb-1.5 text-sm font-semibold text-content">{t("Plan", "Plan")}</h3>
+          <h3 className="m-0 mb-1.5 text-sm font-semibold text-content">{t("assistant.plan")}</h3>
           <ol className="m-0 list-decimal pl-5 text-sm leading-relaxed text-muted">
             {response.plan.map((step) => (
               <li key={step}>{step}</li>
@@ -353,7 +350,7 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
               {warning}
             </p>
           ))}
-          <h3 className="m-0 mb-1.5 mt-3 text-sm font-semibold text-content">{t("Script generado", "Generated script")}</h3>
+          <h3 className="m-0 mb-1.5 mt-3 text-sm font-semibold text-content">{t("assistant.generatedScript")}</h3>
           <pre className="m-0 max-h-60 overflow-auto whitespace-pre rounded-lg border border-edge bg-surface-muted p-3 font-mono text-[0.75rem] leading-relaxed text-content">
             <code>{response.generatedScript}</code>
           </pre>
@@ -364,7 +361,7 @@ export function AssistantPanel({ document, applyingScript, onApplyScript }: Assi
             style={{ backgroundColor: "var(--geo-segment)" }}
             className="mt-2.5 w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-55"
           >
-            {applying || applyingScript ? t("Aplicando…", "Applying…") : t("Aplicar script", "Apply Script")}
+            {applying || applyingScript ? t("assistant.applying") : t("assistant.applyScript")}
           </button>
         </section>
       ) : null}

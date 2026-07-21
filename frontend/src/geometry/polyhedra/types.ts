@@ -13,6 +13,8 @@ export type SymmetryClass =
 
 export type ReflectionDisplayMode = "individual" | "cumulative" | "all";
 
+export type RotationSubtype = "c3" | "c4";
+
 export type SymmetryAxisDescription =
   | { kind: "bodyDiagonal"; ordinal: number }
   | { kind: "oppositeFaceCenters"; ordinal: number }
@@ -200,4 +202,15 @@ export function matrixForElement(element: SymmetryElement): Matrix4 {
   }
 }
 
+export function filterRotationsBySubtype(
+  rotations: readonly SymmetryElementAxis[],
+  subtype: RotationSubtype,
+): SymmetryElementAxis[] {
+  if (subtype === "c4") {
+    return rotations.filter((el) => el.order === 4);
+  }
+  return rotations.filter((el) => el.order === 3 || el.order === undefined);
+}
+
 export type { ConstructionTool };
+

@@ -37,6 +37,8 @@ interface SymmetryMenuProps {
   rotationCount: number;
   rotationAxisCount: number;
   rotationAxisOrdinal: number;
+  rotationSubtype?: import("../../geometry/polyhedra/types").RotationSubtype;
+  onRotationSubtypeChange?: (subtype: import("../../geometry/polyhedra/types").RotationSubtype) => void;
   selectedRotation?: SymmetryElementAxis;
   onPreviousRotation: () => void;
   onNextRotation: () => void;
@@ -224,6 +226,8 @@ export function SymmetryMenu({
   rotationCount,
   rotationAxisCount,
   rotationAxisOrdinal,
+  rotationSubtype = "c3",
+  onRotationSubtypeChange,
   selectedRotation,
   onPreviousRotation,
   onNextRotation,
@@ -310,19 +314,65 @@ export function SymmetryMenu({
             </p>
           )}
           {cls === "rotations3" && visibleClasses.has("rotations3") && (
-            <AxisFamilyControls
-              singularName={t("symmetry.rotation")}
-              selectedIndex={selectedRotationIndex}
-              count={rotationCount}
-              axisCount={rotationAxisCount}
-              axisOrdinal={rotationAxisOrdinal}
-              selected={selectedRotation}
-              onPrevious={onPreviousRotation}
-              onNext={onNextRotation}
-              showOtherAxes={showOtherRotationAxes}
-              onShowOtherAxesChange={onShowOtherRotationAxesChange}
-            />
+            <div>
+              {(polyhedronId === "cube" || polyhedronId === "octahedron") && onRotationSubtypeChange && (
+                <div
+                  role="radiogroup"
+                  aria-label={t("symmetry.title")}
+                  className="mb-2 ml-5 flex flex-col gap-1 rounded-md border border-edge bg-surface/50 p-2 text-xs"
+                >
+                  <label className="flex cursor-pointer items-center gap-2 text-[0.7rem] font-medium text-content">
+                    <input
+                      type="radio"
+                      name="rotationSubtype"
+                      value="c3"
+                      checked={rotationSubtype === "c3"}
+                      onChange={() => onRotationSubtypeChange("c3")}
+                      className="h-3.5 w-3.5 cursor-pointer accent-brand-600"
+                    />
+                    <span>
+                      {polyhedronId === "cube"
+                        ? t("symmetry.rotationSubtypes.c3Vertex")
+                        : t("symmetry.rotationSubtypes.c3Face")}
+                    </span>
+                  </label>
+                  <label className="flex cursor-pointer items-center gap-2 text-[0.7rem] font-medium text-content">
+                    <input
+                      type="radio"
+                      name="rotationSubtype"
+                      value="c4"
+                      checked={rotationSubtype === "c4"}
+                      onChange={() => onRotationSubtypeChange("c4")}
+                      className="h-3.5 w-3.5 cursor-pointer accent-brand-600"
+                    />
+                    <span>
+                      {polyhedronId === "cube"
+                        ? t("symmetry.rotationSubtypes.c4Face")
+                        : t("symmetry.rotationSubtypes.c4Vertex")}
+                    </span>
+                  </label>
+                </div>
+              )}
+              {polyhedronId === "tetrahedron" && (
+                <p className="mb-1 ml-5 text-[0.65rem] font-medium text-muted">
+                  {t("symmetry.rotationSubtypes.c3Tetrahedron")}
+                </p>
+              )}
+              <AxisFamilyControls
+                singularName={t("symmetry.rotation")}
+                selectedIndex={selectedRotationIndex}
+                count={rotationCount}
+                axisCount={rotationAxisCount}
+                axisOrdinal={rotationAxisOrdinal}
+                selected={selectedRotation}
+                onPrevious={onPreviousRotation}
+                onNext={onNextRotation}
+                showOtherAxes={showOtherRotationAxes}
+                onShowOtherAxesChange={onShowOtherRotationAxesChange}
+              />
+            </div>
           )}
+
           {cls === "halfTurns" && visibleClasses.has("halfTurns") && (
             <AxisFamilyControls
               singularName={t("symmetry.halfTurn")}

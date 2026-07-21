@@ -19,6 +19,7 @@ interface SymmetryOverlayProps {
   showOtherReflections: boolean;
   selectedRotationIndex?: number;
   showOtherRotationAxes?: boolean;
+  rotationsList?: readonly import("../../geometry/polyhedra/types").SymmetryElementAxis[];
   selectedHalfTurnIndex?: number;
   showOtherHalfTurnAxes?: boolean;
   selectedRotoreflectionIndex?: number;
@@ -81,6 +82,7 @@ function AxisLine({
 }
 
 function RotationArc({
+
   direction,
   angle,
   color = "#000000",
@@ -196,6 +198,7 @@ export function SymmetryOverlay({
   color,
   selectedRotationIndex = 0,
   showOtherRotationAxes = false,
+  rotationsList,
   selectedHalfTurnIndex = 0,
   showOtherHalfTurnAxes = false,
   selectedRotoreflectionIndex = 0,
@@ -210,8 +213,9 @@ export function SymmetryOverlay({
     reflectionMode,
     showOtherReflections,
   );
+  const rotationsToRender = rotationsList ?? s.rotations3;
   const rotationAxisIndices = axisIndicesToRender(
-    s.rotations3,
+    rotationsToRender,
     selectedRotationIndex,
     showOtherRotationAxes,
   );
@@ -222,13 +226,13 @@ export function SymmetryOverlay({
   );
   const selectedRotationIndexToRender = rotationAxisIndices[0];
   const selectedHalfTurnIndexToRender = halfTurnAxisIndices[0];
-  const selectedRotation = s.rotations3[selectedRotationIndexToRender];
+  const selectedRotation = rotationsToRender[selectedRotationIndexToRender];
   const selectedHalfTurn = s.halfTurns[selectedHalfTurnIndexToRender];
   return (
     <group>
       {visibleClasses.has("rotations3") &&
         rotationAxisIndices.map((index) => {
-          const element = s.rotations3[index];
+          const element = rotationsToRender[index];
           const selected = index === selectedRotationIndexToRender;
           return (
             <AxisLine
@@ -240,6 +244,7 @@ export function SymmetryOverlay({
             />
           );
         })}
+
       {visibleClasses.has("rotations3") && selectedRotation && (
         <RotationArc
           direction={selectedRotation.direction}
@@ -309,6 +314,7 @@ export function SymmetryOverlay({
               />
             ))}
             {showRotoreflectionPlane && (
+
               <PlaneQuad
                 element={{
                   kind: "plane",

@@ -237,4 +237,55 @@ describe("SymmetryMenu", () => {
 
     expect(onSelectPolyhedron).toHaveBeenCalledWith("cube");
   });
+
+  it("renders mutually exclusive C3 and C4 radio options for Cube and handles selection change", async () => {
+    const user = userEvent.setup();
+    const onRotationSubtypeChange = vi.fn();
+    setup({
+      polyhedronId: "cube",
+      polyhedronName: "Cubo",
+      visibleClasses: new Set(["rotations3"]),
+      rotationSubtype: "c3",
+      onRotationSubtypeChange,
+    });
+
+    const c3Radio = screen.getByLabelText("C3 (de vértice)");
+    const c4Radio = screen.getByLabelText("C4 (de cara)");
+    expect(c3Radio).toBeChecked();
+    expect(c4Radio).not.toBeChecked();
+
+    await user.click(c4Radio);
+    expect(onRotationSubtypeChange).toHaveBeenCalledWith("c4");
+  });
+
+  it("renders C3 (de cara) and C4 (de vértice) radio options for Octahedron", async () => {
+    const user = userEvent.setup();
+    const onRotationSubtypeChange = vi.fn();
+    setup({
+      polyhedronId: "octahedron",
+      polyhedronName: "Octaedro",
+      visibleClasses: new Set(["rotations3"]),
+      rotationSubtype: "c3",
+      onRotationSubtypeChange,
+    });
+
+    const c3Radio = screen.getByLabelText("C3 (de cara)");
+    const c4Radio = screen.getByLabelText("C4 (de vértice)");
+    expect(c3Radio).toBeChecked();
+
+    await user.click(c4Radio);
+    expect(onRotationSubtypeChange).toHaveBeenCalledWith("c4");
+  });
+
+  it("renders C3 (vértice / cara) single label for Tetrahedron", () => {
+    setup({
+      polyhedronId: "tetrahedron",
+      polyhedronName: "Tetraedro",
+      visibleClasses: new Set(["rotations3"]),
+    });
+
+    expect(screen.getByText("C3 (vértice / cara)")).toBeInTheDocument();
+    expect(screen.queryByLabelText("C4 (de cara)")).not.toBeInTheDocument();
+  });
 });
+

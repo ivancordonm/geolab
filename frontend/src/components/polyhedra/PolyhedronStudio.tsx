@@ -5,10 +5,11 @@ import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { PolyhedronMesh } from "./PolyhedronMesh";
 import { SymmetryOverlay } from "./SymmetryOverlay";
 import { SymmetryMenu } from "./SymmetryMenu";
-import { axisCount, axisOrdinal, wrapReflectionIndex } from "../../geometry/polyhedra/types";
+import { axisCount, axisOrdinal, filterRotationsBySubtype, wrapReflectionIndex } from "../../geometry/polyhedra/types";
 import type {
   PolyhedronDefinition,
   ReflectionDisplayMode,
+  RotationSubtype,
   SymmetryClass,
 } from "../../geometry/polyhedra/types";
 import { useTranslation } from "react-i18next";
@@ -36,6 +37,7 @@ export default function PolyhedronStudio({
   const [reflectionMode, setReflectionMode] =
     useState<ReflectionDisplayMode>("individual");
   const [selectedReflectionIndex, setSelectedReflectionIndex] = useState(0);
+  const [rotationSubtype, setRotationSubtype] = useState<RotationSubtype>("c3");
   const [selectedRotationIndex, setSelectedRotationIndex] = useState(0);
   const [selectedHalfTurnIndex, setSelectedHalfTurnIndex] = useState(0);
   const [selectedRotoreflectionIndex, setSelectedRotoreflectionIndex] = useState(0);
@@ -47,10 +49,14 @@ export default function PolyhedronStudio({
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const { symmetry } = definition;
   const reflections = symmetry.reflections;
+  const filteredRotations = filterRotationsBySubtype(symmetry.rotations3, rotationSubtype);
 
   const toggleClass = useCallback((cls: SymmetryClass) => {
     if (!visibleClasses.has(cls)) {
-      if (cls === "rotations3") setSelectedRotationIndex(0);
+      if (cls === "rotations3") {
+        setRotationSubtype("c3");
+        setSelectedRotationIndex(0);
+      }
       if (cls === "halfTurns") setSelectedHalfTurnIndex(0);
       if (cls === "reflections") setSelectedReflectionIndex(0);
       if (cls === "rotoreflections") setSelectedRotoreflectionIndex(0);
@@ -62,6 +68,7 @@ export default function PolyhedronStudio({
       return next;
     });
   }, [visibleClasses]);
+
 
   const handleSelectPolyhedron = useCallback(
     (id: string) => {
@@ -124,6 +131,7 @@ export default function PolyhedronStudio({
           selectedReflectionIndex={selectedReflectionIndex}
           selectedRotationIndex={selectedRotationIndex}
           showOtherRotationAxes={showOtherRotationAxes}
+          rotationsList={filteredRotations}
           selectedHalfTurnIndex={selectedHalfTurnIndex}
           showOtherHalfTurnAxes={showOtherHalfTurnAxes}
           selectedRotoreflectionIndex={selectedRotoreflectionIndex}
@@ -173,22 +181,28 @@ export default function PolyhedronStudio({
         }}
         symmetryClassOrder={definition.symmetryClassOrder}
         selectedRotationIndex={selectedRotationIndex}
-        rotationCount={symmetry.rotations3.length}
-        rotationAxisCount={axisCount(symmetry.rotations3)}
-        rotationAxisOrdinal={axisOrdinal(symmetry.rotations3, selectedRotationIndex)}
-        selectedRotation={symmetry.rotations3[selectedRotationIndex]}
+        rotationCount={filteredRotations.length}
+        rotationAxisCount={axisCount(filteredRotations)}
+        rotationAxisOrdinal={axisOrdinal(filteredRotations, selectedRotationIndex)}
+        rotationSubtype={rotationSubtype}
+        onRotationSubtypeChange={(subtype) => {
+          setRotationSubtype(subtype);
+          setSelectedRotationIndex(0);
+        }}
+        selectedRotation={filteredRotations[selectedRotationIndex]}
         onPreviousRotation={() =>
           setSelectedRotationIndex((index) =>
-            wrapReflectionIndex(index, -1, symmetry.rotations3.length),
+            wrapReflectionIndex(index, -1, filteredRotations.length),
           )
         }
         onNextRotation={() =>
           setSelectedRotationIndex((index) =>
-            wrapReflectionIndex(index, 1, symmetry.rotations3.length),
+            wrapReflectionIndex(index, 1, filteredRotations.length),
           )
         }
         showOtherRotationAxes={showOtherRotationAxes}
         onShowOtherRotationAxesChange={setShowOtherRotationAxes}
+
         selectedHalfTurnIndex={selectedHalfTurnIndex}
         halfTurnCount={symmetry.halfTurns.length}
         halfTurnAxisCount={axisCount(symmetry.halfTurns)}

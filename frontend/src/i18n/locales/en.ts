@@ -203,6 +203,13 @@ export const en = {
     classes: { identity: "Identity", rotations3: "Rotations ±120°", rotations3And4: "Rotations (C3 and C4)", halfTurns: "Half turns 180°", inversion: "Central inversion", reflections: "Reflections", rotoreflections: "Rotoreflections", rotoreflectionsQuarter: "Rotoreflections ±90°" },
     classWithCount: "{{label}} ({{count}})", previous: "{{name}} previous", next: "{{name}} next", position: "{{name}} {{current}} of {{count}}",
     rotation: "Rotation", halfTurn: "Half turn", axis: "Axis", axisPosition: "Axis {{current}} of {{count}}", angle: "Angle", order: "Order", turn: "Turn",
+    rotationSubtypes: {
+      c3Vertex: "C3 (vertex)",
+      c3Face: "C3 (face)",
+      c3Tetrahedron: "C3 (vertex / face)",
+      c4Face: "C4 (face)",
+      c4Vertex: "C4 (vertex)",
+    },
     axisTurn: "Axis {{current}} of {{count}} · Turn: {{sense}}{{degrees}}°", showOtherAxes: "Show other axes as reference",
     identityDescription: "Leaves all polyhedron points unchanged.", inversionDescription: "Maps every point to its opposite through the center.",
     mode: "Mode", reflectionMode: "Reflection mode", modes: { individual: "Individual", cumulative: "Cumulative", all: "All" },

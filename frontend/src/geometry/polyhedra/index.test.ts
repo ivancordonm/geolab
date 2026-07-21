@@ -16,7 +16,8 @@ describe("polyhedron registry", () => {
     expect(polyhedronForTool("tetrahedron")?.id).toBe("tetrahedron");
     expect(polyhedronForTool("cube")?.id).toBe("cube");
     expect(polyhedronForTool("octahedron")?.id).toBe("octahedron");
-    expect(polyhedronForTool("dodecahedron")).toMatchObject({ id: "dodecahedron", underConstruction: true });
+    expect(polyhedronForTool("dodecahedron")).toMatchObject({ id: "dodecahedron" });
+    expect(polyhedronForTool("dodecahedron")?.underConstruction).toBeUndefined();
     expect(polyhedronForTool("icosahedron")).toMatchObject({ id: "icosahedron", underConstruction: true });
     expect(polyhedronForTool("point")).toBeUndefined();
   });

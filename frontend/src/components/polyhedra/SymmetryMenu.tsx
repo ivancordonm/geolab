@@ -79,6 +79,9 @@ function classLabel(cls: SymmetryClass, polyhedronId: string, t: TFunction): str
   if (cls === "rotations3" && (polyhedronId === "cube" || polyhedronId === "octahedron")) {
     return t("symmetry.classes.rotations3And4");
   }
+  if (cls === "rotations3" && polyhedronId === "dodecahedron") {
+    return t("symmetry.classes.rotations3And5");
+  }
   if (cls === "rotoreflections" && polyhedronId === "tetrahedron") {
     return t("symmetry.classes.rotoreflectionsQuarter");
   }
@@ -331,7 +334,7 @@ export function SymmetryMenu({
           )}
           {cls === "rotations3" && visibleClasses.has("rotations3") && (
             <div>
-              {(polyhedronId === "cube" || polyhedronId === "octahedron") && onRotationSubtypeChange && (
+              {(polyhedronId === "cube" || polyhedronId === "octahedron" || polyhedronId === "dodecahedron") && onRotationSubtypeChange && (
                 <div
                   role="radiogroup"
                   aria-label={t("symmetry.title")}
@@ -349,9 +352,24 @@ export function SymmetryMenu({
                     <span>
                       {polyhedronId === "cube"
                         ? t("symmetry.rotationSubtypes.c3Vertex")
-                        : t("symmetry.rotationSubtypes.c3Face")}
+                        : polyhedronId === "dodecahedron"
+                          ? t("symmetry.rotationSubtypes.c3Dodecahedron")
+                          : t("symmetry.rotationSubtypes.c3Face")}
                     </span>
                   </label>
+                  {polyhedronId === "dodecahedron" ? (
+                    <label className="flex cursor-pointer items-center gap-2 text-[0.7rem] font-medium text-content">
+                      <input
+                        type="radio"
+                        name="rotationSubtype"
+                        value="c5"
+                        checked={rotationSubtype === "c5"}
+                        onChange={() => onRotationSubtypeChange("c5")}
+                        className="h-3.5 w-3.5 cursor-pointer accent-brand-600"
+                      />
+                      <span>{t("symmetry.rotationSubtypes.c5Dodecahedron")}</span>
+                    </label>
+                  ) : (
                   <label className="flex cursor-pointer items-center gap-2 text-[0.7rem] font-medium text-content">
                     <input
                       type="radio"
@@ -367,6 +385,7 @@ export function SymmetryMenu({
                         : t("symmetry.rotationSubtypes.c4Vertex")}
                     </span>
                   </label>
+                  )}
                 </div>
               )}
               {polyhedronId === "tetrahedron" && (

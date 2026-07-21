@@ -13,7 +13,7 @@ export type SymmetryClass =
 
 export type ReflectionDisplayMode = "individual" | "cumulative" | "all";
 
-export type RotationSubtype = "c3" | "c4";
+export type RotationSubtype = "c3" | "c4" | "c5";
 
 export type SymmetryAxisDescription =
   | { kind: "bodyDiagonal"; ordinal: number }
@@ -209,8 +209,10 @@ export function filterRotationsBySubtype(
   if (subtype === "c4") {
     return rotations.filter((el) => el.order === 4);
   }
+  if (subtype === "c5") {
+    return rotations.filter((el) => el.order === 5);
+  }
   return rotations.filter((el) => el.order === 3 || el.order === undefined);
 }
 
 export type { ConstructionTool };
-

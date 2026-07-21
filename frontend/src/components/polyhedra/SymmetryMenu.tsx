@@ -79,7 +79,7 @@ function classLabel(cls: SymmetryClass, polyhedronId: string, t: TFunction): str
   if (cls === "rotations3" && (polyhedronId === "cube" || polyhedronId === "octahedron")) {
     return t("symmetry.classes.rotations3And4");
   }
-  if (cls === "rotations3" && polyhedronId === "dodecahedron") {
+  if (cls === "rotations3" && (polyhedronId === "dodecahedron" || polyhedronId === "icosahedron")) {
     return t("symmetry.classes.rotations3And5");
   }
   if (cls === "rotoreflections" && polyhedronId === "tetrahedron") {
@@ -334,7 +334,7 @@ export function SymmetryMenu({
           )}
           {cls === "rotations3" && visibleClasses.has("rotations3") && (
             <div>
-              {(polyhedronId === "cube" || polyhedronId === "octahedron" || polyhedronId === "dodecahedron") && onRotationSubtypeChange && (
+              {(polyhedronId === "cube" || polyhedronId === "octahedron" || polyhedronId === "dodecahedron" || polyhedronId === "icosahedron") && onRotationSubtypeChange && (
                 <div
                   role="radiogroup"
                   aria-label={t("symmetry.title")}
@@ -357,7 +357,7 @@ export function SymmetryMenu({
                           : t("symmetry.rotationSubtypes.c3Face")}
                     </span>
                   </label>
-                  {polyhedronId === "dodecahedron" ? (
+                  {polyhedronId === "dodecahedron" || polyhedronId === "icosahedron" ? (
                     <label className="flex cursor-pointer items-center gap-2 text-[0.7rem] font-medium text-content">
                       <input
                         type="radio"
@@ -367,7 +367,7 @@ export function SymmetryMenu({
                         onChange={() => onRotationSubtypeChange("c5")}
                         className="h-3.5 w-3.5 cursor-pointer accent-brand-600"
                       />
-                      <span>{t("symmetry.rotationSubtypes.c5Dodecahedron")}</span>
+                      <span>{t(polyhedronId === "dodecahedron" ? "symmetry.rotationSubtypes.c5Dodecahedron" : "symmetry.rotationSubtypes.c5Icosahedron")}</span>
                     </label>
                   ) : (
                   <label className="flex cursor-pointer items-center gap-2 text-[0.7rem] font-medium text-content">

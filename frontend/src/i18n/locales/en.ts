@@ -211,6 +211,7 @@ export const en = {
       c4Vertex: "C4 (vertex)",
       c3Dodecahedron: "C3 (vertex)",
       c5Dodecahedron: "C5 (face)",
+      c5Icosahedron: "C5 (vertex)",
     },
     axisTurn: "Axis {{current}} of {{count}} · Turn: {{sense}}{{degrees}}°", showOtherAxes: "Show other axes as reference",
     identityDescription: "Leaves all polyhedron points unchanged.", inversionDescription: "Maps every point to its opposite through the center.",

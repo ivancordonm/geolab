@@ -40,12 +40,13 @@ describe("polyhedron entry from toolbar", () => {
     expect(screen.queryByText("Under construction")).not.toBeInTheDocument();
   });
 
-  it("opens the temporary figure for Icosahedron", async () => {
+  it("opens the complete Icosahedron symmetry studio", async () => {
     render(<App />);
     await userEvent.click(screen.getByRole("button", { name: "Regular polyhedra" }));
     await userEvent.click(screen.getByRole("menuitem", { name: "Icosahedron" }));
     await userEvent.click(await screen.findByRole("button", { name: /continue/i }));
 
-    expect(await screen.findByText("Under construction")).toBeInTheDocument();
+    expect(await screen.findByTestId("studio")).toBeInTheDocument();
+    expect(screen.queryByText("Under construction")).not.toBeInTheDocument();
   });
 });

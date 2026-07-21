@@ -14,7 +14,6 @@ import { translatePolyhedronName } from "../../i18n/polyhedra";
 
 interface SymmetryMenuProps {
   polyhedronId: string;
-  polyhedronName: string;
   onSelectPolyhedron?: (id: string) => void;
   visibleClasses: ReadonlySet<SymmetryClass>;
   onToggleClass: (cls: SymmetryClass) => void;
@@ -214,7 +213,6 @@ const CLASS_ORDER: SymmetryClass[] = [
 
 export function SymmetryMenu({
   polyhedronId,
-  polyhedronName,
   onSelectPolyhedron,
   visibleClasses,
   onToggleClass,
@@ -593,9 +591,9 @@ export function SymmetryMenu({
         <span className="w-16 text-xs text-content">{t("symmetry.axisThickness")}</span>
         <input
           type="range"
-          min="0"
-          max="4"
-          step="0.5"
+          min="-1"
+          max="3"
+          step="0.25"
           value={axisThickness}
           aria-label={t("symmetry.axisThickness")}
           onChange={(e) => onAxisThicknessChange(Number(e.target.value))}
@@ -617,8 +615,8 @@ export function SymmetryMenu({
         <input
           type="range"
           min="-1"
-          max="3"
-          step="0.5"
+          max="2"
+          step="0.25"
           value={planeThickness}
           aria-label={t("symmetry.planeThickness")}
           onChange={(e) => onPlaneThicknessChange(Number(e.target.value))}

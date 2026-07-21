@@ -8,7 +8,6 @@ function setup(overrides: Record<string, unknown> = {}, language: "es" | "en" = 
   void i18n.changeLanguage(language);
   const props = {
     polyhedronId: "tetrahedron",
-    polyhedronName: "Tetraedro",
     visibleClasses: new Set<string>(),
     onToggleClass: vi.fn(),
     opacity: 0.6,
@@ -341,9 +340,16 @@ describe("SymmetryMenu", () => {
   it("renders axis and plane thickness and color controls under appearance", () => {
     setup();
 
-    expect(screen.getByLabelText("Grosor de ejes")).toBeInTheDocument();
+    const axisThickness = screen.getByLabelText("Grosor de ejes");
+    const planeThickness = screen.getByLabelText("Grosor de planos");
+
+    expect(axisThickness).toHaveAttribute("min", "-1");
+    expect(axisThickness).toHaveAttribute("max", "3");
+    expect(axisThickness).toHaveAttribute("step", "0.25");
     expect(screen.getByLabelText("Color de ejes")).toBeInTheDocument();
-    expect(screen.getByLabelText("Grosor de planos")).toBeInTheDocument();
+    expect(planeThickness).toHaveAttribute("min", "-1");
+    expect(planeThickness).toHaveAttribute("max", "2");
+    expect(planeThickness).toHaveAttribute("step", "0.25");
     expect(screen.getByLabelText("Color de planos")).toBeInTheDocument();
   });
 });

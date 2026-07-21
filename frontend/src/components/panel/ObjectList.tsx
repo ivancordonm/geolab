@@ -1,4 +1,4 @@
-import { Check, ChevronDown, ChevronRight, MoreVertical, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronRight, MoreVertical, Trash2, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -82,9 +82,6 @@ export function ObjectList({
   const [command, setCommand] = useState("");
   const [commandError, setCommandError] = useState<string | null>(null);
   const [submittingCommand, setSubmittingCommand] = useState(false);
-  const [editingFunctionId, setEditingFunctionId] = useState<string | null>(null);
-  const [editingExpression, setEditingExpression] = useState("");
-  const editInputRef = useRef<HTMLInputElement>(null);
   const storageKey = `geolab.object-groups.collapsed.v1:${document.id}`;
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => readCollapsedGroups(storageKey));
 
@@ -124,32 +121,6 @@ export function ObjectList({
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [menu]);
-
-  // Focus input when entering function edit mode
-  useEffect(() => {
-    if (editingFunctionId !== null) {
-      editInputRef.current?.focus();
-      editInputRef.current?.select();
-    }
-  }, [editingFunctionId]);
-
-  const startEditingFunction = (objectId: string, expression: string) => {
-    setEditingFunctionId(objectId);
-    setEditingExpression(expression);
-  };
-
-  const commitFunctionEdit = () => {
-    if (editingFunctionId === null) return;
-    const trimmed = editingExpression.trim();
-    if (trimmed) {
-      onUpdateFunctionExpression?.(editingFunctionId, trimmed);
-    }
-    setEditingFunctionId(null);
-  };
-
-  const cancelFunctionEdit = () => {
-    setEditingFunctionId(null);
-  };
 
   const POPOVER_WIDTH = 224; // w-56
   const openMenu = (objectId: string, trigger: HTMLElement) => {
@@ -306,57 +277,18 @@ export function ObjectList({
                 </button>
 
                 {/* Contenido del objeto */}
-                {object.kind === "function" && editingFunctionId === object.id ? (
-                  <div className={`flex min-w-0 flex-1 items-center gap-1.5 py-1.5 pr-1 ${object.visible ? "" : "opacity-40"}`}>
-                    <span className="block min-w-0 flex-1">
-                      <strong className="block truncate text-sm font-semibold text-content">
-                        {object.label}
-                      </strong>
-                      <input
-                        ref={editInputRef}
-                        type="text"
-                        value={editingExpression}
-                        onChange={(e) => setEditingExpression(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") { e.preventDefault(); commitFunctionEdit(); }
-                          if (e.key === "Escape") { e.preventDefault(); cancelFunctionEdit(); }
-                        }}
-                        onBlur={commitFunctionEdit}
-                        className="mt-0.5 w-full rounded border border-brand-400 bg-surface px-1.5 py-0.5 font-mono text-xs text-content outline-none ring-1 ring-brand-400"
-                      />
-                    </span>
-                    <button
-                      type="button"
-                      aria-label={t("objectsPanel.actions.confirm")}
-                      onMouseDown={(e) => { e.preventDefault(); commitFunctionEdit(); }}
-                      className="shrink-0 rounded p-1 text-success-fg hover:bg-surface-muted"
-                    >
-                      <Check size={13} aria-hidden />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={t("objectsPanel.actions.cancel")}
-                      onMouseDown={(e) => { e.preventDefault(); cancelFunctionEdit(); }}
-                      className="shrink-0 rounded p-1 text-muted hover:bg-surface-muted hover:text-content"
-                    >
-                      <X size={13} aria-hidden />
-                    </button>
-                  </div>
-                ) : (
-                  <button
+                <button
                     type="button"
                     aria-pressed={selected}
                     onClick={() => {
                       onSelectObject(object.id);
-                      if (object.kind === "function" && onUpdateFunctionExpression !== undefined) {
-                        startEditingFunction(object.id, object.definition.expression);
-                      }
                     }}
                     onDoubleClick={(e) => {
                       if (
                         onSetObjectLabel !== undefined ||
                         onSetObjectColor !== undefined ||
                         onSetObjectStyle !== undefined ||
+                        onUpdateFunctionExpression !== undefined ||
                         onDeleteObject !== undefined
                       ) {
                         e.stopPropagation();
@@ -382,8 +314,7 @@ export function ObjectList({
                           : t("objectsPanel.independent")}
                       </small>
                     </span>
-                  </button>
-                )}
+                </button>
 
                 {isHomothety(object) && onUpdateHomothetyRatio !== undefined ? (
                   <HomothetyRatioInput
@@ -394,8 +325,7 @@ export function ObjectList({
                   />
                 ) : null}
 
-                {editingFunctionId !== object.id ? (
-                  <span
+                <span
                     className={`shrink-0 self-center py-2 pr-2 text-[0.65rem] font-bold uppercase tracking-wide ${
                       undefinedValue ? "text-danger-fg" : "text-success-fg"
                     } ${object.visible ? "" : "opacity-40"}`}
@@ -405,11 +335,10 @@ export function ObjectList({
                       : object.kind === "measure" && value?.type === "scalar"
                         ? formatMeasureValue(object, value.value)
                         : objectKindLabel(object.kind, t)}
-                  </span>
-                ) : null}
+                </span>
 
                 {/* Botón tres puntos */}
-                {(onSetObjectLabel !== undefined || onSetObjectColor !== undefined || onSetObjectStyle !== undefined || onDeleteObject !== undefined) && (
+                {(onSetObjectLabel !== undefined || onSetObjectColor !== undefined || onSetObjectStyle !== undefined || onUpdateFunctionExpression !== undefined || onDeleteObject !== undefined) && (
                   <button
                     type="button"
                     aria-label={t("objectsPanel.actions.edit", { label: object.label })}
@@ -459,6 +388,11 @@ export function ObjectList({
               ? (patch) => {
                   onSetObjectStyle(menu.objectId, patch);
                 }
+              : undefined
+          }
+          onUpdateFunctionExpression={
+            onUpdateFunctionExpression && menuObject.kind === "function"
+              ? (expression) => onUpdateFunctionExpression(menu.objectId, expression)
               : undefined
           }
           onDelete={
@@ -582,13 +516,15 @@ interface ObjectMenuProps {
   onSetLabel?: (label: string) => void;
   onSetColor?: (color: string | null) => void;
   onSetStyle?: (patch: Partial<GeometryStyle>) => void;
+  onUpdateFunctionExpression?: (expression: string) => void;
   onDelete?: () => void;
   ref: React.RefObject<HTMLDivElement | null>;
 }
 
-function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle, onDelete, ref }: ObjectMenuProps) {
+function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle, onUpdateFunctionExpression, onDelete, ref }: ObjectMenuProps) {
   const { t } = useTranslation();
   const [label, setLabel] = useState(object.label);
+  const [expression, setExpression] = useState(object.kind === "function" ? object.definition.expression : "");
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Posición ajustada al viewport (se mide la altura real tras montar)
@@ -609,6 +545,16 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
       onSetLabel?.(trimmed);
     } else {
       setLabel(object.label);
+    }
+  };
+
+  const commitExpression = () => {
+    if (object.kind !== "function") return;
+    const trimmed = expression.trim();
+    if (trimmed && trimmed !== object.definition.expression) {
+      onUpdateFunctionExpression?.(trimmed);
+    } else if (!trimmed) {
+      setExpression(object.definition.expression);
     }
   };
 
@@ -661,11 +607,38 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
         </button>
       </div>
 
+      {object.kind === "function" && onUpdateFunctionExpression !== undefined && (
+        <div className="mb-3">
+          <label className="mb-1 block text-xs text-muted" htmlFor={`function-expression-${object.id}`}>
+            {t("objectsPanel.kinds.function")}
+          </label>
+          <input
+            id={`function-expression-${object.id}`}
+            type="text"
+            value={expression}
+            onChange={(event) => setExpression(event.target.value)}
+            onBlur={commitExpression}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                commitExpression();
+                onClose();
+              }
+              if (event.key === "Escape") {
+                setExpression(object.definition.expression);
+                onClose();
+              }
+            }}
+            className="w-full rounded-lg border border-edge bg-surface-muted px-2.5 py-1.5 font-mono text-sm text-content outline-none focus:border-brand-400 focus:ring-1 focus:ring-brand-400"
+          />
+        </div>
+      )}
+
       {onSetLabel !== undefined && (
         <div className="mb-3">
-          <label className="mb-1 block text-xs text-muted">{t("objectsPanel.label")}</label>
+          <label className="mb-1 block text-xs text-muted" htmlFor={`object-label-${object.id}`}>{t("objectsPanel.label")}</label>
           <input
             ref={inputRef}
+            id={`object-label-${object.id}`}
             type="text"
             value={label}
             onChange={(e) => setLabel(e.target.value)}

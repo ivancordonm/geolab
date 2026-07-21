@@ -1,8 +1,10 @@
+import { render } from "@testing-library/react";
+import { createElement } from "react";
 import { describe, expect, it } from "vitest";
 
 import type { FunctionGraph, GeometryViewport } from "../../types/geometry";
 import type { CanvasSize } from "../../geometry/viewport";
-import { buildFunctionPathData } from "./FunctionView";
+import { buildFunctionPathData, FunctionView } from "./FunctionView";
 
 const viewport: GeometryViewport = { centerX: 0, centerY: 0, scale: 100 };
 const size: CanvasSize = { width: 600, height: 600 };
@@ -259,4 +261,15 @@ describe("buildFunctionPathData", () => {
     }
     expect(failures).toEqual([]);
   }, 15_000);
+});
+
+describe("FunctionView", () => {
+  it("uses an inline stroke style so a custom color overrides the theme class", () => {
+    const object = { ...makeFunction("x"), style: { color: "#ef4444", strokeWidth: 3.5 } };
+    const { container } = render(createElement("svg", null, createElement(FunctionView, { object, viewport, size, selected: false })));
+
+    const path = container.querySelector("path");
+    expect(path).toHaveStyle({ stroke: "#ef4444" });
+    expect(path).toHaveAttribute("stroke-width", "3.5");
+  });
 });

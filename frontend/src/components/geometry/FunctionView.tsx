@@ -111,7 +111,7 @@ export function FunctionView({ object, viewport, size, selected, onPointerDown }
       className={selected ? "geometry-object--selected geometry-function" : "geometry-function"}
       d={pathData}
       fill="none"
-      stroke={object.style?.color}
+      style={object.style?.color ? { stroke: object.style.color } : undefined}
       strokeWidth={strokeWidth}
       {...dashAttrs(object.style?.strokeDash)}
       onPointerDown={onPointerDown}

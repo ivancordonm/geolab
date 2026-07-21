@@ -290,4 +290,55 @@ describe("ObjectList", () => {
     expect(onDeleteObject).toHaveBeenCalledWith("A");
   });
 
+  it("edits a function and all of its appearance properties from the same menu", async () => {
+    const user = userEvent.setup();
+    const document = {
+      ...exampleGeometryDocument,
+      objects: [
+        ...exampleGeometryDocument.objects,
+        { id: "f", label: "f", kind: "function" as const, visible: true, definition: { type: "function_expression" as const, expression: "x^2" } },
+      ],
+    };
+    const graph = new GeometryGraph(document);
+    const onUpdateFunctionExpression = vi.fn();
+    const onSetObjectLabel = vi.fn();
+    const onSetObjectColor = vi.fn();
+    const onSetObjectStyle = vi.fn();
+
+    render(
+      <ObjectList
+        document={graph.document}
+        values={graph.values}
+        selectedObjectId={null}
+        onSelectObject={vi.fn()}
+        onToggleVisibility={vi.fn()}
+        onSetObjectLabel={onSetObjectLabel}
+        onSetObjectColor={onSetObjectColor}
+        onSetObjectStyle={onSetObjectStyle}
+        onUpdateFunctionExpression={onUpdateFunctionExpression}
+      />,
+    );
+
+    const functionCard = screen.getByText("f").closest("button");
+    expect(functionCard).not.toBeNull();
+    await user.dblClick(functionCard!);
+
+    const expression = screen.getByLabelText("function");
+    await user.clear(expression);
+    await user.type(expression, "x^3");
+    await user.tab();
+    expect(onUpdateFunctionExpression).toHaveBeenCalledWith("f", "x^3");
+
+    const label = screen.getByLabelText("Label");
+    await user.clear(label);
+    await user.type(label, "g");
+    await user.tab();
+    expect(onSetObjectLabel).toHaveBeenCalledWith("f", "g");
+
+    await user.click(screen.getByRole("button", { name: "Red" }));
+    await user.click(screen.getByRole("button", { name: "Thick" }));
+    expect(onSetObjectColor).toHaveBeenCalledWith("f", "#ef4444");
+    expect(onSetObjectStyle).toHaveBeenCalledWith("f", { strokeWidth: 3.5 });
+  });
+
 });

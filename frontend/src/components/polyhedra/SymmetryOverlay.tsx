@@ -83,11 +83,11 @@ function AxisLine({
 function RotationArc({
   direction,
   angle,
-  color,
+  color = "#000000",
 }: {
   direction: readonly [number, number, number];
   angle: number;
-  color: string;
+  color?: string;
 }) {
   const axis = new Vector3(...direction).normalize();
   const ref = Math.abs(axis.y) < 0.9 ? new Vector3(0, 1, 0) : new Vector3(1, 0, 0);
@@ -244,7 +244,7 @@ export function SymmetryOverlay({
         <RotationArc
           direction={selectedRotation.direction}
           angle={selectedRotation.angle}
-          color={color}
+          color="#000000"
         />
       )}
       {visibleClasses.has("halfTurns") &&
@@ -265,7 +265,7 @@ export function SymmetryOverlay({
         <RotationArc
           direction={selectedHalfTurn.direction}
           angle={selectedHalfTurn.angle}
-          color={color}
+          color="#000000"
         />
       )}
       {visibleClasses.has("inversion") && s.inversion.length > 0 && (
@@ -321,7 +321,7 @@ export function SymmetryOverlay({
                 color={color}
               />
             )}
-            <RotationArc direction={selected.direction} angle={selected.angle} color={color} />
+            <RotationArc direction={selected.direction} angle={selected.angle} color="#000000" />
           </>;
         })()}
     </group>

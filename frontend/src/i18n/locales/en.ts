@@ -200,7 +200,7 @@ export const en = {
   },
   symmetry: {
     studio: "Symmetry studio", exit: "Exit to 2D", title: "Symmetries", appearance: "Appearance", opacity: "Opacity", color: "Color", axisThickness: "Axis thickness", axisColor: "Axis color", planeThickness: "Plane thickness", planeColor: "Plane color",
-    classes: { identity: "Identity", rotations3: "Rotations ±120°", rotations3And4: "Rotations (C3 and C4)", halfTurns: "Half turns 180°", inversion: "Central inversion", reflections: "Reflections", rotoreflections: "Rotoreflections", rotoreflectionsQuarter: "Rotoreflections ±90°" },
+    classes: { identity: "Identity", rotations3: "Rotations ±120°", rotations3And4: "Rotations (C3 and C4)", rotations3And5: "Rotations (C3 and C5)", halfTurns: "Half turns 180°", inversion: "Central inversion", reflections: "Reflections", rotoreflections: "Rotoreflections", rotoreflectionsQuarter: "Rotoreflections ±90°" },
     classWithCount: "{{label}} ({{count}})", previous: "{{name}} previous", next: "{{name}} next", position: "{{name}} {{current}} of {{count}}",
     rotation: "Rotation", halfTurn: "Half turn", axis: "Axis", axisPosition: "Axis {{current}} of {{count}}", angle: "Angle", order: "Order", turn: "Turn",
     rotationSubtypes: {
@@ -209,6 +209,8 @@ export const en = {
       c3Tetrahedron: "C3 (vertex / face)",
       c4Face: "C4 (face)",
       c4Vertex: "C4 (vertex)",
+      c3Dodecahedron: "C3 (vertex)",
+      c5Dodecahedron: "C5 (face)",
     },
     axisTurn: "Axis {{current}} of {{count}} · Turn: {{sense}}{{degrees}}°", showOtherAxes: "Show other axes as reference",
     identityDescription: "Leaves all polyhedron points unchanged.", inversionDescription: "Maps every point to its opposite through the center.",

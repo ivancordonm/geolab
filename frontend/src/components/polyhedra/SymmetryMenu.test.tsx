@@ -285,6 +285,27 @@ describe("SymmetryMenu", () => {
     expect(onRotationSubtypeChange).toHaveBeenCalledWith("c4");
   });
 
+  it("renders C3 and C5 rotation families for Dodecahedron", async () => {
+    const user = userEvent.setup();
+    const onRotationSubtypeChange = vi.fn();
+    setup({
+      polyhedronId: "dodecahedron",
+      polyhedronName: "Dodecaedro",
+      visibleClasses: new Set(["rotations3"]),
+      symmetryCounts: { rotations3: 44 },
+      rotationSubtype: "c3",
+      onRotationSubtypeChange,
+    });
+
+    expect(screen.getByLabelText("Rotaciones (C3 y C5) (44)")).toBeInTheDocument();
+    expect(screen.getByLabelText("C3 (de vértice)")).toBeChecked();
+    const c5Radio = screen.getByLabelText("C5 (de cara)");
+    expect(c5Radio).not.toBeChecked();
+
+    await user.click(c5Radio);
+    expect(onRotationSubtypeChange).toHaveBeenCalledWith("c5");
+  });
+
   it("renders C3 (vértice / cara) single label for Tetrahedron", () => {
     setup({
       polyhedronId: "tetrahedron",
@@ -305,4 +326,3 @@ describe("SymmetryMenu", () => {
     expect(screen.getByLabelText("Color de planos")).toBeInTheDocument();
   });
 });
-

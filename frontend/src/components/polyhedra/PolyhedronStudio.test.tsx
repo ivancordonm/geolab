@@ -22,20 +22,20 @@ vi.mock("./SymmetryMenu", () => ({
 import PolyhedronStudio from "./PolyhedronStudio";
 import { ICOSAHEDRON } from "../../geometry/polyhedra/icosahedron";
 
-describe("PolyhedronStudio temporary mode", () => {
-  it("shows only the figure and under-construction notice for incomplete studies", () => {
+describe("PolyhedronStudio", () => {
+  it("shows the complete symmetry studio for Icosahedron", () => {
     render(<PolyhedronStudio definition={ICOSAHEDRON} onExit={() => undefined} />);
 
-    expect(screen.getByText("(Under construction)")).toBeInTheDocument();
     expect(screen.getByTestId("polyhedron-mesh")).toBeInTheDocument();
     expect(screen.getByTestId("orbit-controls")).toBeInTheDocument();
-    expect(screen.queryByTestId("symmetry-overlay")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("symmetry-menu")).not.toBeInTheDocument();
+    expect(screen.getByTestId("symmetry-overlay")).toBeInTheDocument();
+    expect(screen.getByTestId("symmetry-menu")).toBeInTheDocument();
+    expect(screen.queryByText("(Under construction)")).not.toBeInTheDocument();
   });
 
-  it("triggers onChangePolyhedron when selecting another polyhedron from the dropdown", async () => {
+  it("triggers onChangePolyhedron when selecting another polyhedron from a temporary study", async () => {
     const onChangePolyhedron = vi.fn();
-    render(<PolyhedronStudio definition={ICOSAHEDRON} onChangePolyhedron={onChangePolyhedron} onExit={() => undefined} />);
+    render(<PolyhedronStudio definition={{ ...ICOSAHEDRON, underConstruction: true }} onChangePolyhedron={onChangePolyhedron} onExit={() => undefined} />);
 
     const select = screen.getByRole("combobox", { name: "Select polyhedron" });
     await userEvent.selectOptions(select, "cube");

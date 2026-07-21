@@ -15,6 +15,14 @@ function setup(overrides: Record<string, unknown> = {}, language: "es" | "en" = 
     onOpacityChange: vi.fn(),
     color: "#3b82f6",
     onColorChange: vi.fn(),
+    axisThickness: 1,
+    onAxisThicknessChange: vi.fn(),
+    axisColor: "#ef4444",
+    onAxisColorChange: vi.fn(),
+    planeThickness: 0,
+    onPlaneThicknessChange: vi.fn(),
+    planeColor: "#3b82f6",
+    onPlaneColorChange: vi.fn(),
     reflectionMode: "individual" as const,
     onReflectionModeChange: vi.fn(),
     selectedReflectionIndex: 0,
@@ -286,6 +294,15 @@ describe("SymmetryMenu", () => {
 
     expect(screen.getByText("C3 (vértice / cara)")).toBeInTheDocument();
     expect(screen.queryByLabelText("C4 (de cara)")).not.toBeInTheDocument();
+  });
+
+  it("renders axis and plane thickness and color controls under appearance", () => {
+    setup();
+
+    expect(screen.getByLabelText("Grosor de ejes")).toBeInTheDocument();
+    expect(screen.getByLabelText("Color de ejes")).toBeInTheDocument();
+    expect(screen.getByLabelText("Grosor de planos")).toBeInTheDocument();
+    expect(screen.getByLabelText("Color de planos")).toBeInTheDocument();
   });
 });
 

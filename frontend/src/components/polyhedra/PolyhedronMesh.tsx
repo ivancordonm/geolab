@@ -60,15 +60,16 @@ export function PolyhedronMesh({ definition, color, opacity }: PolyhedronMeshPro
 
   return (
     <group>
-      <mesh geometry={faces}>
+      <mesh geometry={faces} renderOrder={2}>
         <meshStandardMaterial
           color={color}
           transparent
           opacity={opacity}
           side={DoubleSide}
+          depthWrite={false}
         />
       </mesh>
-      <lineSegments geometry={edges}>
+      <lineSegments geometry={edges} renderOrder={3}>
         <lineBasicMaterial color="#1e293b" />
       </lineSegments>
     </group>

@@ -34,6 +34,10 @@ export default function PolyhedronStudio({
   const [visibleClasses, setVisibleClasses] = useState<Set<SymmetryClass>>(new Set());
   const [opacity, setOpacity] = useState(0.6);
   const [color, setColor] = useState(definition.defaultColor);
+  const [axisColor, setAxisColor] = useState("#ef4444");
+  const [axisThickness, setAxisThickness] = useState(1);
+  const [planeColor, setPlaneColor] = useState("#3b82f6");
+  const [planeThickness, setPlaneThickness] = useState(0);
   const [reflectionMode, setReflectionMode] =
     useState<ReflectionDisplayMode>("individual");
   const [selectedReflectionIndex, setSelectedReflectionIndex] = useState(0);
@@ -138,6 +142,10 @@ export default function PolyhedronStudio({
           showOtherReflections={showOtherReflections}
           color={color}
           opacity={opacity}
+          axisColor={axisColor}
+          axisThickness={axisThickness}
+          planeColor={planeColor}
+          planeThickness={planeThickness}
           showOtherRotoreflectionAxes={showOtherRotoreflectionAxes}
           showRotoreflectionPlane={showRotoreflectionPlane}
         />
@@ -154,6 +162,14 @@ export default function PolyhedronStudio({
         onOpacityChange={setOpacity}
         color={color}
         onColorChange={setColor}
+        axisThickness={axisThickness}
+        onAxisThicknessChange={setAxisThickness}
+        axisColor={axisColor}
+        onAxisColorChange={setAxisColor}
+        planeThickness={planeThickness}
+        onPlaneThicknessChange={setPlaneThickness}
+        planeColor={planeColor}
+        onPlaneColorChange={setPlaneColor}
         reflectionMode={reflectionMode}
         onReflectionModeChange={setReflectionMode}
         selectedReflectionIndex={selectedReflectionIndex}

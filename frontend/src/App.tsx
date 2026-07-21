@@ -747,7 +747,12 @@ export function App() {
       )}
       {activePolyhedron && (
         <Suspense fallback={<div className="absolute inset-0 z-30 flex items-center justify-center bg-surface text-sm text-muted">{t("polyhedra.loading")}</div>}>
-          <PolyhedronStudio definition={activePolyhedron} onExit={() => setActivePolyhedron(null)} />
+          <PolyhedronStudio
+            key={activePolyhedron.id}
+            definition={activePolyhedron}
+            onChangePolyhedron={setActivePolyhedron}
+            onExit={() => setActivePolyhedron(null)}
+          />
         </Suspense>
       )}
     </div>

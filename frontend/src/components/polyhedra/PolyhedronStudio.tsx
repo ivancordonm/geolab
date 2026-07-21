@@ -13,13 +13,21 @@ import type {
 } from "../../geometry/polyhedra/types";
 import { useTranslation } from "react-i18next";
 import { translatePolyhedronName } from "../../i18n/polyhedra";
+import { ChevronDown } from "lucide-react";
+import { POLYHEDRON_TOOLS, polyhedronForTool } from "../../geometry/polyhedra";
+import type { ConstructionTool } from "../../geometry/constructionTools";
 
 interface PolyhedronStudioProps {
   definition: PolyhedronDefinition;
+  onChangePolyhedron?: (definition: PolyhedronDefinition) => void;
   onExit: () => void;
 }
 
-export default function PolyhedronStudio({ definition, onExit }: PolyhedronStudioProps) {
+export default function PolyhedronStudio({
+  definition,
+  onChangePolyhedron,
+  onExit,
+}: PolyhedronStudioProps) {
   const { t } = useTranslation();
   const polyhedronName = translatePolyhedronName(t, definition.id);
   const [visibleClasses, setVisibleClasses] = useState<Set<SymmetryClass>>(new Set());
@@ -55,6 +63,16 @@ export default function PolyhedronStudio({ definition, onExit }: PolyhedronStudi
     });
   }, [visibleClasses]);
 
+  const handleSelectPolyhedron = useCallback(
+    (id: string) => {
+      const newDef = polyhedronForTool(id as ConstructionTool);
+      if (newDef && onChangePolyhedron) {
+        onChangePolyhedron(newDef);
+      }
+    },
+    [onChangePolyhedron],
+  );
+
   const resetView = useCallback(() => {
     controlsRef.current?.reset();
   }, []);
@@ -68,9 +86,24 @@ export default function PolyhedronStudio({ definition, onExit }: PolyhedronStudi
           <PolyhedronMesh definition={definition} color={definition.defaultColor} opacity={0.6} />
           <OrbitControls ref={controlsRef} enablePan={false} />
         </Canvas>
-        <div className="absolute left-4 top-4 flex items-center gap-3 rounded-card border border-edge bg-surface/95 px-3 py-2 shadow-pop">
-          <p className="text-sm font-semibold text-content">{t("polyhedra.underConstruction")}</p>
-          <button type="button" onClick={onExit} className="text-xs font-semibold text-muted hover:text-content">
+        <div className="absolute left-4 top-4 z-10 flex items-center gap-3 rounded-card border border-edge bg-surface/95 px-3 py-2 shadow-pop backdrop-blur">
+          <div className="relative flex items-center">
+            <select
+              aria-label={t("polyhedra.selectPolyhedron")}
+              value={definition.id}
+              onChange={(e) => handleSelectPolyhedron(e.target.value)}
+              className="cursor-pointer appearance-none rounded border border-transparent bg-transparent py-0.5 pl-1 pr-6 text-sm font-semibold text-content hover:border-edge hover:bg-surface-hover focus:border-brand-500 focus:outline-none"
+            >
+              {POLYHEDRON_TOOLS.map((tool) => (
+                <option key={tool} value={tool} className="bg-surface text-content text-xs">
+                  {translatePolyhedronName(t, tool)}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+          </div>
+          <span className="text-xs font-semibold text-muted">({t("polyhedra.underConstruction")})</span>
+          <button type="button" onClick={onExit} className="rounded-md border border-edge px-2 py-0.5 text-xs font-semibold text-muted hover:text-content">
             {t("polyhedra.exit")}
           </button>
         </div>
@@ -106,6 +139,7 @@ export default function PolyhedronStudio({ definition, onExit }: PolyhedronStudi
       <SymmetryMenu
         polyhedronId={definition.id}
         polyhedronName={polyhedronName}
+        onSelectPolyhedron={handleSelectPolyhedron}
         visibleClasses={visibleClasses}
         onToggleClass={toggleClass}
         opacity={opacity}

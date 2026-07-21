@@ -192,6 +192,7 @@ export const en = {
     },
   },
   polyhedra: {
+    selectPolyhedron: "Select polyhedron",
     names: { tetrahedron: "Tetrahedron", cube: "Cube", octahedron: "Octahedron", dodecahedron: "Dodecahedron", icosahedron: "Icosahedron" },
     underConstruction: "Under construction", exit: "Exit", openStudio: "Open 3D studio",
     confirmOpen: "The current drawing will be cleared and the {{name}} 3D studio will open. Continue?",

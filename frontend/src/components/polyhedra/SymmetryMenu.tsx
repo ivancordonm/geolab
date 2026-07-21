@@ -8,10 +8,14 @@ import type {
 } from "../../geometry/polyhedra/types";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
+import { ChevronDown } from "lucide-react";
+import { POLYHEDRON_TOOLS } from "../../geometry/polyhedra";
+import { translatePolyhedronName } from "../../i18n/polyhedra";
 
 interface SymmetryMenuProps {
   polyhedronId: string;
   polyhedronName: string;
+  onSelectPolyhedron?: (id: string) => void;
   visibleClasses: ReadonlySet<SymmetryClass>;
   onToggleClass: (cls: SymmetryClass) => void;
   opacity: number;
@@ -198,6 +202,7 @@ const CLASS_ORDER: SymmetryClass[] = [
 export function SymmetryMenu({
   polyhedronId,
   polyhedronName,
+  onSelectPolyhedron,
   visibleClasses,
   onToggleClass,
   opacity,
@@ -260,7 +265,21 @@ export function SymmetryMenu({
       className="absolute left-4 top-4 z-10 max-h-[calc(100vh-2rem)] w-60 overflow-y-auto rounded-xl border border-edge bg-surface/95 p-3 shadow-pop backdrop-blur"
     >
       <div className="mb-2 flex items-center justify-between">
-        <p className="text-sm font-semibold text-content">{polyhedronName}</p>
+        <div className="relative flex items-center">
+          <select
+            aria-label={t("polyhedra.selectPolyhedron")}
+            value={polyhedronId}
+            onChange={(e) => onSelectPolyhedron?.(e.target.value)}
+            className="cursor-pointer appearance-none rounded border border-transparent bg-transparent py-0.5 pl-1 pr-6 text-sm font-semibold text-content hover:border-edge hover:bg-surface-hover focus:border-brand-500 focus:outline-none"
+          >
+            {POLYHEDRON_TOOLS.map((tool) => (
+              <option key={tool} value={tool} className="bg-surface text-content text-xs">
+                {translatePolyhedronName(t, tool)}
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+        </div>
         <button
           type="button"
           onClick={onExit}

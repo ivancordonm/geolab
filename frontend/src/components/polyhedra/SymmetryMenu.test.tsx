@@ -226,4 +226,15 @@ describe("SymmetryMenu", () => {
 
     expect(screen.getByText(new RegExp(`${description} of 3`))).toBeInTheDocument();
   });
+
+  it("calls onSelectPolyhedron when choosing a different polyhedron from title dropdown", async () => {
+    const user = userEvent.setup();
+    const onSelectPolyhedron = vi.fn();
+    setup({ onSelectPolyhedron });
+
+    const select = screen.getByRole("combobox", { name: "Seleccionar poliedro" });
+    await user.selectOptions(select, "cube");
+
+    expect(onSelectPolyhedron).toHaveBeenCalledWith("cube");
+  });
 });

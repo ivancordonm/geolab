@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Camera, Fullscreen, Crop } from "lucide-react";
 import { ToolbarTooltip } from "./ToolbarTooltip";
+import { useLanguage } from "../../i18n/useLanguage";
 
 interface CaptureMenuProps {
   onCaptureFull: () => void;
@@ -17,6 +18,7 @@ const MENU_WIDTH = 220;
 const MENU_HEIGHT_ESTIMATE = 100;
 
 export function CaptureMenu({ onCaptureFull, onCaptureArea }: CaptureMenuProps) {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<MenuPos | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -63,11 +65,11 @@ export function CaptureMenu({ onCaptureFull, onCaptureArea }: CaptureMenuProps) 
 
   return (
     <div>
-      <ToolbarTooltip label="Capture" instruction="Export the construction as an image">
+      <ToolbarTooltip label={t("Capturar", "Capture")} instruction={t("Exporta la construcción como imagen", "Export the construction as an image")}>
         <button
           ref={triggerRef}
           type="button"
-          aria-label="Capture menu"
+          aria-label={t("Menú de captura", "Capture menu")}
           aria-expanded={open}
           onClick={handleToggle}
           className="flex items-center justify-center rounded-lg p-2 text-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
@@ -81,28 +83,28 @@ export function CaptureMenu({ onCaptureFull, onCaptureArea }: CaptureMenuProps) 
             <div
               ref={panelRef}
               role="dialog"
-              aria-label="Capture options"
+              aria-label={t("Opciones de captura", "Capture options")}
               style={{ position: "fixed", top: pos.top, left: pos.left, width: MENU_WIDTH, zIndex: 9999 }}
               className="flex flex-col gap-1 rounded-xl border border-edge bg-surface p-2 shadow-pop"
             >
-              <ToolbarTooltip label="Capture full" instruction="Export the complete canvas">
+              <ToolbarTooltip label={t("Captura completa", "Capture full")} instruction={t("Exporta todo el lienzo", "Export the complete canvas")}>
                 <button
                   type="button"
                   onClick={handleFullClick}
                   className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left text-sm text-content hover:bg-surface-hover focus-visible:bg-surface-hover focus-visible:outline-none"
                 >
                   <Fullscreen size={16} className="text-muted" />
-                  Capture full
+                  {t("Captura completa", "Capture full")}
                 </button>
               </ToolbarTooltip>
-              <ToolbarTooltip label="Capture area" instruction="Select an area of the canvas to export">
+              <ToolbarTooltip label={t("Capturar área", "Capture area")} instruction={t("Selecciona un área del lienzo para exportar", "Select an area of the canvas to export")}>
                 <button
                   type="button"
                   onClick={handleAreaClick}
                   className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left text-sm text-content hover:bg-surface-hover focus-visible:bg-surface-hover focus-visible:outline-none"
                 >
                   <Crop size={16} className="text-muted" />
-                  Capture area
+                  {t("Capturar área", "Capture area")}
                 </button>
               </ToolbarTooltip>
             </div>,

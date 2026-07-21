@@ -27,9 +27,11 @@ import { CloudDocumentsPanel } from "./components/persistence/CloudDocumentsPane
 import { PersistenceControls } from "./components/persistence/PersistenceControls";
 import { ShareDialog } from "./components/persistence/ShareDialog";
 import { SidebarTabs } from "./components/SidebarTabs";
-import { ThemeToggle } from "./components/ThemeToggle";
+import { SettingsMenu } from "./components/SettingsMenu";
 import { ToolbarTooltip } from "./components/geometry/ToolbarTooltip";
 import { useTheme } from "./theme/useTheme";
+import { useLanguage } from "./i18n/useLanguage";
+import { toolInstruction } from "./i18n/translateTool";
 import type { ConstructionTool } from "./geometry/constructionTools";
 import { exampleGeometryDocument } from "./geometry/example";
 import { parseFunctionObjectCommand } from "./geometry/functionExpression";
@@ -72,6 +74,7 @@ c1 = Circle(A, C)`;
 
 export function App() {
   const { theme, toggleTheme } = useTheme();
+  const { language, setLanguage, t } = useLanguage();
   const { settings: gridSettings, setSettings: setGridSettings } = useGridSettings();
   const auth = useAuth();
   const signOut = auth.signOut;
@@ -286,8 +289,8 @@ export function App() {
     detachCloudDocument();
     sharing.resetSharing();
     replaceConstruction(createEmptyDocument(geometry.viewport));
-    setPersistenceNotice({ message: "Construction cleared.", error: null });
-  }, [detachCloudDocument, geometry.viewport, replaceConstruction, sharing]);
+    setPersistenceNotice({ message: t("Construcción borrada.", "Construction cleared."), error: null });
+  }, [detachCloudDocument, geometry.viewport, replaceConstruction, sharing, t]);
 
   const handleCaptureFull = useCallback(() => {
     const svg = document.querySelector(".coordinate-grid")?.closest("svg");
@@ -315,12 +318,12 @@ export function App() {
         detachCloudDocument();
         sharing.resetSharing();
         replaceConstruction(imported);
-        setPersistenceNotice({ message: "JSON construction imported.", error: null });
+        setPersistenceNotice({ message: t("Construcción JSON importada.", "JSON construction imported."), error: null });
       } catch (error) {
         reportPersistenceError(asError(error, "Unable to import construction."));
       }
     },
-    [detachCloudDocument, replaceConstruction, reportPersistenceError, sharing],
+    [detachCloudDocument, replaceConstruction, reportPersistenceError, sharing, t],
   );
 
   const handleExportJson = useCallback(() => {
@@ -330,11 +333,11 @@ export function App() {
         `${safeFilename(geometry.document.title)}.json`,
         "application/json",
       );
-      setPersistenceNotice({ message: "JSON export created.", error: null });
+      setPersistenceNotice({ message: t("Exportación JSON creada.", "JSON export created."), error: null });
     } catch (error) {
       reportPersistenceError(asError(error, "Unable to export JSON."));
     }
-  }, [currentDocument, geometry.document.title, reportPersistenceError]);
+  }, [currentDocument, geometry.document.title, reportPersistenceError, t]);
 
   const handleExportScript = useCallback(() => {
     try {
@@ -345,39 +348,39 @@ export function App() {
         "text/plain",
       );
       setScriptText(script);
-      setPersistenceNotice({ message: "Construction script export created.", error: null });
+      setPersistenceNotice({ message: t("Exportación del script creada.", "Construction script export created."), error: null });
     } catch (error) {
       reportPersistenceError(asError(error, "Unable to export script."));
     }
-  }, [currentDocument, geometry.document.title, reportPersistenceError]);
+  }, [currentDocument, geometry.document.title, reportPersistenceError, t]);
 
   const reportCloudSaveResult = useCallback((result: CloudActionResult<DocumentDetail>) => {
     if (result.status === "superseded") return;
     if (result.status === "success") {
       setGeometryDocumentTitle(result.value.title);
-      setPersistenceNotice({ message: "Construction saved to the cloud.", error: null });
+      setPersistenceNotice({ message: t("Construcción guardada en la nube.", "Construction saved to the cloud."), error: null });
     } else {
       setPersistenceNotice({ message: null, error: result.error });
     }
-  }, [setGeometryDocumentTitle]);
+  }, [setGeometryDocumentTitle, t]);
 
   const handleSaveToCloud = useCallback(() => {
     if (cloudId !== null) {
       void saveCurrentCloudDocument(geometry.document.title, currentDocument()).then(reportCloudSaveResult);
       return;
     }
-    const title = window.prompt("Title for this construction:", geometry.document.title);
+    const title = window.prompt(t("Título de esta construcción:", "Title for this construction:"), geometry.document.title);
     if (title !== null && title.trim() !== "") {
       void saveAsNewCloudDocument(title.trim(), currentDocument()).then(reportCloudSaveResult);
     }
-  }, [cloudId, currentDocument, geometry.document.title, reportCloudSaveResult, saveAsNewCloudDocument, saveCurrentCloudDocument]);
+  }, [cloudId, currentDocument, geometry.document.title, reportCloudSaveResult, saveAsNewCloudDocument, saveCurrentCloudDocument, t]);
 
   const handleSaveAsNewToCloud = useCallback(() => {
-    const title = window.prompt("Title for the new construction:", geometry.document.title);
+    const title = window.prompt(t("Título de la nueva construcción:", "Title for the new construction:"), geometry.document.title);
     if (title !== null && title.trim() !== "") {
       void saveAsNewCloudDocument(title.trim(), currentDocument()).then(reportCloudSaveResult);
     }
-  }, [currentDocument, geometry.document.title, reportCloudSaveResult, saveAsNewCloudDocument]);
+  }, [currentDocument, geometry.document.title, reportCloudSaveResult, saveAsNewCloudDocument, t]);
 
   const handleOpenCloudDocument = useCallback(
     (id: string) => {
@@ -421,29 +424,29 @@ export function App() {
         replaceGeometryDocument(response.document);
         cancelConstruction();
         setSelectedObjectId(null);
-        setScriptOutput(`Created ${response.document.objects.length} objects successfully.`);
+          setScriptOutput(t(`Se crearon ${response.document.objects.length} objetos correctamente.`, `Created ${response.document.objects.length} objects successfully.`));
       } catch (error) {
         if (error instanceof ScriptEvaluationError && error.detail !== null) {
           setScriptError(error.detail);
         } else {
-          setScriptOutput(error instanceof Error ? error.message : "Unable to evaluate script.");
+          setScriptOutput(error instanceof Error ? error.message : t("No se pudo evaluar el script.", "Unable to evaluate script."));
         }
         throw error;
       } finally {
         setRunningScript(false);
       }
     },
-    [cancelConstruction, detachCloudDocument, replaceGeometryDocument],
+    [cancelConstruction, detachCloudDocument, replaceGeometryDocument, t],
   );
 
   // Controles de la tira izquierda (debajo del separador).
   const toolbarControls = (
     <>
-      <ThemeToggle theme={theme} onToggle={toggleTheme} />
-      <ToolbarTooltip label="Undo" instruction="Revert the last change (Cmd/Ctrl+Z)">
+      <SettingsMenu language={language} onLanguageChange={setLanguage} theme={theme} onThemeToggle={toggleTheme} />
+      <ToolbarTooltip label={t("Deshacer", "Undo")} instruction={t("Revierte el último cambio (Cmd/Ctrl+Z)", "Revert the last change (Cmd/Ctrl+Z)")}>
         <button
           type="button"
-          aria-label="Undo last change"
+          aria-label={t("Deshacer último cambio", "Undo last change")}
           aria-keyshortcuts="Meta+Z Control+Z"
           onClick={geometry.undo}
           disabled={!geometry.canUndo}
@@ -452,10 +455,10 @@ export function App() {
           <Undo2 size={18} aria-hidden />
         </button>
       </ToolbarTooltip>
-      <ToolbarTooltip label="Redo" instruction="Restore the last undone change (Cmd/Ctrl+Shift+Z)">
+      <ToolbarTooltip label={t("Rehacer", "Redo")} instruction={t("Restaura el último cambio deshecho (Cmd/Ctrl+Shift+Z)", "Restore the last undone change (Cmd/Ctrl+Shift+Z)")}>
         <button
           type="button"
-          aria-label="Redo last change"
+          aria-label={t("Rehacer último cambio", "Redo last change")}
           aria-keyshortcuts="Meta+Shift+Z Control+Shift+Z"
           onClick={geometry.redo}
           disabled={!geometry.canRedo}
@@ -464,10 +467,10 @@ export function App() {
           <Redo2 size={18} aria-hidden />
         </button>
       </ToolbarTooltip>
-      <ToolbarTooltip label="Reset view" instruction="Center and reset the zoom">
+      <ToolbarTooltip label={t("Restablecer vista", "Reset view")} instruction={t("Centra y restablece el zoom", "Center and reset the zoom")}>
         <button
           type="button"
-          aria-label="Reset viewport"
+          aria-label={t("Restablecer vista", "Reset viewport")}
           onClick={geometry.resetViewport}
           className="flex items-center justify-center rounded-lg p-2 text-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
         >
@@ -506,6 +509,9 @@ export function App() {
     constructionTools.instruction !== "" ||
     constructionTools.selectedObjectIds.length > 0 ||
     constructionTools.error !== null;
+  const translatedInstruction = language === "es"
+    ? toolInstruction(language, constructionTools.activeTool)
+    : constructionTools.instruction;
 
   return (
     <div className="relative h-screen w-screen overflow-hidden">
@@ -576,11 +582,11 @@ export function App() {
           aria-live="polite"
         >
           {constructionTools.instruction !== "" && (
-            <span>{constructionTools.instruction}</span>
+            <span>{translatedInstruction}</span>
           )}
           {constructionTools.selectedObjectIds.length > 0 && (
             <span className="font-semibold text-brand-600">
-              Selected: {constructionTools.selectedObjectIds.join(", ")}
+              {t("Seleccionado:", "Selected:")} {constructionTools.selectedObjectIds.join(", ")}
             </span>
           )}
           {constructionTools.error !== null && (
@@ -592,7 +598,7 @@ export function App() {
               onClick={constructionTools.cancel}
               className="pointer-events-auto ml-1 rounded-md border border-edge bg-surface px-2.5 py-1 text-xs font-semibold text-muted transition-colors hover:border-brand-400 hover:text-brand-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
             >
-              Cancel (Esc)
+              {t("Cancelar", "Cancel")} (Esc)
             </button>
           )}
         </div>
@@ -602,8 +608,8 @@ export function App() {
       {!panelOpen && (
         <button
           type="button"
-          title="Open panel"
-          aria-label="Open construction panels"
+          title={t("Abrir panel", "Open panel")}
+          aria-label={t("Abrir paneles de construcción", "Open construction panels")}
           onClick={() => setPanelOpen(true)}
           className="absolute right-3 top-3 z-10 flex items-center justify-center rounded-card border border-edge bg-surface/90 p-2 text-muted shadow-card backdrop-blur transition-colors hover:text-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
         >
@@ -626,12 +632,12 @@ export function App() {
         {/* Cabecera del panel con botón de colapso */}
         <div className="flex shrink-0 items-center justify-between border-b border-edge bg-surface-muted px-3 py-2">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-            Construction
+            {t("Construcción", "Construction")}
           </span>
           <button
             type="button"
-            title="Collapse panel"
-            aria-label="Collapse panel"
+            title={t("Contraer panel", "Collapse panel")}
+            aria-label={t("Contraer panel", "Collapse panel")}
             onClick={() => setPanelOpen(false)}
             className="rounded-lg p-1 text-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
           >
@@ -645,7 +651,7 @@ export function App() {
             tabs={[
               {
                 id: "objects",
-                label: "Objects",
+                label: t("Objetos", "Objects"),
                 icon: <Shapes size={16} />,
                 panel: (
                   <ObjectList
@@ -669,7 +675,7 @@ export function App() {
               },
               {
                 id: "script",
-                label: "Script",
+                label: t("Script", "Script"),
                 icon: <Code2 size={16} />,
                 panel: (
                   <ScriptEditor
@@ -683,7 +689,7 @@ export function App() {
               },
               {
                 id: "assistant",
-                label: "Assistant",
+                label: t("Asistente", "Assistant"),
                 icon: <Sparkles size={16} />,
                 panel: (
                   <AssistantPanel

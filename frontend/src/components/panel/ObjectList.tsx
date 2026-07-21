@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 
 import { getParentIds, referencePointForRatio } from "../../geometry/engine";
 import type { EvaluationMap, GeometryDocument, GeometryObject, GeometryObjectGroup, GeometryStyle, StrokeDash } from "../../types/geometry";
+import { useLanguage } from "../../i18n/useLanguage";
 
 interface ObjectListProps {
   document: GeometryDocument;
@@ -77,6 +78,7 @@ export function ObjectList({
   onDeleteGroup,
   onSubmitCommand,
 }: ObjectListProps) {
+  const { t } = useLanguage();
   const labelsById = new Map(document.objects.map((object) => [object.id, object.label]));
   const [menu, setMenu] = useState<MenuState | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -194,15 +196,15 @@ export function ObjectList({
       <div className="mb-3 flex items-center justify-between">
         <div>
           <p className="m-0 text-xs font-semibold uppercase tracking-[0.13em] text-brand-600">
-            Construction graph
+            {t("Grafo de construcción", "Construction graph")}
           </p>
           <h2 id="objects-heading" className="m-0 mt-0.5 text-lg font-bold tracking-tight text-content">
-            Objects
+            {t("Objetos", "Objects")}
           </h2>
         </div>
         <span
           className="grid h-9 min-w-9 place-items-center rounded-lg bg-accent-soft px-2 text-sm font-bold text-accent-soft-fg"
-          aria-label={`${document.objects.length} objects`}
+          aria-label={`${document.objects.length} ${t("objetos", "objects")}`}
         >
           {document.objects.length}
         </span>
@@ -221,14 +223,14 @@ export function ObjectList({
               await onSubmitCommand(trimmed);
               setCommand("");
             } catch (error) {
-              setCommandError(error instanceof Error ? error.message : "Unable to add the object.");
+              setCommandError(error instanceof Error ? error.message : t("No se pudo añadir el objeto.", "Unable to add the object."));
             } finally {
               setSubmittingCommand(false);
             }
           }}
         >
           <label htmlFor="object-command" className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-muted">
-            Add object command
+            {t("Añadir comando de objeto", "Add object command")}
           </label>
           <input
             id="object-command"
@@ -248,7 +250,7 @@ export function ObjectList({
 
       {document.objects.length === 0 ? (
         <p className="m-0 rounded-lg border border-dashed border-edge px-3 py-6 text-center text-sm text-muted">
-          No objects yet. Run a script or use the tools to build a construction.
+          {t("Aún no hay objetos. Ejecuta un script o usa las herramientas para crear una construcción.", "No objects yet. Run a script or use the tools to build a construction.")}
         </p>
       ) : (
         <ol className="m-0 flex list-none flex-col gap-1 p-0">
@@ -376,11 +378,11 @@ export function ObjectList({
                       <strong className="block truncate text-sm font-semibold text-content">
                         {object.label}
                       </strong>
-                      <small className="block font-mono text-xs text-muted">{describeObject(object)}</small>
+                      <small className="block font-mono text-xs text-muted">{describeObject(object, t)}</small>
                       <small className="block text-xs text-subtle">
                         {dependencies.length > 0
-                          ? `Depends on ${dependencies.join(", ")}`
-                          : "Independent"}
+                          ? `${t("Depende de", "Depends on")} ${dependencies.join(", ")}`
+                          : t("Independiente", "Independent")}
                       </small>
                     </span>
                   </button>
@@ -405,7 +407,7 @@ export function ObjectList({
                       ? "undefined"
                       : object.kind === "measure" && value?.type === "scalar"
                         ? formatMeasureValue(object, value.value)
-                        : object.kind}
+                        : objectKindLabel(object.kind, t)}
                   </span>
                 ) : null}
 
@@ -831,43 +833,16 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
   );
 }
 
-function describeObject(object: GeometryObject): string {
+function objectKindLabel(kind: GeometryObject["kind"], t: (es: string, en: string) => string): string {
+  return ({ point: t("punto", "point"), line: t("recta", "line"), segment: t("segmento", "segment"), circle: t("circ.", "circle"), arc: t("arco", "arc"), polygon: t("polígono", "polygon"), function: t("función", "function"), measure: t("medida", "measure") } as Partial<Record<GeometryObject["kind"], string>>)[kind] ?? kind;
+}
+
+function describeObject(object: GeometryObject, t: (es: string, en: string) => string): string {
   if (object.definition.type === "function_expression") {
     return object.definition.expression;
   }
   const descriptions: Record<Exclude<GeometryObject["definition"]["type"], "function_expression">, string> = {
-    free: "Free point",
-    through_points: "Line through points",
-    between_points: "Segment between points",
-    midpoint: "Midpoint",
-    center_through_point: "Circle",
-    center_radius: "Circle (radius from slider)",
-    parallel_through: "Parallel line",
-    perpendicular_through: "Perpendicular line",
-    intersection_ll: "Intersection (line∩line)",
-    intersection_lc: "Intersection (line∩circle)",
-    intersection_cc: "Intersection (circle∩circle)",
-    tangent_pc: "Tangent lines",
-    perpendicular_bisector: "Perpendicular bisector",
-    angle_bisector: "Angle bisector",
-    circumscribed: "Circumscribed circle",
-    reflection_over_line: "Reflection over line",
-    reflection_over_point: "Reflection over point",
-    homothety_scalar: "Homothety (scalar)",
-    homothety_point: "Homothety (point ratio)",
-    inversion_in_circle: "Inversion in circle",
-    polygon_vertex: "Polygon vertex",
-    translation: "Translation",
-    rotation: "Rotation",
-    arc_through_points: "Arc through points",
-    polygon: "Polygon",
-    regular_polygon: "Regular polygon",
-    vector_polygon: "Vector polygon",
-    slider: "Slider",
-    distance: "Distance",
-    angle: "Angle",
-    area: "Area",
-    slope: "Slope",
+    free: t("Punto libre", "Free point"), through_points: t("Recta por puntos", "Line through points"), between_points: t("Segmento entre puntos", "Segment between points"), midpoint: t("Punto medio", "Midpoint"), center_through_point: t("Circunferencia", "Circle"), center_radius: t("Circunferencia (radio del control)", "Circle (radius from slider)"), parallel_through: t("Recta paralela", "Parallel line"), perpendicular_through: t("Recta perpendicular", "Perpendicular line"), intersection_ll: t("Intersección (recta∩recta)", "Intersection (line∩line)"), intersection_lc: t("Intersección (recta∩circunferencia)", "Intersection (line∩circle)"), intersection_cc: t("Intersección (circunferencia∩circunferencia)", "Intersection (circle∩circle)"), tangent_pc: t("Rectas tangentes", "Tangent lines"), perpendicular_bisector: t("Mediatriz", "Perpendicular bisector"), angle_bisector: t("Bisectriz", "Angle bisector"), circumscribed: t("Circunferencia circunscrita", "Circumscribed circle"), reflection_over_line: t("Reflexión respecto a recta", "Reflection over line"), reflection_over_point: t("Reflexión respecto a punto", "Reflection over point"), homothety_scalar: t("Homotecia (escalar)", "Homothety (scalar)"), homothety_point: t("Homotecia (razón puntual)", "Homothety (point ratio)"), inversion_in_circle: t("Inversión respecto a circunferencia", "Inversion in circle"), polygon_vertex: t("Vértice de polígono", "Polygon vertex"), translation: t("Traslación", "Translation"), rotation: t("Rotación", "Rotation"), arc_through_points: t("Arco por puntos", "Arc through points"), polygon: t("Polígono", "Polygon"), regular_polygon: t("Polígono regular", "Regular polygon"), vector_polygon: t("Polígono vectorial", "Vector polygon"), slider: t("Control deslizante", "Slider"), distance: t("Distancia", "Distance"), angle: t("Ángulo", "Angle"), area: t("Área", "Area"), slope: t("Pendiente", "Slope"),
   };
   return descriptions[object.definition.type as Exclude<GeometryObject["definition"]["type"], "function_expression">];
 }

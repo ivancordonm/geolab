@@ -11,6 +11,7 @@ import type {
   ReflectionDisplayMode,
   SymmetryClass,
 } from "../../geometry/polyhedra/types";
+import { useLanguage } from "../../i18n/useLanguage";
 
 interface PolyhedronStudioProps {
   definition: PolyhedronDefinition;
@@ -18,6 +19,14 @@ interface PolyhedronStudioProps {
 }
 
 export default function PolyhedronStudio({ definition, onExit }: PolyhedronStudioProps) {
+  const { t } = useLanguage();
+  const polyhedronName = ({
+    tetrahedron: t("Tetraedro", "Tetrahedron"),
+    cube: t("Cubo", "Cube"),
+    octahedron: t("Octaedro", "Octahedron"),
+    dodecahedron: t("Dodecaedro", "Dodecahedron"),
+    icosahedron: t("Icosaedro", "Icosahedron"),
+  } as Record<string, string>)[definition.id] ?? definition.name;
   const [visibleClasses, setVisibleClasses] = useState<Set<SymmetryClass>>(new Set());
   const [opacity, setOpacity] = useState(0.6);
   const [color, setColor] = useState(definition.defaultColor);
@@ -100,7 +109,7 @@ export default function PolyhedronStudio({ definition, onExit }: PolyhedronStudi
       </Canvas>
 
       <SymmetryMenu
-        polyhedronName={definition.name}
+        polyhedronName={polyhedronName}
         visibleClasses={visibleClasses}
         onToggleClass={toggleClass}
         opacity={opacity}

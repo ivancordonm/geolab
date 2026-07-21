@@ -5,6 +5,7 @@ import type {
   SymmetryElementPlane,
   SymmetryElementImproper,
 } from "../../geometry/polyhedra/types";
+import { useLanguage } from "../../i18n/useLanguage";
 
 interface SymmetryMenuProps {
   polyhedronName: string;
@@ -58,17 +59,11 @@ interface SymmetryMenuProps {
   onShowRotoreflectionPlaneChange?: (value: boolean) => void;
 }
 
-const CLASS_LABELS: Record<SymmetryClass, string> = {
-  identity: "Identidad",
-  rotations3: "Rotaciones ±120°",
-  halfTurns: "Medias vueltas 180°",
-  inversion: "Simetría central",
-  reflections: "Reflexiones",
-  rotoreflections: "Rotorreflexiones",
-};
+const classLabel = (cls: SymmetryClass, t: (es: string, en: string) => string) => ({ identity: t("Identidad", "Identity"), rotations3: t("Rotaciones ±120°", "Rotations ±120°"), halfTurns: t("Medias vueltas 180°", "Half turns 180°"), inversion: t("Simetría central", "Central inversion"), reflections: t("Reflexiones", "Reflections"), rotoreflections: t("Rotorreflexiones", "Rotoreflections") })[cls];
 
 interface AxisFamilyControlsProps {
-  singularName: "Rotación" | "Media vuelta";
+  singularName: string;
+  t: (es: string, en: string) => string;
   selectedIndex: number;
   count: number;
   axisCount: number;
@@ -90,7 +85,7 @@ function AxisFamilyControls({
   onPrevious,
   onNext,
   showOtherAxes,
-  onShowOtherAxesChange,
+  onShowOtherAxesChange, t,
 }: AxisFamilyControlsProps) {
   const degrees = selected ? Math.round(Math.abs(selected.angle) * 180 / Math.PI) : 0;
   const sense = selected && selected.angle < 0 ? "−" : "+";
@@ -99,7 +94,7 @@ function AxisFamilyControls({
       <div className="flex items-center justify-between gap-1">
         <button
           type="button"
-          aria-label={`${singularName} anterior`}
+          aria-label={`${singularName} ${t("anterior", "previous")}`}
           onClick={onPrevious}
           disabled={count === 0}
           className="rounded border border-edge px-2 py-0.5 text-xs text-muted hover:text-content disabled:opacity-40"
@@ -107,11 +102,11 @@ function AxisFamilyControls({
           ‹
         </button>
         <span aria-live="polite" className="text-[0.7rem] text-content">
-          {singularName} {count === 0 ? 0 : selectedIndex + 1} de {count}
+          {singularName} {count === 0 ? 0 : selectedIndex + 1} {t("de", "of")} {count}
         </span>
         <button
           type="button"
-          aria-label={`${singularName} siguiente`}
+          aria-label={`${singularName} ${t("siguiente", "next")}`}
           onClick={onNext}
           disabled={count === 0}
           className="rounded border border-edge px-2 py-0.5 text-xs text-muted hover:text-content disabled:opacity-40"
@@ -120,18 +115,16 @@ function AxisFamilyControls({
         </button>
       </div>
       {selected && (
-        singularName === "Media vuelta" ? (
+        singularName === t("Media vuelta", "Half turn") ? (
           <div className="mt-1 text-[0.65rem] text-muted">
             <p>
-              Eje: {selected.axisLabel ?? (axisCount > 0 ? `Eje ${axisOrdinal} de ${axisCount}` : "")}
+              {t("Eje", "Axis")}: {selected.axisLabel ?? (axisCount > 0 ? `${t("Eje", "Axis")} ${axisOrdinal} ${t("de", "of")} ${axisCount}` : "")}
             </p>
-            <p>Ángulo: {degrees}°</p>
-            <p>Orden: {selected.order ?? 2}</p>
+            <p>{t("Ángulo", "Angle")}: {degrees}°</p><p>{t("Orden", "Order")}: {selected.order ?? 2}</p>
           </div>
         ) : (
           <p className="mt-1 text-[0.65rem] text-muted">
-            Eje {axisCount > 0 ? `${axisOrdinal} de ${axisCount}` : ""}
-            {degrees > 0 ? ` · Giro: ${sense}${degrees}°` : ""}
+            {t("Eje", "Axis")} {axisCount > 0 ? `${axisOrdinal} ${t("de", "of")} ${axisCount}` : ""}{degrees > 0 ? ` · ${t("Giro", "Turn")}: ${sense}${degrees}°` : ""}
           </p>
         )
       )}
@@ -143,7 +136,7 @@ function AxisFamilyControls({
           className="mt-0.5 h-3.5 w-3.5 rounded accent-brand-600"
         />
         <span className="text-[0.65rem] leading-tight text-content">
-          Mostrar los demás ejes como referencia
+          {t("Mostrar los demás ejes como referencia", "Show other axes as reference")}
         </span>
       </label>
     </div>
@@ -208,16 +201,17 @@ export function SymmetryMenu({
   showRotoreflectionPlane = true,
   onShowRotoreflectionPlaneChange,
 }: SymmetryMenuProps) {
+  const { language, t } = useLanguage();
   const labels = Object.fromEntries(
     symmetryClassOrder.map((symmetryClass) => [
       symmetryClass,
-      `${symmetryLabels?.[symmetryClass] ?? CLASS_LABELS[symmetryClass]} (${symmetryCounts[symmetryClass] ?? 0})`,
+      `${language === "es" ? symmetryLabels?.[symmetryClass] ?? classLabel(symmetryClass, t) : classLabel(symmetryClass, t)} (${symmetryCounts[symmetryClass] ?? 0})`,
     ]),
   ) as Record<SymmetryClass, string>;
   return (
     <div
       role="dialog"
-      aria-label="Estudio de simetrías"
+      aria-label={t("Estudio de simetrías", "Symmetry studio")}
       className="absolute left-4 top-4 z-10 max-h-[calc(100vh-2rem)] w-60 overflow-y-auto rounded-xl border border-edge bg-surface/95 p-3 shadow-pop backdrop-blur"
     >
       <div className="mb-2 flex items-center justify-between">
@@ -227,12 +221,12 @@ export function SymmetryMenu({
           onClick={onExit}
           className="rounded-md border border-edge px-2 py-0.5 text-xs font-semibold text-muted hover:text-content"
         >
-          Salir a 2D
+          {t("Salir a 2D", "Exit to 2D")}
         </button>
       </div>
 
       <p className="mb-1 text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-muted">
-        Simetrías
+        {t("Simetrías", "Symmetries")}
       </p>
       {symmetryClassOrder.map((cls) => (
         <div key={cls}>
@@ -248,12 +242,12 @@ export function SymmetryMenu({
           </label>
           {cls === "identity" && visibleClasses.has("identity") && (
             <p className="mb-2 ml-5 text-[0.65rem] leading-tight text-muted">
-              Deja todos los puntos del poliedro invariantes.
+              {t("Deja todos los puntos del poliedro invariantes.", "Leaves all polyhedron points unchanged.")}
             </p>
           )}
           {cls === "rotations3" && visibleClasses.has("rotations3") && (
             <AxisFamilyControls
-              singularName="Rotación"
+              singularName={t("Rotación", "Rotation")} t={t}
               selectedIndex={selectedRotationIndex}
               count={rotationCount}
               axisCount={rotationAxisCount}
@@ -267,7 +261,7 @@ export function SymmetryMenu({
           )}
           {cls === "halfTurns" && visibleClasses.has("halfTurns") && (
             <AxisFamilyControls
-              singularName="Media vuelta"
+              singularName={t("Media vuelta", "Half turn")} t={t}
               selectedIndex={selectedHalfTurnIndex}
               count={halfTurnCount}
               axisCount={halfTurnAxisCount}
@@ -281,15 +275,15 @@ export function SymmetryMenu({
           )}
           {cls === "inversion" && visibleClasses.has("inversion") && (
             <p className="mb-2 ml-5 text-[0.65rem] leading-tight text-muted">
-              Envía cada punto al opuesto respecto del centro.
+              {t("Envía cada punto al opuesto respecto del centro.", "Maps every point to its opposite through the center.")}
             </p>
           )}
           {cls === "reflections" && visibleClasses.has("reflections") && (
             <div className="mb-2 ml-5 rounded-md border border-edge p-2">
               <label className="mb-2 block text-[0.65rem] font-semibold text-muted">
-                Modo
+                {t("Modo", "Mode")}
                 <select
-                  aria-label="Modo de reflexiones"
+                  aria-label={t("Modo de reflexiones", "Reflection mode")}
                   value={reflectionMode}
                   onChange={(event) =>
                     onReflectionModeChange(
@@ -298,16 +292,15 @@ export function SymmetryMenu({
                   }
                   className="mt-1 w-full rounded border border-edge bg-surface px-1.5 py-1 text-xs text-content"
                 >
-                  <option value="individual">Individual</option>
-                  <option value="cumulative">Acumulativo</option>
-                  <option value="all">Todos</option>
+                  <option value="individual">{t("Individual", "Individual")}</option>
+                  <option value="cumulative">{t("Acumulativo", "Cumulative")}</option><option value="all">{t("Todos", "All")}</option>
                 </select>
               </label>
 
               <div className="flex items-center justify-between gap-1">
                 <button
                   type="button"
-                  aria-label="Plano anterior"
+                  aria-label={t("Plano anterior", "Previous plane")}
                   onClick={onPreviousReflection}
                   disabled={reflectionCount === 0}
                   className="rounded border border-edge px-2 py-0.5 text-xs text-muted hover:text-content disabled:opacity-40"
@@ -315,12 +308,11 @@ export function SymmetryMenu({
                   ‹
                 </button>
                 <span aria-live="polite" className="text-[0.7rem] text-content">
-                  Plano {reflectionCount === 0 ? 0 : selectedReflectionIndex + 1}{" "}
-                  de {reflectionCount}
+                  {t("Plano", "Plane")} {reflectionCount === 0 ? 0 : selectedReflectionIndex + 1} {t("de", "of")} {reflectionCount}
                 </span>
                 <button
                   type="button"
-                  aria-label="Plano siguiente"
+                  aria-label={t("Plano siguiente", "Next plane")}
                   onClick={onNextReflection}
                   disabled={reflectionCount === 0}
                   className="rounded border border-edge px-2 py-0.5 text-xs text-muted hover:text-content disabled:opacity-40"
@@ -340,7 +332,7 @@ export function SymmetryMenu({
                     className="mt-0.5 h-3.5 w-3.5 rounded accent-brand-600"
                   />
                   <span className="text-[0.65rem] leading-tight text-content">
-                    Mostrar los demás como referencia
+                    {t("Mostrar los demás como referencia", "Show others as reference")}
                   </span>
                 </label>
               )}
@@ -351,20 +343,20 @@ export function SymmetryMenu({
                   className="mt-2 space-y-0.5 text-[0.65rem] leading-tight text-muted"
                 >
                   {selectedReflection.containedEdges?.map((edge) => (
-                    <li key={edge}>Contiene la arista {edge}.</li>
+                    <li key={edge}>{t("Contiene la arista", "Contains edge")} {edge}.</li>
                   ))}
                   {selectedReflection.fixedVertices?.length ? (
                     <li>
-                      Deja fijos {selectedReflection.fixedVertices.join(" y ")}.
+                      {t("Deja fijos", "Fixes")} {selectedReflection.fixedVertices.join(t(" y ", " and "))}.
                     </li>
                   ) : null}
                   {selectedReflection.swappedVertices?.map(([a, b]) => (
                     <li key={`${a}-${b}`}>
-                      Intercambia {a} ↔ {b}.
+                      {t("Intercambia", "Swaps")} {a} ↔ {b}.
                     </li>
                   ))}
                   {selectedReflection.permutationLabel && (
-                    <li>Permutación: {selectedReflection.permutationLabel}.</li>
+                    <li>{t("Permutación", "Permutation")}: {selectedReflection.permutationLabel}.</li>
                   )}
                 </ul>
               )}
@@ -375,7 +367,7 @@ export function SymmetryMenu({
               <div className="flex items-center justify-between gap-1">
                 <button
                   type="button"
-                  aria-label="Rotorreflexión anterior"
+                  aria-label={t("Rotorreflexión anterior", "Previous rotoreflection")}
                   onClick={onPreviousRotoreflection}
                   disabled={!rotoreflectionCount}
                   className="rounded border border-edge px-2 py-0.5 text-xs disabled:opacity-40"
@@ -383,11 +375,11 @@ export function SymmetryMenu({
                   ‹
                 </button>
                 <span aria-live="polite" className="text-[0.65rem] text-content">
-                  Rotorreflexión {rotoreflectionCount ? selectedRotoreflectionIndex + 1 : 0} de {rotoreflectionCount}
+                  {t("Rotorreflexión", "Rotoreflection")} {rotoreflectionCount ? selectedRotoreflectionIndex + 1 : 0} {t("de", "of")} {rotoreflectionCount}
                 </span>
                 <button
                   type="button"
-                  aria-label="Rotorreflexión siguiente"
+                  aria-label={t("Rotorreflexión siguiente", "Next rotoreflection")}
                   onClick={onNextRotoreflection}
                   disabled={!rotoreflectionCount}
                   className="rounded border border-edge px-2 py-0.5 text-xs disabled:opacity-40"
@@ -397,9 +389,7 @@ export function SymmetryMenu({
               </div>
               {selectedRotoreflection && (
                 <p className="mt-1 text-[0.65rem] text-muted">
-                  {selectedRotoreflection.axisLabel ?? "Eje"}
-                  {rotoreflectionAxisCount ? ` de ${rotoreflectionAxisCount}` : ""}
-                  {` · Sentido: ${selectedRotoreflection.angle < 0 ? "−" : "+"}${Math.round(Math.abs(selectedRotoreflection.angle) * 180 / Math.PI)}°`}
+                  {selectedRotoreflection.axisLabel ?? t("Eje", "Axis")}{rotoreflectionAxisCount ? ` ${t("de", "of")} ${rotoreflectionAxisCount}` : ""}{` · ${t("Sentido", "Direction")}: ${selectedRotoreflection.angle < 0 ? "−" : "+"}${Math.round(Math.abs(selectedRotoreflection.angle) * 180 / Math.PI)}°`}
                 </p>
               )}
               <label className="mt-1 flex items-start gap-1.5 text-[0.65rem] text-content">
@@ -408,7 +398,7 @@ export function SymmetryMenu({
                   checked={showOtherRotoreflectionAxes}
                   onChange={(event) => onShowOtherRotoreflectionAxesChange?.(event.target.checked)}
                 />
-                Mostrar los demás ejes como referencia
+                {t("Mostrar los demás ejes como referencia", "Show other axes as reference")}
               </label>
               <label className="mt-1 flex items-start gap-1.5 text-[0.65rem] text-content">
                 <input
@@ -416,7 +406,7 @@ export function SymmetryMenu({
                   checked={showRotoreflectionPlane}
                   onChange={(event) => onShowRotoreflectionPlaneChange?.(event.target.checked)}
                 />
-                Mostrar plano perpendicular
+                {t("Mostrar plano perpendicular", "Show perpendicular plane")}
               </label>
             </div>
           )}
@@ -424,27 +414,27 @@ export function SymmetryMenu({
       ))}
 
       <p className="mb-1 mt-3 text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-muted">
-        Apariencia
+        {t("Apariencia", "Appearance")}
       </p>
       <label className="mb-2 flex items-center gap-2">
-        <span className="w-16 text-xs text-content">Opacidad</span>
+        <span className="w-16 text-xs text-content">{t("Opacidad", "Opacity")}</span>
         <input
           type="range"
           min="0"
           max="1"
           step="0.05"
           value={opacity}
-          aria-label="Opacidad"
+          aria-label={t("Opacidad", "Opacity")}
           onChange={(e) => onOpacityChange(Number(e.target.value))}
           className="flex-1 accent-brand-600"
         />
       </label>
       <label className="mb-3 flex items-center gap-2">
-        <span className="w-16 text-xs text-content">Color</span>
+        <span className="w-16 text-xs text-content">{t("Color", "Color")}</span>
         <input
           type="color"
           value={color}
-          aria-label="Color"
+          aria-label={t("Color", "Color")}
           onChange={(e) => onColorChange(e.target.value)}
           className="h-6 w-10 cursor-pointer rounded border border-edge bg-transparent"
         />
@@ -455,7 +445,7 @@ export function SymmetryMenu({
         onClick={onResetView}
         className="w-full rounded-md border border-edge px-2 py-1 text-xs font-semibold text-muted hover:text-content"
       >
-        Restablecer vista
+        {t("Restablecer vista", "Reset view")}
       </button>
     </div>
   );

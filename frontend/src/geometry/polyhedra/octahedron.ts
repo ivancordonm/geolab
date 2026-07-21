@@ -35,7 +35,7 @@ const rotations3: SymmetryElementAxis[] = [
       angle: (2 * Math.PI) / 3,
       label: `C3(${i + 1})+`,
       axisId: `face-centre-axis-${i}`,
-      axisLabel: `Centros de caras opuestas ${i + 1}`,
+      axisDescription: { kind: "oppositeFaceCenters" as const, ordinal: i + 1 },
       order: 3,
     },
     {
@@ -45,7 +45,7 @@ const rotations3: SymmetryElementAxis[] = [
       angle: (-2 * Math.PI) / 3,
       label: `C3(${i + 1})−`,
       axisId: `face-centre-axis-${i}`,
-      axisLabel: `Centros de caras opuestas ${i + 1}`,
+      axisDescription: { kind: "oppositeFaceCenters" as const, ordinal: i + 1 },
       order: 3,
     },
   ]),
@@ -57,7 +57,7 @@ const rotations3: SymmetryElementAxis[] = [
       angle: Math.PI / 2,
       label: `C4(${i + 1})+`,
       axisId: `vertex-axis-${i}`,
-      axisLabel: `Vértices opuestos ${i + 1}`,
+      axisDescription: { kind: "oppositeVertices" as const, ordinal: i + 1 },
       order: 4,
     },
     {
@@ -67,7 +67,7 @@ const rotations3: SymmetryElementAxis[] = [
       angle: -Math.PI / 2,
       label: `C4(${i + 1})−`,
       axisId: `vertex-axis-${i}`,
-      axisLabel: `Vértices opuestos ${i + 1}`,
+      axisDescription: { kind: "oppositeVertices" as const, ordinal: i + 1 },
       order: 4,
     },
   ]),
@@ -81,7 +81,7 @@ const halfTurns: SymmetryElementAxis[] = [
     angle: Math.PI,
     label: `C2(v${i + 1})`,
     axisId: `half-vertex-axis-${i}`,
-    axisLabel: `Vértices opuestos ${i + 1}`,
+    axisDescription: { kind: "oppositeVertices" as const, ordinal: i + 1 },
     order: 2,
   })),
   ...EDGE_AXES.map((direction, i) => ({
@@ -91,7 +91,7 @@ const halfTurns: SymmetryElementAxis[] = [
     angle: Math.PI,
     label: `C2(e${i + 1})`,
     axisId: `half-edge-axis-${i}`,
-    axisLabel: `Puntos medios de aristas opuestas ${i + 1}`,
+    axisDescription: { kind: "oppositeEdgeMidpoints" as const, ordinal: i + 1 },
     order: 2,
   })),
 ];
@@ -122,7 +122,7 @@ const rotoreflections: SymmetryElementImproper[] = [
       angle: Math.PI / 2,
       label: `S4(${i + 1})+`,
       axisId: `s4-vertex-axis-${i}`,
-      axisLabel: `Vértices opuestos ${i + 1}`,
+      axisDescription: { kind: "oppositeVertices" as const, ordinal: i + 1 },
       order: 4,
       rotationSense: "positive" as const,
     },
@@ -133,7 +133,7 @@ const rotoreflections: SymmetryElementImproper[] = [
       angle: -Math.PI / 2,
       label: `S4(${i + 1})−`,
       axisId: `s4-vertex-axis-${i}`,
-      axisLabel: `Vértices opuestos ${i + 1}`,
+      axisDescription: { kind: "oppositeVertices" as const, ordinal: i + 1 },
       order: 4,
       rotationSense: "negative" as const,
     },
@@ -146,7 +146,7 @@ const rotoreflections: SymmetryElementImproper[] = [
       angle: Math.PI / 3,
       label: `S6(${i + 1})+`,
       axisId: `s6-face-centre-axis-${i}`,
-      axisLabel: `Centros de caras opuestas ${i + 1}`,
+      axisDescription: { kind: "oppositeFaceCenters" as const, ordinal: i + 1 },
       order: 6,
       rotationSense: "positive" as const,
     },
@@ -157,7 +157,7 @@ const rotoreflections: SymmetryElementImproper[] = [
       angle: -Math.PI / 3,
       label: `S6(${i + 1})−`,
       axisId: `s6-face-centre-axis-${i}`,
-      axisLabel: `Centros de caras opuestas ${i + 1}`,
+      axisDescription: { kind: "oppositeFaceCenters" as const, ordinal: i + 1 },
       order: 6,
       rotationSense: "negative" as const,
     },
@@ -166,7 +166,6 @@ const rotoreflections: SymmetryElementImproper[] = [
 
 export const OCTAHEDRON: PolyhedronDefinition = {
   id: "octahedron",
-  name: "Octaedro",
   vertices: [
     [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1],
   ],
@@ -190,9 +189,5 @@ export const OCTAHEDRON: PolyhedronDefinition = {
   symmetryClassOrder: [
     "identity", "rotations3", "halfTurns", "inversion", "reflections", "rotoreflections",
   ],
-  symmetryLabels: {
-    rotations3: "Rotaciones (C3 y C4)",
-    inversion: "Simetría central",
-  },
   defaultColor: "#3b82f6",
 };

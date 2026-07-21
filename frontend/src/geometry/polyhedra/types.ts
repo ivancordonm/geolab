@@ -13,18 +13,26 @@ export type SymmetryClass =
 
 export type ReflectionDisplayMode = "individual" | "cumulative" | "all";
 
+export type SymmetryAxisDescription =
+  | { kind: "bodyDiagonal"; ordinal: number }
+  | { kind: "oppositeFaceCenters"; ordinal: number }
+  | { kind: "oppositeVertices"; ordinal: number }
+  | { kind: "oppositeEdgeMidpoints"; ordinal: number }
+  | { kind: "tetrahedronOppositeEdgeMidpoints"; pair: "AB_CD" | "AC_BD" | "AD_BC" }
+  | { kind: "generic"; ordinal: number };
+
 export interface SymmetryElementAxis {
   kind: "axis";
   point: Vec3;
   direction: Vec3;
   angle: number;
   label: string;
-  /** Human-readable geometric description of this physical axis. */
-  axisLabel?: string;
   /** Order of the rotation represented by this element. */
   order?: number;
   /** Identifies a physical axis shared by multiple transformations, when known. */
   axisId?: string;
+  /** Language-neutral geometry used to create the visible axis description. */
+  axisDescription?: SymmetryAxisDescription;
 }
 
 export interface SymmetryElementPlane {
@@ -46,7 +54,7 @@ export interface SymmetryElementImproper {
   angle: number;
   label: string;
   axisId?: string;
-  axisLabel?: string;
+  axisDescription?: SymmetryAxisDescription;
   order?: number;
   rotationSense?: "positive" | "negative";
 }
@@ -71,7 +79,6 @@ export type SymmetryElement =
 
 export interface PolyhedronDefinition {
   id: string;
-  name: string;
   vertices: Vec3[];
   faces: number[][];
   edges: readonly (readonly [number, number])[];
@@ -85,7 +92,6 @@ export interface PolyhedronDefinition {
   };
   /** Classes to expose in this polyhedron's study menu. */
   symmetryClassOrder: readonly SymmetryClass[];
-  symmetryLabels?: Partial<Record<SymmetryClass, string>>;
   defaultColor: string;
   /** Temporary mesh-only entry while its symmetry study is being prepared. */
   underConstruction?: boolean;

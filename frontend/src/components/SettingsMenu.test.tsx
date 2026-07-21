@@ -2,35 +2,30 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { SettingsMenu } from "./SettingsMenu";
-import { LanguageProvider, useLanguage } from "../i18n/useLanguage";
-
-function LanguageProbe() {
-  const { language, setLanguage } = useLanguage();
-  return <><span>{language}</span><button type="button" onClick={() => setLanguage("es")}>change</button></>;
-}
+import { i18n, languages } from "../i18n";
 
 describe("SettingsMenu", () => {
   it("offers theme and language controls", async () => {
     const user = userEvent.setup();
-    const changeLanguage = vi.fn();
     const toggleTheme = vi.fn();
-    render(<SettingsMenu language="es" onLanguageChange={changeLanguage} theme="light" onThemeToggle={toggleTheme} />);
+    await i18n.changeLanguage("es");
+    render(<SettingsMenu theme="light" onThemeToggle={toggleTheme} />);
     await user.click(screen.getByRole("button", { name: "Ajustes" }));
     await user.click(screen.getByRole("button", { name: "English" }));
-    await user.click(screen.getByRole("button", { name: "Cambiar a tema oscuro" }));
-    expect(changeLanguage).toHaveBeenCalledWith("en");
+    await user.click(screen.getByRole("button", { name: "Switch to dark theme" }));
+    expect(i18n.resolvedLanguage).toBe("en");
     expect(toggleTheme).toHaveBeenCalledOnce();
   });
-});
 
-describe("LanguageProvider", () => {
-  it("changes and persists the selected browser-session language", async () => {
-    const user = userEvent.setup();
+  it("renders registered languages and persists changes for the browser session", async () => {
     sessionStorage.clear();
-    render(<LanguageProvider><LanguageProbe /></LanguageProvider>);
-    expect(screen.getByText("en")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "change" }));
-    expect(screen.getByText("es")).toBeInTheDocument();
+    await i18n.changeLanguage("en");
+    const user = userEvent.setup();
+    render(<SettingsMenu theme="light" onThemeToggle={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    expect(screen.getByRole("group", { name: "Language" }).querySelector(".grid-cols-2")).not.toBeNull();
+    for (const { nativeName } of languages) expect(screen.getByRole("button", { name: nativeName })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Español" }));
     expect(sessionStorage.getItem("geolab-language")).toBe("es");
     expect(document.documentElement.lang).toBe("es");
   });

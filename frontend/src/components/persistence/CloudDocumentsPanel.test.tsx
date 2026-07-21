@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { CloudDocumentsPanel } from "./CloudDocumentsPanel";
+import { i18n } from "../../i18n";
 
 const documents = [
   { id: "1", title: "Triangle", updatedAt: "2026-01-01T00:00:00Z" },
@@ -60,6 +61,40 @@ describe("CloudDocumentsPanel", () => {
       />,
     );
     expect(screen.getByText("No saved documents yet.")).toBeInTheDocument();
+  });
+
+  it("localizes the document dialog, its empty state, and row actions in Spanish", async () => {
+    await i18n.changeLanguage("es");
+    const { rerender } = render(
+      <CloudDocumentsPanel
+        open
+        documents={[]}
+        loading={false}
+        error={null}
+        onClose={vi.fn()}
+        onOpenDocument={vi.fn()}
+        onRenameDocument={vi.fn()}
+        onDeleteDocument={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("dialog", { name: "Mis documentos" })).toBeInTheDocument();
+    expect(screen.getByText("Aún no hay documentos guardados.")).toBeInTheDocument();
+
+    rerender(
+      <CloudDocumentsPanel
+        open
+        documents={documents}
+        loading={false}
+        error={null}
+        onClose={vi.fn()}
+        onOpenDocument={vi.fn()}
+        onRenameDocument={vi.fn()}
+        onDeleteDocument={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("Renombrar Triangle")).toBeInTheDocument();
+    expect(screen.getByLabelText("Eliminar Triangle")).toBeInTheDocument();
   });
 
   it("deletes a document", async () => {

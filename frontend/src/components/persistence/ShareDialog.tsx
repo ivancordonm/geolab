@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, Copy, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface ShareDialogProps {
   open: boolean;
@@ -10,6 +11,7 @@ interface ShareDialogProps {
 }
 
 export function ShareDialog({ open, url, onClose, onStopSharing }: ShareDialogProps) {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [copied, setCopied] = useState(false);
 
@@ -57,7 +59,7 @@ export function ShareDialog({ open, url, onClose, onStopSharing }: ShareDialogPr
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       role="dialog"
       aria-modal="true"
-      aria-label="Share construction"
+      aria-label={t("persistence.shareDialog.title")}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
@@ -66,10 +68,10 @@ export function ShareDialog({ open, url, onClose, onStopSharing }: ShareDialogPr
     >
       <div className="flex w-[28rem] max-w-[90vw] flex-col overflow-hidden rounded-card border border-edge bg-surface shadow-pop">
         <div className="flex shrink-0 items-center justify-between border-b border-edge px-4 py-3">
-          <h2 className="text-sm font-semibold text-content">Share construction</h2>
+          <h2 className="text-sm font-semibold text-content">{t("persistence.shareDialog.title")}</h2>
           <button
             type="button"
-            aria-label="Close"
+            aria-label={t("persistence.documents.close")}
             onClick={onClose}
             className="rounded-lg p-1 text-muted hover:bg-accent-soft"
           >
@@ -77,7 +79,7 @@ export function ShareDialog({ open, url, onClose, onStopSharing }: ShareDialogPr
           </button>
         </div>
         <div className="flex flex-col gap-3 p-4">
-          <p className="text-sm text-muted">Anyone with this link can view this construction.</p>
+          <p className="text-sm text-muted">{t("persistence.shareDialog.description")}</p>
           <div className="flex items-center gap-2">
             <input
               ref={inputRef}
@@ -85,7 +87,7 @@ export function ShareDialog({ open, url, onClose, onStopSharing }: ShareDialogPr
               value={url}
               onFocus={(event) => event.target.select()}
               className="flex-1 rounded-md border border-edge bg-canvas px-2.5 py-1.5 text-sm text-content"
-              aria-label="Share link"
+              aria-label={t("persistence.shareDialog.link")}
             />
             <button
               type="button"
@@ -93,7 +95,7 @@ export function ShareDialog({ open, url, onClose, onStopSharing }: ShareDialogPr
               className="flex shrink-0 items-center gap-1.5 rounded-md border border-edge px-3 py-1.5 text-sm font-medium text-content hover:bg-accent-soft"
             >
               {copied ? <Check size={16} aria-hidden /> : <Copy size={16} aria-hidden />}
-              {copied ? "Copied" : "Copy"}
+              {copied ? t("persistence.shareDialog.copied") : t("persistence.shareDialog.copy")}
             </button>
           </div>
           <div className="flex justify-end border-t border-edge pt-3">
@@ -105,7 +107,7 @@ export function ShareDialog({ open, url, onClose, onStopSharing }: ShareDialogPr
               }}
               className="rounded-md border border-edge px-3 py-1.5 text-sm font-medium text-danger-fg hover:bg-danger-soft"
             >
-              Stop sharing
+              {t("persistence.shareDialog.stopSharing")}
             </button>
           </div>
         </div>

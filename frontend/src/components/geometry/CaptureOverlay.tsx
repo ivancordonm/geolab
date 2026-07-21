@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { CaptureBounds } from "../../geometry/exportImage";
 
 interface CaptureOverlayProps {
@@ -7,6 +8,7 @@ interface CaptureOverlayProps {
 }
 
 export function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayProps) {
+  const { t } = useTranslation();
   const [start, setStart] = useState<{ x: number; y: number } | null>(null);
   const [current, setCurrent] = useState<{ x: number; y: number } | null>(null);
 
@@ -96,7 +98,7 @@ export function CaptureOverlay({ onCapture, onCancel }: CaptureOverlayProps) {
         )}
       </svg>
       <div className="pointer-events-none absolute left-1/2 top-4 -translate-x-1/2 rounded-md bg-surface px-4 py-2 text-sm font-medium text-content shadow-lg border border-edge">
-        Arrastra para seleccionar el área. Pulsa Esc para cancelar.
+        {t("capture.overlayInstruction")}
       </div>
     </div>
   );

@@ -33,7 +33,7 @@ import type {
 import { ArcView } from "./ArcView";
 import { CircleView } from "./CircleView";
 import { FunctionView } from "./FunctionView";
-import { useLanguage } from "../../i18n/useLanguage";
+import { useTranslation } from "react-i18next";
 import { Grid } from "./Grid";
 import { LineView } from "./LineView";
 import { PointView } from "./PointView";
@@ -86,7 +86,7 @@ export function GeometryCanvas({
   panelOpen = false,
   gridSettings = DEFAULT_GRID_SETTINGS,
 }: GeometryCanvasProps) {
-  const { t } = useLanguage();
+  const { t } = useTranslation();
   const svgRef = useRef<SVGSVGElement>(null);
   const draggedPointRef = useRef<{ objectId: string; pointerId: number } | null>(null);
   const draggedObjectRef = useRef<{
@@ -354,7 +354,7 @@ export function GeometryCanvas({
         viewBox={`0 0 ${size.width} ${size.height}`}
         style={{ cursor: "grab" }}
         role="img"
-        aria-label="Interactive geometry coordinate plane. Drag the background to pan, scroll to zoom, drag circular free points to move them."
+        aria-label={t("canvas.aria")}
         onPointerDown={handleCanvasPointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={stopDragging}
@@ -431,13 +431,13 @@ export function GeometryCanvas({
           className="inline-block h-2.5 w-2.5 rounded-full"
           style={{ background: "var(--geo-point)" }}
         />
-        {t("Arrastra los puntos libres", "Drag free points")}
+        {t("canvas.dragFreePoints")}
         <span
           className="ml-1.5 inline-block h-2.5 w-2.5 rotate-45 rounded-[1px]"
           style={{ background: "var(--geo-accent)" }}
         />
-        {t("Puntos derivados", "Derived points")}
-        <span className="ml-1.5 border-l border-edge pl-2.5">{t("Arrastra para desplazar · Rueda para ampliar", "Drag to pan · Scroll to zoom")}</span>
+        {t("canvas.derivedPoints")}
+        <span className="ml-1.5 border-l border-edge pl-2.5">{t("canvas.navigation")}</span>
       </div>
     </div>
   );

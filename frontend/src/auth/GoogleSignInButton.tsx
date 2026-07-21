@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { ToolbarTooltip } from "../components/geometry/ToolbarTooltip";
 
 declare global {
@@ -28,6 +29,7 @@ interface GoogleSignInButtonProps {
 }
 
 export function GoogleSignInButton({ onCredential }: GoogleSignInButtonProps) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? "";
 
@@ -92,10 +94,10 @@ export function GoogleSignInButton({ onCredential }: GoogleSignInButtonProps) {
   // stretch the real, fully transparent Google button over it so clicks still
   // go through Google's sign-in flow.
   return (
-    <ToolbarTooltip label="Sign in" instruction="Sign in with Google">
+    <ToolbarTooltip label={t("auth.signIn")} instruction={t("auth.signInWithGoogle")}>
       <div
         className="google-sign-in-button relative h-9 w-9 overflow-hidden rounded-lg transition-colors hover:bg-accent-soft"
-        aria-label="Sign in with Google"
+        aria-label={t("auth.signInWithGoogle")}
       >
         <div
           ref={containerRef}

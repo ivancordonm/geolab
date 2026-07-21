@@ -31,11 +31,10 @@ import {
   Waypoints,
 } from "lucide-react";
 
-import { TOOL_INSTRUCTIONS, type ConstructionTool } from "../../geometry/constructionTools";
+import type { ConstructionTool } from "../../geometry/constructionTools";
+import type { ToolGroupKey } from "../../i18n/locales/en";
 import { ToolGroupButton, type GroupToolOption } from "./ToolGroupButton";
-import { useLanguage } from "../../i18n/useLanguage";
-import { toolLabel as translatedToolLabel } from "../../i18n/translateTool";
-import { groupSpanishInstruction, groupSpanishLabel } from "./toolbarTranslations";
+import { useTranslation } from "react-i18next";
 
 interface ConstructionToolbarProps {
   activeTool: ConstructionTool;
@@ -50,105 +49,90 @@ interface ConstructionToolbarProps {
   controls?: ReactNode;
 }
 
+type ToolConfig = Omit<GroupToolOption, "label" | "instruction">;
 type ToolEntry =
   | { divider: true }
-  | GroupToolOption
-  | { group: string; label: string; instruction: string; tools: readonly GroupToolOption[] };
+  | ToolConfig
+  | { group: ToolGroupKey; tools: readonly ToolConfig[] };
 
 const TOOLS: readonly ToolEntry[] = [
-  { tool: "select", label: "Select", icon: MousePointer2, shortcut: "p" },
+  { tool: "select", icon: MousePointer2, shortcut: "p" },
   { divider: true },
   {
     group: "basic-shapes",
-    label: "Basic shapes",
-    instruction: "Choose a basic construction tool",
     tools: [
-      { tool: "point", label: "Point", icon: Dot, shortcut: "o" },
-      { tool: "segment", label: "Segment", icon: Minus, shortcut: "s" },
-      { tool: "line", label: "Line", icon: Slash, shortcut: "l" },
-      { tool: "circle", label: "Circle", icon: Circle, shortcut: "c" },
+      { tool: "point", icon: Dot, shortcut: "o" },
+      { tool: "segment", icon: Minus, shortcut: "s" },
+      { tool: "line", icon: Slash, shortcut: "l" },
+      { tool: "circle", icon: Circle, shortcut: "c" },
     ],
   },
   { divider: true },
   {
     group: "midpoint-bisectors",
-    label: "Midpoint & bisectors",
-    instruction: "Choose a midpoint or bisector tool",
     tools: [
-      { tool: "midpoint", label: "Midpoint", icon: Diamond },
-      { tool: "perp_bisector", label: "Perpendicular bisector", icon: Divide },
-      { tool: "angle_bisector", label: "Angle bisector", icon: Compass },
+      { tool: "midpoint", icon: Diamond },
+      { tool: "perp_bisector", icon: Divide },
+      { tool: "angle_bisector", icon: Compass },
     ],
   },
   {
     group: "parallel-perpendicular",
-    label: "Parallel & perpendicular",
-    instruction: "Choose a parallel or perpendicular line tool",
     tools: [
-      { tool: "parallel", label: "Parallel line", icon: Equal },
-      { tool: "perpendicular", label: "Perpendicular line", icon: CornerDownRight },
+      { tool: "parallel", icon: Equal },
+      { tool: "perpendicular", icon: CornerDownRight },
     ],
   },
   { divider: true },
   {
     group: "intersection-circumcircle",
-    label: "Circle constructions",
-    instruction: "Choose an intersection, tangent, or circumscribed-circle tool",
     tools: [
-      { tool: "intersection", label: "Intersection", icon: Crosshair },
-      { tool: "tangent", label: "Tangent lines", icon: Spline },
-      { tool: "circumcircle", label: "Circumscribed circle", icon: CircleDot },
+      { tool: "intersection", icon: Crosshair },
+      { tool: "tangent", icon: Spline },
+      { tool: "circumcircle", icon: CircleDot },
     ],
   },
   { divider: true },
   {
     group: "transformations",
-    label: "Transformations",
-    instruction: "Choose a transformation tool",
     tools: [
-      { tool: "reflect_line", label: "Reflect over line", icon: ArrowLeftRight },
-      { tool: "reflect_point", label: "Reflect over point", icon: RefreshCcw },
-      { tool: "translation", label: "Translation", icon: Move },
-      { tool: "rotation", label: "Rotate", icon: RotateCw },
+      { tool: "reflect_line", icon: ArrowLeftRight },
+      { tool: "reflect_point", icon: RefreshCcw },
+      { tool: "translation", icon: Move },
+      { tool: "rotation", icon: RotateCw },
     ],
   },
   {
     group: "homothety",
-    label: "Homothety",
-    instruction: "Choose a homothety tool",
     tools: [
-      { tool: "homothety", label: "Homothety (point ratio)", icon: Maximize2 },
-      { tool: "homothety_scalar", label: "Homothety (numeric ratio)", icon: Ratio },
+      { tool: "homothety", icon: Maximize2 },
+      { tool: "homothety_scalar", icon: Ratio },
     ],
   },
-  { tool: "inversion", label: "Inversion in circle", icon: RefreshCw, shortcut: "i" },
+  { tool: "inversion", icon: RefreshCw, shortcut: "i" },
   { divider: true },
   {
     group: "polygons",
-    label: "Polygons",
-    instruction: "Choose a polygon tool",
     tools: [
-      { tool: "polygon", label: "Polygon", icon: Pentagon },
-      { tool: "regular_polygon", label: "Regular polygon", icon: Star },
-      { tool: "vector_polygon", label: "Vector polygon", icon: Waypoints },
+      { tool: "polygon", icon: Pentagon },
+      { tool: "regular_polygon", icon: Star },
+      { tool: "vector_polygon", icon: Waypoints },
     ],
   },
   { divider: true },
   {
     group: "regular-polyhedra",
-    label: "Regular polyhedra",
-    instruction: "Choose a regular polyhedron",
     tools: [
-      { tool: "tetrahedron", label: "Tetrahedron", icon: Triangle },
-      { tool: "cube", label: "Cube", icon: Box },
-      { tool: "octahedron", label: "Octahedron", icon: Octagon },
-      { tool: "dodecahedron", label: "Dodecahedron", icon: Pentagon },
-      { tool: "icosahedron", label: "Icosahedron", icon: Hexagon },
+      { tool: "tetrahedron", icon: Triangle },
+      { tool: "cube", icon: Box },
+      { tool: "octahedron", icon: Octagon },
+      { tool: "dodecahedron", icon: Pentagon },
+      { tool: "icosahedron", icon: Hexagon },
     ],
   },
 ] as const;
 
-function flattenEntries(entries: readonly ToolEntry[]): GroupToolOption[] {
+function flattenEntries(entries: readonly ToolEntry[]): ToolConfig[] {
   return entries.flatMap((entry) => {
     if ("divider" in entry) return [];
     if ("group" in entry) return [...entry.tools];
@@ -181,11 +165,26 @@ export function ConstructionToolbar({
   onHomothetyRatioChange,
   controls,
 }: ConstructionToolbarProps) {
-  const { language, t } = useLanguage();
+  const { t } = useTranslation();
   const tools = TOOLS.map((entry) => {
     if ("divider" in entry) return entry;
-    if ("group" in entry) return { ...entry, label: t(groupSpanishLabel(entry.group), entry.label), instruction: t(groupSpanishInstruction(entry.group), entry.instruction), tools: entry.tools.map((option) => ({ ...option, label: translatedToolLabel(language, option.tool) })) };
-    return { ...entry, label: translatedToolLabel(language, entry.tool) };
+    if ("group" in entry) {
+      return {
+        ...entry,
+        label: t(`toolbar.groups.${entry.group}.label`),
+        instruction: t(`toolbar.groups.${entry.group}.instruction`),
+        tools: entry.tools.map((option) => ({
+          ...option,
+          label: t(`toolbar.tools.${option.tool}.label`),
+          instruction: t(`toolbar.tools.${option.tool}.instruction`),
+        })),
+      };
+    }
+    return {
+      ...entry,
+      label: t(`toolbar.tools.${entry.tool}.label`),
+      instruction: t(`toolbar.tools.${entry.tool}.instruction`),
+    };
   });
   const hasInput =
     (activeTool === "rotation" && onRotationAngleChange !== undefined) ||
@@ -222,7 +221,7 @@ export function ConstructionToolbar({
         {/* Scrollable tool list */}
         <div
           role="toolbar"
-          aria-label="Geometry construction tools"
+          aria-label={t("toolbar.aria")}
           style={{ scrollbarWidth: "none" }}
           className="flex flex-col gap-1 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden min-h-0 flex-1"
         >
@@ -254,7 +253,7 @@ export function ConstructionToolbar({
                 aria-pressed={active}
                 aria-keyshortcuts={shortcut}
                 onClick={() => onActivateTool(tool)}
-                onMouseEnter={(e) => showTooltip(e, label, TOOL_INSTRUCTIONS[tool], shortcut)}
+                onMouseEnter={(e) => showTooltip(e, label, entry.instruction, shortcut)}
                 onMouseLeave={hideTooltip}
                 className={`w-full flex items-center justify-center rounded-lg p-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 ${
                   active
@@ -273,7 +272,7 @@ export function ConstructionToolbar({
             <div className="my-0.5 h-px bg-edge" role="separator" />
             <div className="flex flex-col gap-1 px-1">
               <label className="text-[10px] font-semibold text-muted" htmlFor="polygon-sides">
-                Sides
+                {t("toolbar.sides")}
               </label>
               <input
                 id="polygon-sides"
@@ -295,7 +294,7 @@ export function ConstructionToolbar({
             <div className="my-0.5 h-px bg-edge" role="separator" />
             <div className="flex flex-col gap-1 px-1">
               <label className="text-[10px] font-semibold text-muted" htmlFor="rotation-angle">
-                Angle (°)
+                {t("toolbar.angle")}
               </label>
               <input
                 id="rotation-angle"
@@ -317,7 +316,7 @@ export function ConstructionToolbar({
             <div className="my-0.5 h-px bg-edge" role="separator" />
             <div className="flex flex-col gap-1 px-1">
               <label className="text-[10px] font-semibold text-muted" htmlFor="homothety-ratio">
-                Ratio
+                {t("toolbar.ratio")}
               </label>
               <input
                 id="homothety-ratio"

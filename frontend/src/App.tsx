@@ -30,9 +30,9 @@ import { SidebarTabs } from "./components/SidebarTabs";
 import { SettingsMenu } from "./components/SettingsMenu";
 import { ToolbarTooltip } from "./components/geometry/ToolbarTooltip";
 import { useTheme } from "./theme/useTheme";
-import { useLanguage } from "./i18n/useLanguage";
-import { toolInstruction } from "./i18n/translateTool";
+import { useTranslation } from "react-i18next";
 import type { ConstructionTool } from "./geometry/constructionTools";
+import { translatePolyhedronName } from "./i18n/polyhedra";
 import { exampleGeometryDocument } from "./geometry/example";
 import { parseFunctionObjectCommand } from "./geometry/functionExpression";
 import { polyhedronForTool } from "./geometry/polyhedra";
@@ -74,7 +74,7 @@ c1 = Circle(A, C)`;
 
 export function App() {
   const { theme, toggleTheme } = useTheme();
-  const { language, setLanguage, t } = useLanguage();
+  const { t } = useTranslation();
   const { settings: gridSettings, setSettings: setGridSettings } = useGridSettings();
   const auth = useAuth();
   const signOut = auth.signOut;
@@ -98,7 +98,7 @@ export function App() {
     renameDocument: renameCloudDocument,
     deleteDocument: deleteCloudDocument,
   } = cloud;
-  const [startup] = useState(restoreStartupDocument);
+  const [startup] = useState(() => restoreStartupDocument(t));
   const geometry = useGeometryState(startup.document);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [runningScript, setRunningScript] = useState(false);
@@ -173,10 +173,10 @@ export function App() {
   );
   const confirmOpenPolyhedron = useCallback(() => {
     if (!pendingPolyhedron) return;
-    replaceConstruction(createEmptyDocument(geometry.viewport));
+    replaceConstruction(createEmptyDocument(geometry.viewport, t("app.defaultTitles.local")));
     setActivePolyhedron(pendingPolyhedron);
     setPendingPolyhedron(null);
-  }, [pendingPolyhedron, geometry.viewport, replaceConstruction]);
+  }, [pendingPolyhedron, geometry.viewport, replaceConstruction, t]);
 
   const sharing = useSharing({
     cloudId,
@@ -186,6 +186,7 @@ export function App() {
     setGeometryDocumentTitle,
     detachCloudDocument: detachCloudDocument,
     replaceConstruction,
+    t,
     onMessage: (message) => setPersistenceNotice({ message, error: null }),
     onError: (error) => setPersistenceNotice({ message: null, error }),
   });
@@ -212,7 +213,7 @@ export function App() {
       const objectId = functionCommand.id ?? nextFunctionId(geometry.document);
       const duplicate = geometry.document.objects.some((object) => object.id === objectId || object.label === objectId);
       if (duplicate) {
-        throw new Error(`An object named '${objectId}' already exists.`);
+        throw new Error(t("app.errors.duplicateObject", { objectId }));
       }
       const object: FunctionGraph = {
         id: objectId,
@@ -242,7 +243,7 @@ export function App() {
     constructionTools.cancel();
     const lastObject = response.document.objects.at(-1);
     setSelectedObjectId(lastObject?.id ?? null);
-  }, [constructionTools, currentDocument, geometry]);
+  }, [constructionTools, currentDocument, geometry, t]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
@@ -288,8 +289,8 @@ export function App() {
     clearDocument();
     detachCloudDocument();
     sharing.resetSharing();
-    replaceConstruction(createEmptyDocument(geometry.viewport));
-    setPersistenceNotice({ message: t("Construcción borrada.", "Construction cleared."), error: null });
+    replaceConstruction(createEmptyDocument(geometry.viewport, t("app.defaultTitles.local")));
+    setPersistenceNotice({ message: t("app.notices.cleared"), error: null });
   }, [detachCloudDocument, geometry.viewport, replaceConstruction, sharing, t]);
 
   const handleCaptureFull = useCallback(() => {
@@ -318,9 +319,9 @@ export function App() {
         detachCloudDocument();
         sharing.resetSharing();
         replaceConstruction(imported);
-        setPersistenceNotice({ message: t("Construcción JSON importada.", "JSON construction imported."), error: null });
+        setPersistenceNotice({ message: t("app.notices.jsonImported"), error: null });
       } catch (error) {
-        reportPersistenceError(asError(error, "Unable to import construction."));
+        reportPersistenceError(asError(error, t("app.errors.importFailed")));
       }
     },
     [detachCloudDocument, replaceConstruction, reportPersistenceError, sharing, t],
@@ -333,9 +334,9 @@ export function App() {
         `${safeFilename(geometry.document.title)}.json`,
         "application/json",
       );
-      setPersistenceNotice({ message: t("Exportación JSON creada.", "JSON export created."), error: null });
+      setPersistenceNotice({ message: t("app.notices.jsonExported"), error: null });
     } catch (error) {
-      reportPersistenceError(asError(error, "Unable to export JSON."));
+      reportPersistenceError(asError(error, t("app.errors.exportJsonFailed")));
     }
   }, [currentDocument, geometry.document.title, reportPersistenceError, t]);
 
@@ -348,9 +349,9 @@ export function App() {
         "text/plain",
       );
       setScriptText(script);
-      setPersistenceNotice({ message: t("Exportación del script creada.", "Construction script export created."), error: null });
+      setPersistenceNotice({ message: t("app.notices.scriptExported"), error: null });
     } catch (error) {
-      reportPersistenceError(asError(error, "Unable to export script."));
+      reportPersistenceError(asError(error, t("app.errors.exportScriptFailed")));
     }
   }, [currentDocument, geometry.document.title, reportPersistenceError, t]);
 
@@ -358,7 +359,7 @@ export function App() {
     if (result.status === "superseded") return;
     if (result.status === "success") {
       setGeometryDocumentTitle(result.value.title);
-      setPersistenceNotice({ message: t("Construcción guardada en la nube.", "Construction saved to the cloud."), error: null });
+      setPersistenceNotice({ message: t("app.notices.cloudSaved"), error: null });
     } else {
       setPersistenceNotice({ message: null, error: result.error });
     }
@@ -369,14 +370,14 @@ export function App() {
       void saveCurrentCloudDocument(geometry.document.title, currentDocument()).then(reportCloudSaveResult);
       return;
     }
-    const title = window.prompt(t("Título de esta construcción:", "Title for this construction:"), geometry.document.title);
+    const title = window.prompt(t("app.prompts.save"), geometry.document.title);
     if (title !== null && title.trim() !== "") {
       void saveAsNewCloudDocument(title.trim(), currentDocument()).then(reportCloudSaveResult);
     }
   }, [cloudId, currentDocument, geometry.document.title, reportCloudSaveResult, saveAsNewCloudDocument, saveCurrentCloudDocument, t]);
 
   const handleSaveAsNewToCloud = useCallback(() => {
-    const title = window.prompt(t("Título de la nueva construcción:", "Title for the new construction:"), geometry.document.title);
+    const title = window.prompt(t("app.prompts.saveAs"), geometry.document.title);
     if (title !== null && title.trim() !== "") {
       void saveAsNewCloudDocument(title.trim(), currentDocument()).then(reportCloudSaveResult);
     }
@@ -390,11 +391,11 @@ export function App() {
           replaceConstruction(result.value.document);
           sharing.resetSharing();
           sharing.markShared(result.value.shared);
-          setPersistenceNotice({ message: "Cloud construction loaded.", error: null });
+          setPersistenceNotice({ message: t("app.notices.cloudLoaded"), error: null });
         }
       })();
     },
-    [openCloudDocument, replaceConstruction, sharing],
+    [openCloudDocument, replaceConstruction, sharing, t],
   );
 
   const handleRenameCloudDocument = useCallback(
@@ -418,18 +419,18 @@ export function App() {
         const response = await evaluateConstructionScript({
           script,
           documentId: "canvas_script",
-          title: "Script construction",
+          title: t("app.defaultTitles.script"),
         });
         detachCloudDocument();
         replaceGeometryDocument(response.document);
         cancelConstruction();
         setSelectedObjectId(null);
-          setScriptOutput(t(`Se crearon ${response.document.objects.length} objetos correctamente.`, `Created ${response.document.objects.length} objects successfully.`));
+        setScriptOutput(t("app.notices.objectsCreated", { count: response.document.objects.length }));
       } catch (error) {
         if (error instanceof ScriptEvaluationError && error.detail !== null) {
           setScriptError(error.detail);
         } else {
-          setScriptOutput(error instanceof Error ? error.message : t("No se pudo evaluar el script.", "Unable to evaluate script."));
+          setScriptOutput(error instanceof Error ? error.message : t("app.notices.scriptFailed"));
         }
         throw error;
       } finally {
@@ -442,11 +443,11 @@ export function App() {
   // Controles de la tira izquierda (debajo del separador).
   const toolbarControls = (
     <>
-      <SettingsMenu language={language} onLanguageChange={setLanguage} theme={theme} onThemeToggle={toggleTheme} />
-      <ToolbarTooltip label={t("Deshacer", "Undo")} instruction={t("Revierte el último cambio (Cmd/Ctrl+Z)", "Revert the last change (Cmd/Ctrl+Z)")}>
+      <SettingsMenu theme={theme} onThemeToggle={toggleTheme} />
+      <ToolbarTooltip label={t("app.undo.label")} instruction={t("app.undo.instruction")}>
         <button
           type="button"
-          aria-label={t("Deshacer último cambio", "Undo last change")}
+          aria-label={t("app.undo.aria")}
           aria-keyshortcuts="Meta+Z Control+Z"
           onClick={geometry.undo}
           disabled={!geometry.canUndo}
@@ -455,10 +456,10 @@ export function App() {
           <Undo2 size={18} aria-hidden />
         </button>
       </ToolbarTooltip>
-      <ToolbarTooltip label={t("Rehacer", "Redo")} instruction={t("Restaura el último cambio deshecho (Cmd/Ctrl+Shift+Z)", "Restore the last undone change (Cmd/Ctrl+Shift+Z)")}>
+      <ToolbarTooltip label={t("app.redo.label")} instruction={t("app.redo.instruction")}>
         <button
           type="button"
-          aria-label={t("Rehacer último cambio", "Redo last change")}
+          aria-label={t("app.redo.aria")}
           aria-keyshortcuts="Meta+Shift+Z Control+Shift+Z"
           onClick={geometry.redo}
           disabled={!geometry.canRedo}
@@ -467,10 +468,10 @@ export function App() {
           <Redo2 size={18} aria-hidden />
         </button>
       </ToolbarTooltip>
-      <ToolbarTooltip label={t("Restablecer vista", "Reset view")} instruction={t("Centra y restablece el zoom", "Center and reset the zoom")}>
+      <ToolbarTooltip label={t("common.resetView")} instruction={t("app.resetView.instruction")}>
         <button
           type="button"
-          aria-label={t("Restablecer vista", "Reset viewport")}
+          aria-label={t("app.resetView.aria")}
           onClick={geometry.resetViewport}
           className="flex items-center justify-center rounded-lg p-2 text-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
         >
@@ -509,9 +510,7 @@ export function App() {
     constructionTools.instruction !== "" ||
     constructionTools.selectedObjectIds.length > 0 ||
     constructionTools.error !== null;
-  const translatedInstruction = language === "es"
-    ? toolInstruction(language, constructionTools.activeTool)
-    : constructionTools.instruction;
+  const translatedInstruction = t(`toolbar.tools.${constructionTools.activeTool}.instruction`);
 
   return (
     <div className="relative h-screen w-screen overflow-hidden">
@@ -520,14 +519,13 @@ export function App() {
           className="absolute left-1/2 top-3 z-20 -translate-x-1/2 max-w-[90vw] rounded-card border border-edge bg-surface/95 px-4 py-2 text-sm text-muted shadow-card backdrop-blur"
           role="status"
         >
-          Viewing a shared construction. Changes are not saved to the original — sign in and use
-          &ldquo;Save as new&rdquo; to keep a copy.
+          {t("persistence.sharing.viewing")}
           <button
             type="button"
             onClick={sharing.dismissViewingShared}
             className="ml-3 rounded-md border border-edge px-2 py-0.5 text-xs font-semibold text-muted hover:text-content"
           >
-            Dismiss
+            {t("common.dismiss")}
           </button>
         </div>
       )}
@@ -586,7 +584,7 @@ export function App() {
           )}
           {constructionTools.selectedObjectIds.length > 0 && (
             <span className="font-semibold text-brand-600">
-              {t("Seleccionado:", "Selected:")} {constructionTools.selectedObjectIds.join(", ")}
+              {t("app.selected")} {constructionTools.selectedObjectIds.join(", ")}
             </span>
           )}
           {constructionTools.error !== null && (
@@ -598,7 +596,7 @@ export function App() {
               onClick={constructionTools.cancel}
               className="pointer-events-auto ml-1 rounded-md border border-edge bg-surface px-2.5 py-1 text-xs font-semibold text-muted transition-colors hover:border-brand-400 hover:text-brand-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
             >
-              {t("Cancelar", "Cancel")} (Esc)
+              {t("common.cancel")} (Esc)
             </button>
           )}
         </div>
@@ -608,8 +606,8 @@ export function App() {
       {!panelOpen && (
         <button
           type="button"
-          title={t("Abrir panel", "Open panel")}
-          aria-label={t("Abrir paneles de construcción", "Open construction panels")}
+          title={t("app.openPanel")}
+          aria-label={t("app.openPanelsAria")}
           onClick={() => setPanelOpen(true)}
           className="absolute right-3 top-3 z-10 flex items-center justify-center rounded-card border border-edge bg-surface/90 p-2 text-muted shadow-card backdrop-blur transition-colors hover:text-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
         >
@@ -632,12 +630,12 @@ export function App() {
         {/* Cabecera del panel con botón de colapso */}
         <div className="flex shrink-0 items-center justify-between border-b border-edge bg-surface-muted px-3 py-2">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted">
-            {t("Construcción", "Construction")}
+            {t("app.construction")}
           </span>
           <button
             type="button"
-            title={t("Contraer panel", "Collapse panel")}
-            aria-label={t("Contraer panel", "Collapse panel")}
+            title={t("app.collapsePanel")}
+            aria-label={t("app.collapsePanel")}
             onClick={() => setPanelOpen(false)}
             className="rounded-lg p-1 text-muted transition-colors hover:bg-accent-soft hover:text-accent-soft-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
           >
@@ -651,7 +649,7 @@ export function App() {
             tabs={[
               {
                 id: "objects",
-                label: t("Objetos", "Objects"),
+                label: t("common.objects"),
                 icon: <Shapes size={16} />,
                 panel: (
                   <ObjectList
@@ -675,7 +673,7 @@ export function App() {
               },
               {
                 id: "script",
-                label: t("Script", "Script"),
+                label: t("common.script"),
                 icon: <Code2 size={16} />,
                 panel: (
                   <ScriptEditor
@@ -689,7 +687,7 @@ export function App() {
               },
               {
                 id: "assistant",
-                label: t("Asistente", "Assistant"),
+                label: t("common.assistant"),
                 icon: <Sparkles size={16} />,
                 panel: (
                   <AssistantPanel
@@ -732,23 +730,23 @@ export function App() {
 
       {pendingPolyhedron && (
         <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/40">
-          <div role="dialog" aria-label="Abrir visor 3D" className="w-80 rounded-card border border-edge bg-surface p-4 shadow-pop">
+          <div role="dialog" aria-label={t("polyhedra.openStudio")} className="w-80 rounded-card border border-edge bg-surface p-4 shadow-pop">
             <p className="mb-3 text-sm text-content">
-              Se borrará el dibujo actual y se abrirá el visor 3D del {pendingPolyhedron.name.toLowerCase()}. ¿Continuar?
+              {t("polyhedra.confirmOpen", { name: translatePolyhedronName(t, pendingPolyhedron.id).toLocaleLowerCase() })}
             </p>
             <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setPendingPolyhedron(null)} className="rounded-md border border-edge px-3 py-1 text-xs font-semibold text-muted hover:text-content">
-                Cancelar
+                {t("common.cancel")}
               </button>
               <button type="button" onClick={confirmOpenPolyhedron} className="rounded-md bg-brand-600 px-3 py-1 text-xs font-semibold text-white hover:bg-brand-700">
-                Continuar
+                {t("polyhedra.continue")}
               </button>
             </div>
           </div>
         </div>
       )}
       {activePolyhedron && (
-        <Suspense fallback={<div className="absolute inset-0 z-30 flex items-center justify-center bg-surface text-sm text-muted">Cargando visor 3D…</div>}>
+        <Suspense fallback={<div className="absolute inset-0 z-30 flex items-center justify-center bg-surface text-sm text-muted">{t("polyhedra.loading")}</div>}>
           <PolyhedronStudio definition={activePolyhedron} onExit={() => setActivePolyhedron(null)} />
         </Suspense>
       )}
@@ -756,22 +754,22 @@ export function App() {
   );
 }
 
-function restoreStartupDocument(): { document: GeometryDocument; error: string | null } {
+function restoreStartupDocument(t: ReturnType<typeof useTranslation>["t"]): { document: GeometryDocument; error: string | null } {
   try {
     return { document: loadDocument() ?? exampleGeometryDocument, error: null };
   } catch (error) {
     return {
       document: exampleGeometryDocument,
-      error: asError(error, "Unable to restore the saved construction.").message,
+      error: asError(error, t("app.errors.restoreFailed")).message,
     };
   }
 }
 
-function createEmptyDocument(viewport: GeometryDocument["viewport"]): GeometryDocument {
+function createEmptyDocument(viewport: GeometryDocument["viewport"], title: string): GeometryDocument {
   return {
     schemaVersion: 1,
     id: "local_construction",
-    title: "Local construction",
+    title,
     objects: [],
     viewport,
   };

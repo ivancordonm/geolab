@@ -7,9 +7,9 @@ import type { ConstructionTool } from "../../geometry/constructionTools";
 import { ToolGroupButton } from "./ToolGroupButton";
 
 const POLYGON_TOOLS = [
-  { tool: "polygon", label: "Polygon", icon: Pentagon },
-  { tool: "regular_polygon", label: "Regular polygon", icon: Star },
-  { tool: "vector_polygon", label: "Vector polygon", icon: Waypoints },
+  { tool: "polygon", label: "Polygon", instruction: "Create a polygon", icon: Pentagon },
+  { tool: "regular_polygon", label: "Regular polygon", instruction: "Create a regular polygon", icon: Star },
+  { tool: "vector_polygon", label: "Vector polygon", instruction: "Create a vector polygon", icon: Waypoints },
 ] as const;
 
 function renderGroup(activeTool: ConstructionTool = "select") {

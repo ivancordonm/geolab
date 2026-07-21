@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { App, nextFunctionId } from "./App";
 import { exampleGeometryDocument } from "./geometry/example";
 import { saveDocument } from "./persistence/documentPersistence";
+import { i18n } from "./i18n";
 import type { EvaluateScriptResponse } from "./types/script";
 
 const successfulResponse: EvaluateScriptResponse = {
@@ -132,7 +133,7 @@ describe("script editor flow", () => {
 
     render(<App />);
 
-    expect(screen.getByLabelText("1 objects")).toBeInTheDocument();
+    expect(screen.getByLabelText("1 object")).toBeInTheDocument();
     expect(document.querySelector('[data-object-id="R"]')).not.toBeNull();
     expect(document.querySelector('[data-object-id="A"]')).toBeNull();
   });
@@ -431,6 +432,20 @@ describe("cloud document title flow", () => {
 });
 
 describe("assistant flow", () => {
+  it("creates and resets the welcome message in Spanish", async () => {
+    await i18n.changeLanguage("es");
+    const user = userEvent.setup();
+    render(<App />);
+
+    expect(screen.getByRole("img", { name: /Plano de coordenadas geométrico interactivo/ })).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Asistente" }));
+    const welcome = "Describe una construcción en lenguaje natural (en cualquier idioma). Generaré un script validado de forma determinista para que lo revises.";
+    expect(screen.getByText(welcome)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Iniciar una conversación nueva" }));
+    expect(screen.getByText(welcome)).toBeInTheDocument();
+    expect(screen.queryByText(/deterministically validated script/)).not.toBeInTheDocument();
+  });
+
   it("renders a generated script preview and applies it through script evaluation", async () => {
     const user = userEvent.setup();
     const agentResponse = {

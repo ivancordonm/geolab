@@ -2,6 +2,7 @@ import "@testing-library/jest-dom/vitest";
 
 import { cleanup } from "@testing-library/react";
 import { afterEach, beforeEach } from "vitest";
+import { i18n } from "../i18n";
 
 class TestStorage implements Storage {
   private readonly values = new Map<string, string>();
@@ -36,6 +37,11 @@ beforeEach(() => {
     configurable: true,
     value: new TestStorage(),
   });
+  Object.defineProperty(window, "sessionStorage", {
+    configurable: true,
+    value: new TestStorage(),
+  });
+  void i18n.changeLanguage("en");
 
   // jsdom does not implement ResizeObserver, which GeometryCanvas uses to
   // measure its actual pixel dimensions.

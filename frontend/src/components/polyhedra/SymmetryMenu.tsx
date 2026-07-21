@@ -4,10 +4,13 @@ import type {
   SymmetryElementAxis,
   SymmetryElementPlane,
   SymmetryElementImproper,
+  SymmetryAxisDescription,
 } from "../../geometry/polyhedra/types";
-import { useLanguage } from "../../i18n/useLanguage";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 interface SymmetryMenuProps {
+  polyhedronId: string;
   polyhedronName: string;
   visibleClasses: ReadonlySet<SymmetryClass>;
   onToggleClass: (cls: SymmetryClass) => void;
@@ -24,7 +27,6 @@ interface SymmetryMenuProps {
   onNextReflection: () => void;
   showOtherReflections: boolean;
   onShowOtherReflectionsChange: (value: boolean) => void;
-  symmetryLabels?: Partial<Record<SymmetryClass, string>>;
   symmetryCounts: Partial<Record<SymmetryClass, number>>;
   symmetryClassOrder?: readonly SymmetryClass[];
   selectedRotationIndex: number;
@@ -59,11 +61,50 @@ interface SymmetryMenuProps {
   onShowRotoreflectionPlaneChange?: (value: boolean) => void;
 }
 
-const classLabel = (cls: SymmetryClass, t: (es: string, en: string) => string) => ({ identity: t("Identidad", "Identity"), rotations3: t("Rotaciones ±120°", "Rotations ±120°"), halfTurns: t("Medias vueltas 180°", "Half turns 180°"), inversion: t("Simetría central", "Central inversion"), reflections: t("Reflexiones", "Reflections"), rotoreflections: t("Rotorreflexiones", "Rotoreflections") })[cls];
+function classLabel(cls: SymmetryClass, polyhedronId: string, t: TFunction): string {
+  if (cls === "rotations3" && (polyhedronId === "cube" || polyhedronId === "octahedron")) {
+    return t("symmetry.classes.rotations3And4");
+  }
+  if (cls === "rotoreflections" && polyhedronId === "tetrahedron") {
+    return t("symmetry.classes.rotoreflectionsQuarter");
+  }
+  const keys = {
+    identity: "symmetry.classes.identity",
+    rotations3: "symmetry.classes.rotations3",
+    halfTurns: "symmetry.classes.halfTurns",
+    inversion: "symmetry.classes.inversion",
+    reflections: "symmetry.classes.reflections",
+    rotoreflections: "symmetry.classes.rotoreflections",
+  } as const;
+  return t(keys[cls]);
+}
+
+function translatedAxisLabel(
+  selected: { axisDescription?: SymmetryAxisDescription },
+  t: TFunction,
+): string {
+  const description = selected.axisDescription;
+  if (!description) return t("symmetry.axis");
+  switch (description.kind) {
+    case "generic": return t("symmetry.axisDescriptions.generic", { number: description.ordinal });
+    case "bodyDiagonal": return t("symmetry.axisDescriptions.bodyDiagonal", { number: description.ordinal });
+    case "oppositeFaceCenters": return t("symmetry.axisDescriptions.oppositeFaceCenters", { number: description.ordinal });
+    case "oppositeVertices": return t("symmetry.axisDescriptions.oppositeVertices", { number: description.ordinal });
+    case "oppositeEdgeMidpoints": return t("symmetry.axisDescriptions.oppositeEdgeMidpoints", { number: description.ordinal });
+    case "tetrahedronOppositeEdgeMidpoints": {
+      const keys = {
+        AB_CD: "symmetry.axisDescriptions.tetrahedronABCD",
+        AC_BD: "symmetry.axisDescriptions.tetrahedronACBD",
+        AD_BC: "symmetry.axisDescriptions.tetrahedronADBC",
+      } as const;
+      return t(keys[description.pair]);
+    }
+  }
+}
 
 interface AxisFamilyControlsProps {
   singularName: string;
-  t: (es: string, en: string) => string;
+  isHalfTurn?: boolean;
   selectedIndex: number;
   count: number;
   axisCount: number;
@@ -85,8 +126,10 @@ function AxisFamilyControls({
   onPrevious,
   onNext,
   showOtherAxes,
-  onShowOtherAxesChange, t,
+  onShowOtherAxesChange,
+  isHalfTurn = false,
 }: AxisFamilyControlsProps) {
+  const { t } = useTranslation();
   const degrees = selected ? Math.round(Math.abs(selected.angle) * 180 / Math.PI) : 0;
   const sense = selected && selected.angle < 0 ? "−" : "+";
   return (
@@ -94,7 +137,7 @@ function AxisFamilyControls({
       <div className="flex items-center justify-between gap-1">
         <button
           type="button"
-          aria-label={`${singularName} ${t("anterior", "previous")}`}
+          aria-label={t("symmetry.previous", { name: singularName })}
           onClick={onPrevious}
           disabled={count === 0}
           className="rounded border border-edge px-2 py-0.5 text-xs text-muted hover:text-content disabled:opacity-40"
@@ -102,11 +145,11 @@ function AxisFamilyControls({
           ‹
         </button>
         <span aria-live="polite" className="text-[0.7rem] text-content">
-          {singularName} {count === 0 ? 0 : selectedIndex + 1} {t("de", "of")} {count}
+          {t("symmetry.position", { name: singularName, current: count === 0 ? 0 : selectedIndex + 1, count })}
         </span>
         <button
           type="button"
-          aria-label={`${singularName} ${t("siguiente", "next")}`}
+          aria-label={t("symmetry.next", { name: singularName })}
           onClick={onNext}
           disabled={count === 0}
           className="rounded border border-edge px-2 py-0.5 text-xs text-muted hover:text-content disabled:opacity-40"
@@ -115,16 +158,18 @@ function AxisFamilyControls({
         </button>
       </div>
       {selected && (
-        singularName === t("Media vuelta", "Half turn") ? (
+        isHalfTurn ? (
           <div className="mt-1 text-[0.65rem] text-muted">
             <p>
-              {t("Eje", "Axis")}: {selected.axisLabel ?? (axisCount > 0 ? `${t("Eje", "Axis")} ${axisOrdinal} ${t("de", "of")} ${axisCount}` : "")}
+              {t("symmetry.axis")}: {translatedAxisLabel(selected, t)}
             </p>
-            <p>{t("Ángulo", "Angle")}: {degrees}°</p><p>{t("Orden", "Order")}: {selected.order ?? 2}</p>
+            <p>{t("symmetry.angle")}: {degrees}°</p><p>{t("symmetry.order")}: {selected.order ?? 2}</p>
           </div>
         ) : (
           <p className="mt-1 text-[0.65rem] text-muted">
-            {t("Eje", "Axis")} {axisCount > 0 ? `${axisOrdinal} ${t("de", "of")} ${axisCount}` : ""}{degrees > 0 ? ` · ${t("Giro", "Turn")}: ${sense}${degrees}°` : ""}
+            {axisCount > 0
+              ? t("symmetry.axisTurn", { current: axisOrdinal, count: axisCount, sense, degrees })
+              : t("symmetry.axis")}
           </p>
         )
       )}
@@ -136,7 +181,7 @@ function AxisFamilyControls({
           className="mt-0.5 h-3.5 w-3.5 rounded accent-brand-600"
         />
         <span className="text-[0.65rem] leading-tight text-content">
-          {t("Mostrar los demás ejes como referencia", "Show other axes as reference")}
+          {t("symmetry.showOtherAxes")}
         </span>
       </label>
     </div>
@@ -151,6 +196,7 @@ const CLASS_ORDER: SymmetryClass[] = [
 ];
 
 export function SymmetryMenu({
+  polyhedronId,
   polyhedronName,
   visibleClasses,
   onToggleClass,
@@ -167,7 +213,6 @@ export function SymmetryMenu({
   onNextReflection,
   showOtherReflections,
   onShowOtherReflectionsChange,
-  symmetryLabels,
   symmetryCounts,
   symmetryClassOrder = CLASS_ORDER,
   selectedRotationIndex,
@@ -201,17 +246,17 @@ export function SymmetryMenu({
   showRotoreflectionPlane = true,
   onShowRotoreflectionPlaneChange,
 }: SymmetryMenuProps) {
-  const { language, t } = useLanguage();
+  const { t } = useTranslation();
   const labels = Object.fromEntries(
     symmetryClassOrder.map((symmetryClass) => [
       symmetryClass,
-      `${language === "es" ? symmetryLabels?.[symmetryClass] ?? classLabel(symmetryClass, t) : classLabel(symmetryClass, t)} (${symmetryCounts[symmetryClass] ?? 0})`,
+      t("symmetry.classWithCount", { label: classLabel(symmetryClass, polyhedronId, t), count: symmetryCounts[symmetryClass] ?? 0 }),
     ]),
   ) as Record<SymmetryClass, string>;
   return (
     <div
       role="dialog"
-      aria-label={t("Estudio de simetrías", "Symmetry studio")}
+      aria-label={t("symmetry.studio")}
       className="absolute left-4 top-4 z-10 max-h-[calc(100vh-2rem)] w-60 overflow-y-auto rounded-xl border border-edge bg-surface/95 p-3 shadow-pop backdrop-blur"
     >
       <div className="mb-2 flex items-center justify-between">
@@ -221,12 +266,12 @@ export function SymmetryMenu({
           onClick={onExit}
           className="rounded-md border border-edge px-2 py-0.5 text-xs font-semibold text-muted hover:text-content"
         >
-          {t("Salir a 2D", "Exit to 2D")}
+          {t("symmetry.exit")}
         </button>
       </div>
 
       <p className="mb-1 text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-muted">
-        {t("Simetrías", "Symmetries")}
+        {t("symmetry.title")}
       </p>
       {symmetryClassOrder.map((cls) => (
         <div key={cls}>
@@ -242,12 +287,12 @@ export function SymmetryMenu({
           </label>
           {cls === "identity" && visibleClasses.has("identity") && (
             <p className="mb-2 ml-5 text-[0.65rem] leading-tight text-muted">
-              {t("Deja todos los puntos del poliedro invariantes.", "Leaves all polyhedron points unchanged.")}
+              {t("symmetry.identityDescription")}
             </p>
           )}
           {cls === "rotations3" && visibleClasses.has("rotations3") && (
             <AxisFamilyControls
-              singularName={t("Rotación", "Rotation")} t={t}
+              singularName={t("symmetry.rotation")}
               selectedIndex={selectedRotationIndex}
               count={rotationCount}
               axisCount={rotationAxisCount}
@@ -261,7 +306,8 @@ export function SymmetryMenu({
           )}
           {cls === "halfTurns" && visibleClasses.has("halfTurns") && (
             <AxisFamilyControls
-              singularName={t("Media vuelta", "Half turn")} t={t}
+              singularName={t("symmetry.halfTurn")}
+              isHalfTurn
               selectedIndex={selectedHalfTurnIndex}
               count={halfTurnCount}
               axisCount={halfTurnAxisCount}
@@ -275,15 +321,15 @@ export function SymmetryMenu({
           )}
           {cls === "inversion" && visibleClasses.has("inversion") && (
             <p className="mb-2 ml-5 text-[0.65rem] leading-tight text-muted">
-              {t("Envía cada punto al opuesto respecto del centro.", "Maps every point to its opposite through the center.")}
+              {t("symmetry.inversionDescription")}
             </p>
           )}
           {cls === "reflections" && visibleClasses.has("reflections") && (
             <div className="mb-2 ml-5 rounded-md border border-edge p-2">
               <label className="mb-2 block text-[0.65rem] font-semibold text-muted">
-                {t("Modo", "Mode")}
+                {t("symmetry.mode")}
                 <select
-                  aria-label={t("Modo de reflexiones", "Reflection mode")}
+                  aria-label={t("symmetry.reflectionMode")}
                   value={reflectionMode}
                   onChange={(event) =>
                     onReflectionModeChange(
@@ -292,15 +338,15 @@ export function SymmetryMenu({
                   }
                   className="mt-1 w-full rounded border border-edge bg-surface px-1.5 py-1 text-xs text-content"
                 >
-                  <option value="individual">{t("Individual", "Individual")}</option>
-                  <option value="cumulative">{t("Acumulativo", "Cumulative")}</option><option value="all">{t("Todos", "All")}</option>
+                  <option value="individual">{t("symmetry.modes.individual")}</option>
+                  <option value="cumulative">{t("symmetry.modes.cumulative")}</option><option value="all">{t("symmetry.modes.all")}</option>
                 </select>
               </label>
 
               <div className="flex items-center justify-between gap-1">
                 <button
                   type="button"
-                  aria-label={t("Plano anterior", "Previous plane")}
+                  aria-label={t("symmetry.previousPlane")}
                   onClick={onPreviousReflection}
                   disabled={reflectionCount === 0}
                   className="rounded border border-edge px-2 py-0.5 text-xs text-muted hover:text-content disabled:opacity-40"
@@ -308,11 +354,11 @@ export function SymmetryMenu({
                   ‹
                 </button>
                 <span aria-live="polite" className="text-[0.7rem] text-content">
-                  {t("Plano", "Plane")} {reflectionCount === 0 ? 0 : selectedReflectionIndex + 1} {t("de", "of")} {reflectionCount}
+                  {t("symmetry.planePosition", { current: reflectionCount === 0 ? 0 : selectedReflectionIndex + 1, count: reflectionCount })}
                 </span>
                 <button
                   type="button"
-                  aria-label={t("Plano siguiente", "Next plane")}
+                  aria-label={t("symmetry.nextPlane")}
                   onClick={onNextReflection}
                   disabled={reflectionCount === 0}
                   className="rounded border border-edge px-2 py-0.5 text-xs text-muted hover:text-content disabled:opacity-40"
@@ -332,7 +378,7 @@ export function SymmetryMenu({
                     className="mt-0.5 h-3.5 w-3.5 rounded accent-brand-600"
                   />
                   <span className="text-[0.65rem] leading-tight text-content">
-                    {t("Mostrar los demás como referencia", "Show others as reference")}
+                    {t("symmetry.showOtherReflections")}
                   </span>
                 </label>
               )}
@@ -343,20 +389,20 @@ export function SymmetryMenu({
                   className="mt-2 space-y-0.5 text-[0.65rem] leading-tight text-muted"
                 >
                   {selectedReflection.containedEdges?.map((edge) => (
-                    <li key={edge}>{t("Contiene la arista", "Contains edge")} {edge}.</li>
+                    <li key={edge}>{t("symmetry.containsEdge", { edge })}</li>
                   ))}
                   {selectedReflection.fixedVertices?.length ? (
                     <li>
-                      {t("Deja fijos", "Fixes")} {selectedReflection.fixedVertices.join(t(" y ", " and "))}.
+                      {t("symmetry.fixes", { vertices: selectedReflection.fixedVertices.join(t("symmetry.conjunction")) })}
                     </li>
                   ) : null}
                   {selectedReflection.swappedVertices?.map(([a, b]) => (
                     <li key={`${a}-${b}`}>
-                      {t("Intercambia", "Swaps")} {a} ↔ {b}.
+                      {t("symmetry.swaps", { a, b })}
                     </li>
                   ))}
                   {selectedReflection.permutationLabel && (
-                    <li>{t("Permutación", "Permutation")}: {selectedReflection.permutationLabel}.</li>
+                    <li>{t("symmetry.permutation", { permutation: selectedReflection.permutationLabel })}</li>
                   )}
                 </ul>
               )}
@@ -367,7 +413,7 @@ export function SymmetryMenu({
               <div className="flex items-center justify-between gap-1">
                 <button
                   type="button"
-                  aria-label={t("Rotorreflexión anterior", "Previous rotoreflection")}
+                  aria-label={t("symmetry.previousRotoreflection")}
                   onClick={onPreviousRotoreflection}
                   disabled={!rotoreflectionCount}
                   className="rounded border border-edge px-2 py-0.5 text-xs disabled:opacity-40"
@@ -375,11 +421,11 @@ export function SymmetryMenu({
                   ‹
                 </button>
                 <span aria-live="polite" className="text-[0.65rem] text-content">
-                  {t("Rotorreflexión", "Rotoreflection")} {rotoreflectionCount ? selectedRotoreflectionIndex + 1 : 0} {t("de", "of")} {rotoreflectionCount}
+                  {t("symmetry.rotoreflectionPosition", { current: rotoreflectionCount ? selectedRotoreflectionIndex + 1 : 0, count: rotoreflectionCount })}
                 </span>
                 <button
                   type="button"
-                  aria-label={t("Rotorreflexión siguiente", "Next rotoreflection")}
+                  aria-label={t("symmetry.nextRotoreflection")}
                   onClick={onNextRotoreflection}
                   disabled={!rotoreflectionCount}
                   className="rounded border border-edge px-2 py-0.5 text-xs disabled:opacity-40"
@@ -389,7 +435,7 @@ export function SymmetryMenu({
               </div>
               {selectedRotoreflection && (
                 <p className="mt-1 text-[0.65rem] text-muted">
-                  {selectedRotoreflection.axisLabel ?? t("Eje", "Axis")}{rotoreflectionAxisCount ? ` ${t("de", "of")} ${rotoreflectionAxisCount}` : ""}{` · ${t("Sentido", "Direction")}: ${selectedRotoreflection.angle < 0 ? "−" : "+"}${Math.round(Math.abs(selectedRotoreflection.angle) * 180 / Math.PI)}°`}
+                  {t("symmetry.rotoreflectionDetails", { axis: translatedAxisLabel(selectedRotoreflection, t), axisCountText: rotoreflectionAxisCount ? t("symmetry.axisCountText", { count: rotoreflectionAxisCount }) : "", sense: selectedRotoreflection.angle < 0 ? "−" : "+", degrees: Math.round(Math.abs(selectedRotoreflection.angle) * 180 / Math.PI) })}
                 </p>
               )}
               <label className="mt-1 flex items-start gap-1.5 text-[0.65rem] text-content">
@@ -398,7 +444,7 @@ export function SymmetryMenu({
                   checked={showOtherRotoreflectionAxes}
                   onChange={(event) => onShowOtherRotoreflectionAxesChange?.(event.target.checked)}
                 />
-                {t("Mostrar los demás ejes como referencia", "Show other axes as reference")}
+                {t("symmetry.showOtherAxes")}
               </label>
               <label className="mt-1 flex items-start gap-1.5 text-[0.65rem] text-content">
                 <input
@@ -406,7 +452,7 @@ export function SymmetryMenu({
                   checked={showRotoreflectionPlane}
                   onChange={(event) => onShowRotoreflectionPlaneChange?.(event.target.checked)}
                 />
-                {t("Mostrar plano perpendicular", "Show perpendicular plane")}
+                {t("symmetry.showPlane")}
               </label>
             </div>
           )}
@@ -414,27 +460,27 @@ export function SymmetryMenu({
       ))}
 
       <p className="mb-1 mt-3 text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-muted">
-        {t("Apariencia", "Appearance")}
+        {t("symmetry.appearance")}
       </p>
       <label className="mb-2 flex items-center gap-2">
-        <span className="w-16 text-xs text-content">{t("Opacidad", "Opacity")}</span>
+        <span className="w-16 text-xs text-content">{t("symmetry.opacity")}</span>
         <input
           type="range"
           min="0"
           max="1"
           step="0.05"
           value={opacity}
-          aria-label={t("Opacidad", "Opacity")}
+          aria-label={t("symmetry.opacity")}
           onChange={(e) => onOpacityChange(Number(e.target.value))}
           className="flex-1 accent-brand-600"
         />
       </label>
       <label className="mb-3 flex items-center gap-2">
-        <span className="w-16 text-xs text-content">{t("Color", "Color")}</span>
+        <span className="w-16 text-xs text-content">{t("symmetry.color")}</span>
         <input
           type="color"
           value={color}
-          aria-label={t("Color", "Color")}
+          aria-label={t("symmetry.color")}
           onChange={(e) => onColorChange(e.target.value)}
           className="h-6 w-10 cursor-pointer rounded border border-edge bg-transparent"
         />
@@ -445,7 +491,7 @@ export function SymmetryMenu({
         onClick={onResetView}
         className="w-full rounded-md border border-edge px-2 py-1 text-xs font-semibold text-muted hover:text-content"
       >
-        {t("Restablecer vista", "Reset view")}
+        {t("common.resetView")}
       </button>
     </div>
   );

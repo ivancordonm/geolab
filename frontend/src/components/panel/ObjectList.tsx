@@ -4,7 +4,8 @@ import { createPortal } from "react-dom";
 
 import { getParentIds, referencePointForRatio } from "../../geometry/engine";
 import type { EvaluationMap, GeometryDocument, GeometryObject, GeometryObjectGroup, GeometryStyle, StrokeDash } from "../../types/geometry";
-import { useLanguage } from "../../i18n/useLanguage";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 interface ObjectListProps {
   document: GeometryDocument;
@@ -23,18 +24,14 @@ interface ObjectListProps {
   onSubmitCommand?: (command: string) => Promise<void> | void;
 }
 
-const PALETTE: Array<{ label: string; value: string }> = [
-  { label: "Red", value: "#ef4444" },
-  { label: "Orange", value: "#f97316" },
-  { label: "Yellow", value: "#eab308" },
-  { label: "Green", value: "#22c55e" },
-  { label: "Teal", value: "#14b8a6" },
-  { label: "Blue", value: "#3b82f6" },
-  { label: "Violet", value: "#8b5cf6" },
-  { label: "Pink", value: "#ec4899" },
-];
+const PALETTE = [
+  { key: "red", value: "#ef4444" }, { key: "orange", value: "#f97316" },
+  { key: "yellow", value: "#eab308" }, { key: "green", value: "#22c55e" },
+  { key: "teal", value: "#14b8a6" }, { key: "blue", value: "#3b82f6" },
+  { key: "violet", value: "#8b5cf6" }, { key: "pink", value: "#ec4899" },
+] as const;
 
-const PALETTE_VALUES = new Set(PALETTE.map((p) => p.value));
+const PALETTE_VALUES = new Set<string>(PALETTE.map((p) => p.value));
 
 interface MenuState {
   objectId: string;
@@ -78,7 +75,7 @@ export function ObjectList({
   onDeleteGroup,
   onSubmitCommand,
 }: ObjectListProps) {
-  const { t } = useLanguage();
+  const { t } = useTranslation();
   const labelsById = new Map(document.objects.map((object) => [object.id, object.label]));
   const [menu, setMenu] = useState<MenuState | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -196,15 +193,15 @@ export function ObjectList({
       <div className="mb-3 flex items-center justify-between">
         <div>
           <p className="m-0 text-xs font-semibold uppercase tracking-[0.13em] text-brand-600">
-            {t("Grafo de construcción", "Construction graph")}
+            {t("objectsPanel.eyebrow")}
           </p>
           <h2 id="objects-heading" className="m-0 mt-0.5 text-lg font-bold tracking-tight text-content">
-            {t("Objetos", "Objects")}
+            {t("common.objects")}
           </h2>
         </div>
         <span
           className="grid h-9 min-w-9 place-items-center rounded-lg bg-accent-soft px-2 text-sm font-bold text-accent-soft-fg"
-          aria-label={`${document.objects.length} ${t("objetos", "objects")}`}
+          aria-label={t("objectsPanel.count", { count: document.objects.length })}
         >
           {document.objects.length}
         </span>
@@ -223,14 +220,14 @@ export function ObjectList({
               await onSubmitCommand(trimmed);
               setCommand("");
             } catch (error) {
-              setCommandError(error instanceof Error ? error.message : t("No se pudo añadir el objeto.", "Unable to add the object."));
+              setCommandError(error instanceof Error ? error.message : t("objectsPanel.addFailed"));
             } finally {
               setSubmittingCommand(false);
             }
           }}
         >
           <label htmlFor="object-command" className="mb-1 block text-xs font-semibold uppercase tracking-[0.12em] text-muted">
-            {t("Añadir comando de objeto", "Add object command")}
+            {t("objectsPanel.addCommand")}
           </label>
           <input
             id="object-command"
@@ -250,7 +247,7 @@ export function ObjectList({
 
       {document.objects.length === 0 ? (
         <p className="m-0 rounded-lg border border-dashed border-edge px-3 py-6 text-center text-sm text-muted">
-          {t("Aún no hay objetos. Ejecuta un script o usa las herramientas para crear una construcción.", "No objects yet. Run a script or use the tools to build a construction.")}
+          {t("objectsPanel.empty")}
         </p>
       ) : (
         <ol className="m-0 flex list-none flex-col gap-1 p-0">
@@ -260,13 +257,13 @@ export function ObjectList({
               const collapsed = collapsedGroups.has(row.group.id);
               return (
                 <li key={`group:${row.group.id}`} className="flex items-center rounded-lg border border-edge bg-surface-muted px-2 py-2">
-                  <button type="button" aria-label={`${collapsed ? "Expand" : "Collapse"} ${row.group.label}`} aria-expanded={!collapsed} onClick={() => toggleCollapsed(row.group.id)} className="mr-1 rounded p-1 text-muted hover:text-content">
+                  <button type="button" aria-label={t(collapsed ? "objectsPanel.actions.expand" : "objectsPanel.actions.collapse", { label: row.group.label })} aria-expanded={!collapsed} onClick={() => toggleCollapsed(row.group.id)} className="mr-1 rounded p-1 text-muted hover:text-content">
                     {collapsed ? <ChevronRight size={15} aria-hidden /> : <ChevronDown size={15} aria-hidden />}
                   </button>
-                  <button type="button" aria-label={`${visible ? "Hide" : "Show"} ${row.group.label}`} aria-pressed={visible} onClick={() => onToggleGroupVisibility?.(row.group.id)} className={`mr-2 h-3 w-3 rounded-full bg-brand-500 ${visible ? "opacity-100" : "opacity-30"}`} />
+                  <button type="button" aria-label={t(visible ? "objectsPanel.actions.hide" : "objectsPanel.actions.show", { label: row.group.label })} aria-pressed={visible} onClick={() => onToggleGroupVisibility?.(row.group.id)} className={`mr-2 h-3 w-3 rounded-full bg-brand-500 ${visible ? "opacity-100" : "opacity-30"}`} />
                   <strong className="min-w-0 flex-1 truncate text-sm font-semibold text-content">{row.group.label}</strong>
-                  <span className="mr-2 text-[0.65rem] font-bold uppercase tracking-wide text-muted">GROUP</span>
-                  {onDeleteGroup !== undefined ? <button type="button" aria-label={`Delete ${row.group.label}`} onClick={() => onDeleteGroup(row.group.id)} className="rounded p-1 text-muted hover:text-danger-fg"><Trash2 size={14} aria-hidden /></button> : null}
+                  <span className="mr-2 text-[0.65rem] font-bold uppercase tracking-wide text-muted">{t("objectsPanel.group")}</span>
+                  {onDeleteGroup !== undefined ? <button type="button" aria-label={t("objectsPanel.actions.delete", { label: row.group.label })} onClick={() => onDeleteGroup(row.group.id)} className="rounded p-1 text-muted hover:text-danger-fg"><Trash2 size={14} aria-hidden /></button> : null}
                 </li>
               );
             }
@@ -288,14 +285,14 @@ export function ObjectList({
                 }`}
               >
                 {row.root && row.group !== undefined ? (
-                  <button type="button" aria-label={`${collapsedGroups.has(row.group.id) ? "Expand" : "Collapse"} ${object.label}`} aria-expanded={!collapsedGroups.has(row.group.id)} onClick={() => toggleCollapsed(row.group!.id)} className="flex items-center pl-1.5 text-muted hover:text-content">
+                  <button type="button" aria-label={t(collapsedGroups.has(row.group.id) ? "objectsPanel.actions.expand" : "objectsPanel.actions.collapse", { label: object.label })} aria-expanded={!collapsedGroups.has(row.group.id)} onClick={() => toggleCollapsed(row.group!.id)} className="flex items-center pl-1.5 text-muted hover:text-content">
                     {collapsedGroups.has(row.group.id) ? <ChevronRight size={15} aria-hidden /> : <ChevronDown size={15} aria-hidden />}
                   </button>
                 ) : null}
                 {/* Punto como toggle de visibilidad */}
                 <button
                   type="button"
-                  aria-label={`${visibilityActive ? "Hide" : "Show"} ${object.label}`}
+                  aria-label={t(visibilityActive ? "objectsPanel.actions.hide" : "objectsPanel.actions.show", { label: object.label })}
                   aria-pressed={visibilityActive}
                   onClick={() => row.root && row.group !== undefined ? onToggleGroupVisibility?.(row.group.id) : onToggleVisibility(object.id)}
                   className={`flex items-center pl-2.5 pr-1.5 transition-opacity focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand-500 ${
@@ -330,7 +327,7 @@ export function ObjectList({
                     </span>
                     <button
                       type="button"
-                      aria-label="Confirmar"
+                      aria-label={t("objectsPanel.actions.confirm")}
                       onMouseDown={(e) => { e.preventDefault(); commitFunctionEdit(); }}
                       className="shrink-0 rounded p-1 text-success-fg hover:bg-surface-muted"
                     >
@@ -338,7 +335,7 @@ export function ObjectList({
                     </button>
                     <button
                       type="button"
-                      aria-label="Cancelar"
+                      aria-label={t("objectsPanel.actions.cancel")}
                       onMouseDown={(e) => { e.preventDefault(); cancelFunctionEdit(); }}
                       className="shrink-0 rounded p-1 text-muted hover:bg-surface-muted hover:text-content"
                     >
@@ -381,8 +378,8 @@ export function ObjectList({
                       <small className="block font-mono text-xs text-muted">{describeObject(object, t)}</small>
                       <small className="block text-xs text-subtle">
                         {dependencies.length > 0
-                          ? `${t("Depende de", "Depends on")} ${dependencies.join(", ")}`
-                          : t("Independiente", "Independent")}
+                          ? t("objectsPanel.dependsOn", { dependencies: dependencies.join(", ") })
+                          : t("objectsPanel.independent")}
                       </small>
                     </span>
                   </button>
@@ -404,7 +401,7 @@ export function ObjectList({
                     } ${object.visible ? "" : "opacity-40"}`}
                   >
                     {undefinedValue
-                      ? "undefined"
+                      ? t("objectsPanel.undefinedValue")
                       : object.kind === "measure" && value?.type === "scalar"
                         ? formatMeasureValue(object, value.value)
                         : objectKindLabel(object.kind, t)}
@@ -415,7 +412,7 @@ export function ObjectList({
                 {(onSetObjectLabel !== undefined || onSetObjectColor !== undefined || onSetObjectStyle !== undefined || onDeleteObject !== undefined) && (
                   <button
                     type="button"
-                    aria-label={`Edit ${object.label}`}
+                    aria-label={t("objectsPanel.actions.edit", { label: object.label })}
                     onClick={(e) => {
                       e.stopPropagation();
                       if (menu?.objectId === object.id) {
@@ -520,6 +517,7 @@ function HomothetyRatioInput({
   values: EvaluationMap;
   onCommit: (ratio: number) => void;
 }) {
+  const { t } = useTranslation();
   const initialRatio = homothetyRatio(object, values);
   const [value, setValue] = useState(initialRatio === null ? "" : String(initialRatio));
   const cancelEditRef = useRef(false);
@@ -537,9 +535,9 @@ function HomothetyRatioInput({
       className="flex w-20 shrink-0 flex-col justify-center gap-1 bg-transparent px-2 py-2 text-[10px] font-semibold uppercase tracking-wide text-muted"
       onClick={(event) => event.stopPropagation()}
     >
-      Ratio
+      {t("objectsPanel.ratio")}
       <input
-        aria-label={`Ratio for ${object.label}`}
+        aria-label={t("objectsPanel.ratioFor", { label: object.label })}
         type="number"
         step="any"
         value={value}
@@ -566,17 +564,14 @@ function HomothetyRatioInput({
   );
 }
 
-const STROKE_WIDTHS: Array<{ label: string; value: number; svgWidth: number }> = [
-  { label: "Fino", value: 1, svgWidth: 1 },
-  { label: "Normal", value: 2, svgWidth: 2 },
-  { label: "Grueso", value: 3.5, svgWidth: 3.5 },
-  { label: "Negrita", value: 5, svgWidth: 5 },
-];
+const STROKE_WIDTHS = [
+  { key: "thin", value: 1, svgWidth: 1 }, { key: "normal", value: 2, svgWidth: 2 },
+  { key: "thick", value: 3.5, svgWidth: 3.5 }, { key: "bold", value: 5, svgWidth: 5 },
+] as const;
 
-const STROKE_DASHES: Array<{ label: string; value: StrokeDash; dasharray?: string; linecap?: string }> = [
-  { label: "Sólida", value: "solid" },
-  { label: "Guiones", value: "dashed", dasharray: "8 4" },
-  { label: "Puntos", value: "dotted", dasharray: "1 4", linecap: "round" },
+const STROKE_DASHES: readonly { key: "solid" | "dashed" | "dotted"; value: StrokeDash; dasharray?: string; linecap?: string }[] = [
+  { key: "solid", value: "solid" }, { key: "dashed", value: "dashed", dasharray: "8 4" },
+  { key: "dotted", value: "dotted", dasharray: "1 4", linecap: "round" },
 ];
 
 interface ObjectMenuProps {
@@ -592,6 +587,7 @@ interface ObjectMenuProps {
 }
 
 function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle, onDelete, ref }: ObjectMenuProps) {
+  const { t } = useTranslation();
   const [label, setLabel] = useState(object.label);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -640,7 +636,7 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
     <div
       ref={ref}
       role="dialog"
-      aria-label={`Edit ${object.label}`}
+      aria-label={t("objectsPanel.actions.edit", { label: object.label })}
       style={{
         position: "fixed",
         left: box.left,
@@ -653,11 +649,11 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
     >
       <div className="mb-2 flex items-center justify-between">
         <p className="m-0 text-xs font-semibold uppercase tracking-[0.12em] text-muted">
-          Edit object
+          {t("objectsPanel.editObject")}
         </p>
         <button
           type="button"
-          aria-label="Close"
+          aria-label={t("objectsPanel.actions.close")}
           onClick={onClose}
           className="rounded p-0.5 text-muted hover:bg-surface-muted hover:text-content"
         >
@@ -667,7 +663,7 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
 
       {onSetLabel !== undefined && (
         <div className="mb-3">
-          <label className="mb-1 block text-xs text-muted">Label</label>
+          <label className="mb-1 block text-xs text-muted">{t("objectsPanel.label")}</label>
           <input
             ref={inputRef}
             type="text"
@@ -687,14 +683,14 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
 
       {onSetColor !== undefined && (
         <div className="mb-3">
-          <p className="mb-1.5 text-xs text-muted">Color</p>
+          <p className="mb-1.5 text-xs text-muted">{t("objectsPanel.color")}</p>
           <div className="flex flex-wrap gap-1.5">
             {/* Botón Auto: resetea al color automático del objeto */}
             <button
               type="button"
-              aria-label="Automático"
+              aria-label={t("objectsPanel.automatic")}
               aria-pressed={currentColor === null}
-              title="Automático"
+              title={t("objectsPanel.automatic")}
               onClick={() => onSetColor(null)}
               className={`h-5 w-5 rounded-full border-2 text-[0.5rem] font-bold leading-none transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-500 ${
                 currentColor === null ? "border-content bg-surface-muted text-content" : "border-dashed border-edge text-muted"
@@ -704,8 +700,9 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
             </button>
 
             {/* Swatches de colores prefijados */}
-            {PALETTE.map(({ label: colorLabel, value }) => {
+            {PALETTE.map(({ key, value }) => {
               const active = value === currentColor;
+              const colorLabel = t(`objectsPanel.colors.${key}`);
               return (
                 <button
                   key={colorLabel}
@@ -739,8 +736,8 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
               <input
                 type="color"
                 value={currentColor && /^#[0-9a-fA-F]{6}$/.test(currentColor) ? currentColor : "#3b82f6"}
-                aria-label="Color personalizado"
-                title="Color personalizado"
+                aria-label={t("objectsPanel.customColor")}
+                title={t("objectsPanel.customColor")}
                 onChange={(event) => onSetColor(event.target.value)}
                 className="absolute inset-0 h-full w-full cursor-pointer opacity-0 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-500"
               />
@@ -757,7 +754,7 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-danger-fg/20 bg-danger-fg/5 px-3 py-2 text-sm font-semibold text-danger-fg transition-colors hover:bg-danger-fg/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500"
           >
             <Trash2 size={14} aria-hidden />
-            Delete object
+            {t("objectsPanel.deleteObject")}
           </button>
         </div>
       )}
@@ -765,10 +762,11 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
       {onSetStyle !== undefined && hasStroke && (
         <>
           <div className="mb-3">
-            <p className="mb-1.5 text-xs text-muted">Grosor</p>
+            <p className="mb-1.5 text-xs text-muted">{t("objectsPanel.strokeWidth")}</p>
             <div className="flex gap-1">
-              {STROKE_WIDTHS.map(({ label: wLabel, value: wValue, svgWidth }) => {
+              {STROKE_WIDTHS.map(({ key, value: wValue, svgWidth }) => {
                 const active = currentStrokeWidth === wValue || (currentStrokeWidth === null && wValue === 2);
+                const wLabel = t(`objectsPanel.widths.${key}`);
                 return (
                   <button
                     key={wLabel}
@@ -796,10 +794,11 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
           </div>
 
           <div>
-            <p className="mb-1.5 text-xs text-muted">Tipo de línea</p>
+            <p className="mb-1.5 text-xs text-muted">{t("objectsPanel.lineType")}</p>
             <div className="flex gap-1">
-              {STROKE_DASHES.map(({ label: dLabel, value: dValue, dasharray, linecap }) => {
+              {STROKE_DASHES.map(({ key, value: dValue, dasharray, linecap }) => {
                 const active = currentStrokeDash === dValue;
+                const dLabel = t(`objectsPanel.dashes.${key}`);
                 return (
                   <button
                     key={dLabel}
@@ -833,18 +832,18 @@ function ObjectMenu({ object, x, y, onClose, onSetLabel, onSetColor, onSetStyle,
   );
 }
 
-function objectKindLabel(kind: GeometryObject["kind"], t: (es: string, en: string) => string): string {
-  return ({ point: t("punto", "point"), line: t("recta", "line"), segment: t("segmento", "segment"), circle: t("circ.", "circle"), arc: t("arco", "arc"), polygon: t("polígono", "polygon"), function: t("función", "function"), measure: t("medida", "measure") } as Partial<Record<GeometryObject["kind"], string>>)[kind] ?? kind;
+function objectKindLabel(kind: GeometryObject["kind"], t: TFunction): string {
+  const translatedKinds = {
+    point: t("objectsPanel.kinds.point"), line: t("objectsPanel.kinds.line"), segment: t("objectsPanel.kinds.segment"),
+    circle: t("objectsPanel.kinds.circle"), arc: t("objectsPanel.kinds.arc"), polygon: t("objectsPanel.kinds.polygon"),
+    function: t("objectsPanel.kinds.function"), measure: t("objectsPanel.kinds.measure"),
+  } satisfies Partial<Record<GeometryObject["kind"], string>>;
+  return translatedKinds[kind as keyof typeof translatedKinds] ?? kind;
 }
 
-function describeObject(object: GeometryObject, t: (es: string, en: string) => string): string {
-  if (object.definition.type === "function_expression") {
-    return object.definition.expression;
-  }
-  const descriptions: Record<Exclude<GeometryObject["definition"]["type"], "function_expression">, string> = {
-    free: t("Punto libre", "Free point"), through_points: t("Recta por puntos", "Line through points"), between_points: t("Segmento entre puntos", "Segment between points"), midpoint: t("Punto medio", "Midpoint"), center_through_point: t("Circunferencia", "Circle"), center_radius: t("Circunferencia (radio del control)", "Circle (radius from slider)"), parallel_through: t("Recta paralela", "Parallel line"), perpendicular_through: t("Recta perpendicular", "Perpendicular line"), intersection_ll: t("Intersección (recta∩recta)", "Intersection (line∩line)"), intersection_lc: t("Intersección (recta∩circunferencia)", "Intersection (line∩circle)"), intersection_cc: t("Intersección (circunferencia∩circunferencia)", "Intersection (circle∩circle)"), tangent_pc: t("Rectas tangentes", "Tangent lines"), perpendicular_bisector: t("Mediatriz", "Perpendicular bisector"), angle_bisector: t("Bisectriz", "Angle bisector"), circumscribed: t("Circunferencia circunscrita", "Circumscribed circle"), reflection_over_line: t("Reflexión respecto a recta", "Reflection over line"), reflection_over_point: t("Reflexión respecto a punto", "Reflection over point"), homothety_scalar: t("Homotecia (escalar)", "Homothety (scalar)"), homothety_point: t("Homotecia (razón puntual)", "Homothety (point ratio)"), inversion_in_circle: t("Inversión respecto a circunferencia", "Inversion in circle"), polygon_vertex: t("Vértice de polígono", "Polygon vertex"), translation: t("Traslación", "Translation"), rotation: t("Rotación", "Rotation"), arc_through_points: t("Arco por puntos", "Arc through points"), polygon: t("Polígono", "Polygon"), regular_polygon: t("Polígono regular", "Regular polygon"), vector_polygon: t("Polígono vectorial", "Vector polygon"), slider: t("Control deslizante", "Slider"), distance: t("Distancia", "Distance"), angle: t("Ángulo", "Angle"), area: t("Área", "Area"), slope: t("Pendiente", "Slope"),
-  };
-  return descriptions[object.definition.type as Exclude<GeometryObject["definition"]["type"], "function_expression">];
+function describeObject(object: GeometryObject, t: TFunction): string {
+  if (object.definition.type === "function_expression") return object.definition.expression;
+  return t(`objectsPanel.constructions.${object.definition.type}`);
 }
 
 /** Formats a measure's scalar value for the object list badge (e.g. "5.00" or "90.00°"). */

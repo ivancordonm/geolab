@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AuthControl } from "./AuthControl";
+import { i18n } from "../../i18n";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -14,6 +15,24 @@ describe("AuthControl", () => {
     vi.stubEnv("VITE_GOOGLE_CLIENT_ID", "test-client-id");
     render(<AuthControl user={null} onCredential={vi.fn()} onSignOut={vi.fn()} />);
     expect(screen.getByLabelText("Sign in with Google")).toBeInTheDocument();
+  });
+
+  it("localizes sign-in and account actions in Spanish", async () => {
+    vi.stubEnv("VITE_GOOGLE_CLIENT_ID", "test-client-id");
+    await i18n.changeLanguage("es");
+
+    const { rerender } = render(<AuthControl user={null} onCredential={vi.fn()} onSignOut={vi.fn()} />);
+    expect(screen.getByLabelText("Iniciar sesión con Google")).toBeInTheDocument();
+
+    rerender(
+      <AuthControl
+        user={{ id: "1", email: "a@example.com", name: "Ada", pictureUrl: null }}
+        onCredential={vi.fn()}
+        onSignOut={vi.fn()}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Menú de cuenta" }));
+    expect(screen.getByRole("menuitem", { name: "Cerrar sesión" })).toBeInTheDocument();
   });
 
   it("shows the account menu and signs out when signed in", async () => {

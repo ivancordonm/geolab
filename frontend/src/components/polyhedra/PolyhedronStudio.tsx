@@ -30,14 +30,13 @@ export default function PolyhedronStudio({
   onExit,
 }: PolyhedronStudioProps) {
   const { t } = useTranslation();
-  const polyhedronName = translatePolyhedronName(t, definition.id);
   const [visibleClasses, setVisibleClasses] = useState<Set<SymmetryClass>>(new Set());
   const [opacity, setOpacity] = useState(0.6);
   const [color, setColor] = useState(definition.defaultColor);
   const [axisColor, setAxisColor] = useState("#ef4444");
-  const [axisThickness, setAxisThickness] = useState(1);
+  const [axisThickness, setAxisThickness] = useState(-0.25);
   const [planeColor, setPlaneColor] = useState("#3b82f6");
-  const [planeThickness, setPlaneThickness] = useState(0);
+  const [planeThickness, setPlaneThickness] = useState(-0.25);
   const [reflectionMode, setReflectionMode] =
     useState<ReflectionDisplayMode>("individual");
   const [selectedReflectionIndex, setSelectedReflectionIndex] = useState(0);
@@ -154,7 +153,6 @@ export default function PolyhedronStudio({
 
       <SymmetryMenu
         polyhedronId={definition.id}
-        polyhedronName={polyhedronName}
         onSelectPolyhedron={handleSelectPolyhedron}
         visibleClasses={visibleClasses}
         onToggleClass={toggleClass}

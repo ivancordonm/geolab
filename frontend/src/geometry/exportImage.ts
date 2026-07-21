@@ -86,8 +86,6 @@ export async function captureSvgToPng(
 
         let drawX = 0;
         let drawY = 0;
-        let drawWidth = fullWidth;
-        let drawHeight = fullHeight;
 
         if (bounds) {
           canvas.width = bounds.width;

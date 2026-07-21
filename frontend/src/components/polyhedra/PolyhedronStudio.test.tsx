@@ -16,7 +16,13 @@ vi.mock("./SymmetryOverlay", () => ({
   SymmetryOverlay: () => <div data-testid="symmetry-overlay" />,
 }));
 vi.mock("./SymmetryMenu", () => ({
-  SymmetryMenu: () => <div data-testid="symmetry-menu" />,
+  SymmetryMenu: ({ axisThickness, planeThickness }: { axisThickness: number; planeThickness: number }) => (
+    <div
+      data-testid="symmetry-menu"
+      data-axis-thickness={axisThickness}
+      data-plane-thickness={planeThickness}
+    />
+  ),
 }));
 
 import PolyhedronStudio from "./PolyhedronStudio";
@@ -30,6 +36,8 @@ describe("PolyhedronStudio", () => {
     expect(screen.getByTestId("orbit-controls")).toBeInTheDocument();
     expect(screen.getByTestId("symmetry-overlay")).toBeInTheDocument();
     expect(screen.getByTestId("symmetry-menu")).toBeInTheDocument();
+    expect(screen.getByTestId("symmetry-menu")).toHaveAttribute("data-axis-thickness", "-0.25");
+    expect(screen.getByTestId("symmetry-menu")).toHaveAttribute("data-plane-thickness", "-0.25");
     expect(screen.queryByText("(Under construction)")).not.toBeInTheDocument();
   });
 

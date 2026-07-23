@@ -17,8 +17,8 @@ describe("SettingsMenu", () => {
     expect(toggleTheme).toHaveBeenCalledOnce();
   });
 
-  it("renders registered languages and persists changes for the browser session", async () => {
-    sessionStorage.clear();
+  it("renders registered languages and persists changes across browser sessions", async () => {
+    localStorage.clear();
     await i18n.changeLanguage("en");
     const user = userEvent.setup();
     render(<SettingsMenu theme="light" onThemeToggle={vi.fn()} />);
@@ -26,7 +26,7 @@ describe("SettingsMenu", () => {
     expect(screen.getByRole("group", { name: "Language" }).querySelector(".grid-cols-2")).not.toBeNull();
     for (const { nativeName } of languages) expect(screen.getByRole("button", { name: nativeName })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Español" }));
-    expect(sessionStorage.getItem("geolab-language")).toBe("es");
+    expect(localStorage.getItem("geolab-language")).toBe("es");
     expect(document.documentElement.lang).toBe("es");
   });
 });

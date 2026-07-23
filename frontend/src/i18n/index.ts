@@ -8,7 +8,7 @@ export const LANGUAGE_STORAGE_KEY = "geolab-language";
 export function readStoredLanguage() {
   if (typeof window === "undefined") return defaultLanguage;
   try {
-    const stored = window.sessionStorage.getItem(LANGUAGE_STORAGE_KEY);
+    const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
     return isLanguage(stored) ? stored : defaultLanguage;
   } catch {
     return defaultLanguage;
@@ -29,7 +29,7 @@ export function syncLanguage(language: string) {
   if (typeof document !== "undefined") document.documentElement.lang = resolved;
   if (typeof window === "undefined") return;
   try {
-    window.sessionStorage.setItem(LANGUAGE_STORAGE_KEY, resolved);
+    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, resolved);
   } catch {
     // Storage can be unavailable in private or restricted browser contexts.
   }

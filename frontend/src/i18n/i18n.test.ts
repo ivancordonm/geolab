@@ -41,7 +41,7 @@ describe("i18n", () => {
   it("persists a language change and synchronizes the document language", async () => {
     await i18n.changeLanguage("es");
 
-    expect(sessionStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("es");
+    expect(localStorage.getItem(LANGUAGE_STORAGE_KEY)).toBe("es");
     expect(document.documentElement.lang).toBe("es");
     expect(i18n.t("objectsPanel.count", { count: 1 })).toBe("1 objeto");
     expect(i18n.t("objectsPanel.count", { count: 1_000_000 })).toBe("1000000 objetos");

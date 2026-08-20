@@ -8,6 +8,8 @@ import {
   GeometryGraph,
   GeometryValidationError,
   evaluateGeometryDocument,
+  moveConstrainedPoint,
+  moveFreePoint,
 } from "./engine";
 import { deserializeGeometryDocument, serializeGeometryDocument } from "./serialization";
 
@@ -910,5 +912,80 @@ describe("tangent_pc", () => {
     const t = v.get("t1")!;
     expect(t.type).toBe("undefined");
     if (t.type === "undefined") expect(t.code).toBe("degenerate_circle");
+  });
+});
+
+function pointOnObjectDoc(): GeometryDocument {
+  return {
+    schemaVersion: 1, id: "d", title: "t", objects: [
+      { id: "A", label: "A", visible: true, kind: "point", definition: { type: "free", x: 0, y: 0 } },
+      { id: "B", label: "B", visible: true, kind: "point", definition: { type: "free", x: 4, y: 0 } },
+      { id: "l", label: "l", visible: true, kind: "line", definition: { type: "through_points", pointA: "A", pointB: "B" } },
+      { id: "s", label: "s", visible: true, kind: "segment", definition: { type: "between_points", pointA: "A", pointB: "B" } },
+      { id: "O", label: "O", visible: true, kind: "point", definition: { type: "free", x: 0, y: 0 } },
+      { id: "R", label: "R", visible: true, kind: "point", definition: { type: "free", x: 5, y: 0 } },
+      { id: "c", label: "c", visible: true, kind: "circle", definition: { type: "center_through_point", center: "O", point: "R" } },
+      { id: "E", label: "E", visible: true, kind: "point", definition: { type: "free", x: 5, y: 0 } },
+      { id: "F", label: "F", visible: true, kind: "point", definition: { type: "free", x: 0, y: 5 } },
+      { id: "G", label: "G", visible: true, kind: "point", definition: { type: "free", x: -5, y: 0 } },
+      { id: "arc1", label: "arc1", visible: true, kind: "arc", definition: { type: "arc_through_points", pointA: "E", pointMid: "F", pointB: "G" } },
+      { id: "P1", label: "P1", visible: true, kind: "point", definition: { type: "on_line", line: "l", t: 2 } },
+      { id: "P2", label: "P2", visible: true, kind: "point", definition: { type: "on_segment", segment: "s", t: 5 } },
+      { id: "P3", label: "P3", visible: true, kind: "point", definition: { type: "on_circle", circle: "c", angle: Math.PI } },
+      { id: "P4", label: "P4", visible: true, kind: "point", definition: { type: "on_arc", arc: "arc1", angle: -Math.PI / 2 } },
+    ],
+  } as unknown as GeometryDocument;
+}
+
+describe("point on object", () => {
+  it("evaluates a point on a line at its stored t", () => {
+    const v = evaluateGeometryDocument(pointOnObjectDoc());
+    expect(v.get("P1")).toEqual({ type: "point", x: -2, y: 0 });
+  });
+
+  it("clamps a point on a segment to its endpoints", () => {
+    const v = evaluateGeometryDocument(pointOnObjectDoc());
+    expect(v.get("P2")).toEqual({ type: "point", x: 4, y: 0 });
+  });
+
+  it("evaluates a point on a circle at its stored angle", () => {
+    const v = evaluateGeometryDocument(pointOnObjectDoc());
+    const p3 = v.get("P3")!;
+    expect(p3.type).toBe("point");
+    if (p3.type === "point") {
+      expect(p3.x).toBeCloseTo(-5, 9);
+      expect(p3.y).toBeCloseTo(0, 9);
+    }
+  });
+
+  it("clamps a point on an arc to the arc's angular range", () => {
+    const v = evaluateGeometryDocument(pointOnObjectDoc());
+    // arc1 goes E(0)->F(pi/2)->G(pi), CCW half-circle; -pi/2 is outside and exactly
+    // antipodal to the arc's midpoint (equidistant from both endpoints). Task 1's
+    // clampAngleToArc breaks this exact tie toward the end (G), per its `<=` comparison.
+    expect(v.get("P4")).toEqual({ type: "point", x: -5, y: 0 });
+  });
+
+  it("recomputes when the parent line moves", () => {
+    const result = moveFreePoint(pointOnObjectDoc(), "B", 0, 4); // rotate l to the vertical-ish line A-B
+    expect(result.recomputedObjectIds).toContain("P1");
+    const p1 = result.values.get("P1")!;
+    expect(p1.type).toBe("point");
+  });
+
+  it("moveConstrainedPoint re-projects a point-on-line to a new t", () => {
+    const result = moveConstrainedPoint(pointOnObjectDoc(), "P1", -6, 0);
+    expect(result.values.get("P1")).toEqual({ type: "point", x: -6, y: 0 });
+    const updated = result.document.objects.find((o) => o.id === "P1")!;
+    expect(updated.definition).toEqual({ type: "on_line", line: "l", t: 6 });
+  });
+
+  it("moveConstrainedPoint clamps a point-on-segment drag past the endpoint", () => {
+    const result = moveConstrainedPoint(pointOnObjectDoc(), "P2", 10, 0);
+    expect(result.values.get("P2")).toEqual({ type: "point", x: 4, y: 0 });
+  });
+
+  it("moveConstrainedPoint throws for a free point", () => {
+    expect(() => moveConstrainedPoint(pointOnObjectDoc(), "A", 1, 1)).toThrow(GeometryValidationError);
   });
 });

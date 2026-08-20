@@ -140,6 +140,7 @@ export const en = {
       tangent_pc: "Tangent lines", perpendicular_bisector: "Perpendicular bisector", angle_bisector: "Angle bisector", circumscribed: "Circumscribed circle",
       reflection_over_line: "Reflection over line", reflection_over_point: "Reflection over point", homothety_scalar: "Homothety (scalar)", homothety_point: "Homothety (point ratio)",
       inversion_in_circle: "Inversion in circle", polygon_vertex: "Polygon vertex", translation: "Translation", rotation: "Rotation", arc_through_points: "Arc through points",
+      on_line: "Point on line", on_segment: "Point on segment", on_circle: "Point on circle", on_arc: "Point on arc",
       polygon: "Polygon", regular_polygon: "Regular polygon", vector_polygon: "Vector polygon", slider: "Slider", distance: "Distance", angle: "Angle", area: "Area", slope: "Slope",
     },
   },

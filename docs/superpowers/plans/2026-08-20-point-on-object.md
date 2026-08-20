@@ -356,6 +356,20 @@ EOF
 - Modify: `frontend/src/geometry/engine.ts`
 - Test: `frontend/src/geometry/engine.test.ts`
 
+> **Post-hoc note (discovered during implementation):** extending the
+> `GeometryObject` union also breaks exhaustiveness in two pre-existing
+> files this plan did not audit for: `frontend/src/components/panel/ObjectList.tsx`
+> (an i18next-typed label lookup keyed by `definition.type`) and
+> `frontend/src/persistence/documentPersistence.ts`'s `objectToScript`
+> (an exhaustive `switch (object.definition.type)` with no `default`,
+> used to serialize a document back to script text for export). Task 2's
+> scope implicitly includes: adding `on_line`/`on_segment`/`on_circle`/`on_arc`
+> translation keys to `frontend/src/i18n/locales/en.ts` and `es.ts`'s
+> `objectsPanel.constructions` block, and 4 new `objectToScript` cases
+> using the lossy single-argument `Point(reference)` form (matching Task 6's
+> planned backend syntax — it doesn't round-trip the exact `t`/`angle`,
+> only that the point is constrained to that parent).
+
 **Interfaces:**
 - Consumes: Task 1's `pointOnLineFromT`, `pointOnSegmentFromT`, `pointOnCircleFromAngle`, `pointOnArcFromAngle`, `tForPointOnLine`, `tForPointOnSegment`, `angleForPointOnCircle`, `angleForPointOnArc`.
 - Produces (consumed by Tasks 3, 4): types `PointOnLine`, `PointOnSegment`, `PointOnCircle`, `PointOnArc` (each `kind: "point"`); `GeometryGraph.moveConstrainedPoint(pointId, x, y): RecomputeResult`; module function `moveConstrainedPoint(document, pointId, x, y): RecomputeResult`.
@@ -458,8 +472,11 @@ describe("point on object", () => {
 
   it("clamps a point on an arc to the arc's angular range", () => {
     const v = evaluateGeometryDocument(pointOnObjectDoc());
-    // arc1 goes E(0)->F(pi/2)->G(pi), CCW half-circle; -pi/2 is outside, clamps to start (E).
-    expect(v.get("P4")).toEqual({ type: "point", x: 5, y: 0 });
+    // arc1 goes E(0)->F(pi/2)->G(pi), CCW half-circle; -pi/2 is outside and exactly
+    // antipodal to the arc's midpoint (equidistant from both endpoints). clampAngleToArc
+    // breaks this exact tie toward the end (G), per its `<=` comparison against the gap
+    // midpoint (verified by hand: ccwFromStart = 3*pi/2 = gapMidpoint = (pi + 2*pi)/2).
+    expect(v.get("P4")).toEqual({ type: "point", x: -5, y: 0 });
   });
 
   it("recomputes when the parent line moves", () => {

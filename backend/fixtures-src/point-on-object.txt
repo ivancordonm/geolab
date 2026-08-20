@@ -1,0 +1,20 @@
+A = Point(0, 0)
+B = Point(6, 0)
+l = Line(A, B)
+P1 = Point(l)
+
+C = Point(0, 4)
+D = Point(4, 4)
+s = Segment(C, D)
+P2 = Point(s)
+
+O = Point(0, 0)
+R = Point(3, 0)
+c = Circle(O, R)
+P3 = Point(c)
+
+E = Point(5, 0)
+F = Point(0, 5)
+G = Point(-5, 0)
+arc1 = Arc(E, F, G)
+P4 = Point(arc1)

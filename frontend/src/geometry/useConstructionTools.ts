@@ -31,7 +31,7 @@ export interface ConstructionToolsState extends ConstructionToolState {
   setRotationAngle: (angle: number) => void;
   setHomothetyRatio: (ratio: number) => void;
   handleCanvasClick: (world: Coordinate) => void;
-  handleObjectClick: (objectId: string) => void;
+  handleObjectClick: (objectId: string, world?: Coordinate | null) => void;
   updatePointer: (world: Coordinate | null) => void;
 }
 
@@ -88,7 +88,8 @@ export function useConstructionTools({
   );
 
   const handleObjectClick = useCallback(
-    (objectId: string) => applyResult(controllerRef.current.handleObjectClick(objectId, document)),
+    (objectId: string, world?: Coordinate | null) =>
+      applyResult(controllerRef.current.handleObjectClick(objectId, document, world ?? null)),
     [applyResult, document],
   );
 

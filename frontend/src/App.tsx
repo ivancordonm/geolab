@@ -540,6 +540,7 @@ export function App() {
           selectedObjectId={selectedObjectId}
           pointerWorld={constructionTools.pointerWorld}
           onMoveFreePoint={geometry.moveFreePoint}
+          onMoveConstrainedPoint={geometry.moveConstrainedPoint}
           onTranslateObject={geometry.translateObject}
           onBeginFreePointMove={geometry.beginDocumentInteraction}
           onEndFreePointMove={geometry.endDocumentInteraction}

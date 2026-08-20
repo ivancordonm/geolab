@@ -20,6 +20,7 @@ export interface GeometryState {
   canUndo: boolean;
   canRedo: boolean;
   moveFreePoint: (pointId: GeometryObjectId, x: number, y: number) => void;
+  moveConstrainedPoint: (pointId: GeometryObjectId, x: number, y: number) => void;
   translateObject: (objectId: GeometryObjectId, dx: number, dy: number) => void;
   beginDocumentInteraction: () => void;
   endDocumentInteraction: () => void;
@@ -146,6 +147,14 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
   const moveFreePoint = useCallback((pointId: GeometryObjectId, x: number, y: number) => {
     recordDocumentChange();
     const result = graphRef.current!.moveFreePoint(pointId, x, y);
+    graphRef.current = new GeometryGraph(result.document);
+    setDocument(graphRef.current.document);
+    setValues(graphRef.current.values);
+  }, [recordDocumentChange]);
+
+  const moveConstrainedPoint = useCallback((pointId: GeometryObjectId, x: number, y: number) => {
+    recordDocumentChange();
+    const result = graphRef.current!.moveConstrainedPoint(pointId, x, y);
     graphRef.current = new GeometryGraph(result.document);
     setDocument(graphRef.current.document);
     setValues(graphRef.current.values);
@@ -440,6 +449,7 @@ export function useGeometryState(initialDocument: GeometryDocument): GeometrySta
     canUndo: historyState.canUndo,
     canRedo: historyState.canRedo,
     moveFreePoint,
+    moveConstrainedPoint,
     translateObject,
     beginDocumentInteraction,
     endDocumentInteraction,

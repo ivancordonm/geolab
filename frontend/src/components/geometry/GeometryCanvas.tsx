@@ -30,6 +30,7 @@ import type {
   SegmentValue,
   StrokeDash,
 } from "../../types/geometry";
+import { projectPointerOntoObject } from "../../geometry/evaluators/pointOnObject";
 import { ArcView } from "./ArcView";
 import { CircleView } from "./CircleView";
 import { FunctionView } from "./FunctionView";
@@ -45,6 +46,7 @@ interface GeometryCanvasProps {
   values: EvaluationMap;
   viewport: GeometryViewport;
   onMoveFreePoint: (pointId: string, x: number, y: number) => void;
+  onMoveConstrainedPoint?: (pointId: string, x: number, y: number) => void;
   onTranslateObject?: (objectId: string, dx: number, dy: number) => void;
   onBeginFreePointMove?: () => void;
   onEndFreePointMove?: () => void;
@@ -54,7 +56,7 @@ interface GeometryCanvasProps {
   selectedObjectId?: string | null;
   pointerWorld: Coordinate | null;
   onCanvasClick: (world: Coordinate) => void;
-  onObjectClick: (objectId: string) => void;
+  onObjectClick: (objectId: string, world: Coordinate | null) => void;
   onPointerWorldChange: (world: Coordinate | null) => void;
   onSetLabelOffset?: (objectId: string, offsetX: number, offsetY: number) => void;
   panelOpen?: boolean;
@@ -71,6 +73,7 @@ export function GeometryCanvas({
   values,
   viewport,
   onMoveFreePoint,
+  onMoveConstrainedPoint,
   onTranslateObject,
   onBeginFreePointMove,
   onEndFreePointMove,
@@ -89,6 +92,7 @@ export function GeometryCanvas({
   const { t } = useTranslation();
   const svgRef = useRef<SVGSVGElement>(null);
   const draggedPointRef = useRef<{ objectId: string; pointerId: number } | null>(null);
+  const draggedConstrainedPointRef = useRef<{ objectId: string; pointerId: number } | null>(null);
   const draggedObjectRef = useRef<{
     objectId: string;
     pointerId: number;
@@ -106,6 +110,7 @@ export function GeometryCanvas({
   // Con viewBox dinámico (px-SVG == px-pantalla), todas las conversiones de
   // coordenadas son exactas sin letterboxing ni factores de escala separados.
   const [size, setSize] = useState<CanvasSize>({ width: 1000, height: 700 });
+  const [hoverPreviewPoint, setHoverPreviewPoint] = useState<Coordinate | null>(null);
 
   // Always-current viewport ref avoids stale-closure issues during high-frequency pan moves.
   const viewportRef = useRef(viewport);
@@ -133,6 +138,12 @@ export function GeometryCanvas({
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    if (activeTool !== "point") {
+      setHoverPreviewPoint(null);
+    }
+  }, [activeTool]);
+
   const clientToWorld = useCallback(
     (clientX: number, clientY: number): Coordinate | null => {
       const svg = svgRef.current;
@@ -152,19 +163,20 @@ export function GeometryCanvas({
   const handleObjectPointerDown = useCallback(
     (objectId: string, event: ReactPointerEvent<SVGElement>) => {
       event.stopPropagation();
-      onObjectClick(objectId);
+      const world = clientToWorld(event.clientX, event.clientY);
+      onObjectClick(objectId, world);
       if (activeTool !== "select") {
         return;
       }
       const object = document.objects.find((candidate) => candidate.id === objectId);
       const isFreePoint = object?.kind === "point" && object.definition.type === "free";
-      // Non-free-point objects can be translated directly by dragging (no pre-selection required).
-      const canTranslate = !isFreePoint && onTranslateObject !== undefined;
-      if (!isFreePoint && !canTranslate) {
+      const isConstrainedPoint = object?.kind === "point" && object.definition.type.startsWith("on_");
+      // Non-free, non-constrained-point objects can be translated directly by dragging (no pre-selection required).
+      const canTranslate = !isFreePoint && !isConstrainedPoint && onTranslateObject !== undefined;
+      if (!isFreePoint && !isConstrainedPoint && !canTranslate) {
         return;
       }
       const svg = svgRef.current;
-      const world = clientToWorld(event.clientX, event.clientY);
       if (svg === null || world === null) {
         return;
       }
@@ -173,6 +185,10 @@ export function GeometryCanvas({
       onBeginFreePointMove?.();
       if (canTranslate) {
         draggedObjectRef.current = { objectId, pointerId: event.pointerId, lastWorld: world };
+        return;
+      }
+      if (isConstrainedPoint) {
+        draggedConstrainedPointRef.current = { objectId, pointerId: event.pointerId };
         return;
       }
       draggedPointRef.current = { objectId, pointerId: event.pointerId };
@@ -226,6 +242,13 @@ export function GeometryCanvas({
         onMoveFreePoint(pointDrag.objectId, target.x, target.y);
       }
 
+      // Constrained-point drag (select tool + point-on-object): re-project onto
+      // the parent's current shape, no grid snapping (the parent already constrains it).
+      const constrainedDrag = draggedConstrainedPointRef.current;
+      if (constrainedDrag !== null && constrainedDrag.pointerId === event.pointerId) {
+        onMoveConstrainedPoint?.(constrainedDrag.objectId, world.x, world.y);
+      }
+
       const objectDrag = draggedObjectRef.current;
       if (
         objectDrag !== null &&
@@ -271,8 +294,28 @@ export function GeometryCanvas({
       if (showsPreview) {
         onPointerWorldChange(world);
       }
+
+      // Point-on-object hover preview: show a ghost point on the object under the
+      // cursor while the Point tool is active, so clicking a line/segment/circle/arc
+      // visibly previews where the constrained point will land.
+      const isDraggingAnything =
+        draggedPointRef.current !== null ||
+        draggedObjectRef.current !== null ||
+        draggedConstrainedPointRef.current !== null ||
+        canvasDragRef.current?.hasMoved === true;
+      if (activeTool === "point" && !isDraggingAnything) {
+        const targetElement = (event.target as Element | null)?.closest?.("[data-object-kind]");
+        const kind = targetElement?.getAttribute("data-object-kind");
+        const hoveredId = targetElement?.getAttribute("data-object-id");
+        if (hoveredId && (kind === "line" || kind === "segment" || kind === "circle" || kind === "arc")) {
+          const projected = projectPointerOntoObject(kind, values.get(hoveredId), world);
+          setHoverPreviewPoint(projected);
+        } else {
+          setHoverPreviewPoint((current) => (current === null ? current : null));
+        }
+      }
     },
-    [activeTool, eventToWorld, onMoveFreePoint, onPointerWorldChange, onTranslateObject, onViewportChange, selectedObjectIds.length, size],
+    [activeTool, eventToWorld, onMoveConstrainedPoint, onMoveFreePoint, onPointerWorldChange, onTranslateObject, onViewportChange, selectedObjectIds.length, size, values],
   );
 
   const stopDragging = useCallback(
@@ -284,6 +327,15 @@ export function GeometryCanvas({
           event.currentTarget.releasePointerCapture(event.pointerId);
         }
         draggedPointRef.current = null;
+        onEndFreePointMove?.();
+      }
+
+      const constrainedDrag = draggedConstrainedPointRef.current;
+      if (constrainedDrag?.pointerId === event.pointerId) {
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+        draggedConstrainedPointRef.current = null;
         onEndFreePointMove?.();
       }
 
@@ -359,7 +411,7 @@ export function GeometryCanvas({
         onPointerMove={handlePointerMove}
         onPointerUp={stopDragging}
         onPointerCancel={stopDragging}
-        onPointerLeave={() => { onPointerWorldChange(null); if (svgRef.current) svgRef.current.style.cursor = ""; }}
+        onPointerLeave={() => { onPointerWorldChange(null); setHoverPreviewPoint(null); if (svgRef.current) svgRef.current.style.cursor = ""; }}
       >
         <rect className="canvas-background" width={size.width} height={size.height} />
         <Grid
@@ -420,6 +472,14 @@ export function GeometryCanvas({
             viewport={viewport}
             size={size}
           />
+          {hoverPreviewPoint !== null && activeTool === "point" && (
+            <circle
+              className="point-on-object-preview"
+              cx={worldToScreen(hoverPreviewPoint, viewport, size).x}
+              cy={worldToScreen(hoverPreviewPoint, viewport, size).y}
+              r={6}
+            />
+          )}
         </g>
       </svg>
       <div

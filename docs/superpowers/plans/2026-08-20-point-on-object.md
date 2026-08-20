@@ -1104,6 +1104,15 @@ EOF
 - Modify: `backend/app/geometry/engine.py`
 - Create: `backend/tests/test_point_on_object.py`
 
+> **Post-hoc note (discovered during implementation):** `engine.py` already
+> had a private `_point_on_segment(point, start, end) -> bool` helper
+> (checking whether a point lies within a segment's bounds, used by the
+> inversion/collinearity logic) that collides with this task's new
+> `_point_on_segment(segment, t) -> PointValue`. Python has no overloading,
+> so the second definition would silently shadow the first. Task 5's scope
+> implicitly includes renaming the pre-existing helper to
+> `_is_point_within_segment_bounds` at its 2 call sites.
+
 **Interfaces:**
 - Produces (consumed by Tasks 6, 7): Pydantic classes `PointOnLine`, `PointOnSegment`, `PointOnCircle`, `PointOnArc` (each with `kind: Literal["point"]`) and their `*Definition` models; module functions `_point_on_line`, `_point_on_segment`, `_point_on_circle`, `_point_on_arc` in `engine.py` (private, used only within the module and by tests via direct import, matching the `_tangent_point_circle` precedent).
 
@@ -1234,9 +1243,11 @@ def test_point_on_arc_clamps_to_the_arc_range():
     on_arc = _point_on_arc(arc, pi / 2)
     assert isclose(on_arc.x, 0.0, abs_tol=1e-9)
     assert isclose(on_arc.y, 5.0, abs_tol=1e-9)
-    # -pi/2 (the excluded lower half) clamps to the nearer endpoint (start).
+    # -pi/2 is exactly antipodal to the arc's own midpoint (equidistant from both
+    # endpoints); _clamp_angle_to_arc's <= tie-break resolves it toward the end (G),
+    # matching the identical, already-verified case in the frontend's engine.test.ts.
     clamped = _point_on_arc(arc, -pi / 2)
-    assert isclose(clamped.x, 5.0, abs_tol=1e-9)
+    assert isclose(clamped.x, -5.0, abs_tol=1e-9)
     assert isclose(clamped.y, 0.0, abs_tol=1e-9)
 ```
 

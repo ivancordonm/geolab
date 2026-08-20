@@ -1181,7 +1181,7 @@ from math import isclose, pi
 import pytest
 
 from app.geometry.engine import _point_on_arc, _point_on_circle, _point_on_line, _point_on_segment
-from app.geometry.models import ArcValue, CircleValue, Coordinate, LineValue, SegmentValue
+from app.geometry.models import ArcValue, CircleValue, Coordinate, LineValue, PointValue, SegmentValue
 
 
 def test_point_on_line_at_t():
@@ -1193,9 +1193,9 @@ def test_point_on_line_at_t():
 
 def test_point_on_segment_clamps_to_endpoints():
     segment = SegmentValue(start=Coordinate(x=0, y=0), end=Coordinate(x=4, y=0))
-    assert _point_on_segment(segment, 5.0) == Coordinate(x=4, y=0)
-    assert _point_on_segment(segment, -5.0) == Coordinate(x=0, y=0)
-    assert _point_on_segment(segment, 0.5) == Coordinate(x=2, y=0)
+    assert _point_on_segment(segment, 5.0) == PointValue(x=4, y=0)
+    assert _point_on_segment(segment, -5.0) == PointValue(x=0, y=0)
+    assert _point_on_segment(segment, 0.5) == PointValue(x=2, y=0)
 
 
 def test_point_on_circle_at_angle():
@@ -1277,23 +1277,21 @@ In `_evaluate_object`, insert right after the `PolygonVertexDefinition` branch:
             if isinstance(segment, UndefinedValue):
                 return segment
             assert isinstance(segment, SegmentValue)
-            return PointValue(x=_point_on_segment(segment, definition.t).x, y=_point_on_segment(segment, definition.t).y)
+            return _point_on_segment(segment, definition.t)
 
         if isinstance(definition, PointOnCircleDefinition):
             circle = self._require_value(obj.id, definition.circle, "circle")
             if isinstance(circle, UndefinedValue):
                 return circle
             assert isinstance(circle, CircleValue)
-            point = _point_on_circle(circle, definition.angle)
-            return PointValue(x=point.x, y=point.y)
+            return _point_on_circle(circle, definition.angle)
 
         if isinstance(definition, PointOnArcDefinition):
             arc = self._require_value(obj.id, definition.arc, "arc")
             if isinstance(arc, UndefinedValue):
                 return arc
             assert isinstance(arc, ArcValue)
-            point = _point_on_arc(arc, definition.angle)
-            return PointValue(x=point.x, y=point.y)
+            return _point_on_arc(arc, definition.angle)
 ```
 
 Add the helper functions in the "─── Geometry helpers ───" section at the bottom of the file, right after `_line_through_points`/`_canonical_line` (or any convenient spot in that section):
@@ -1305,16 +1303,16 @@ def _point_on_line(line: LineValue, t: float) -> PointValue:
     return PointValue(x=_clean_zero(base_x - line.b * t), y=_clean_zero(base_y + line.a * t))
 
 
-def _point_on_segment(segment: SegmentValue, t: float) -> Coordinate:
+def _point_on_segment(segment: SegmentValue, t: float) -> PointValue:
     clamped = min(1.0, max(0.0, t))
-    return Coordinate(
+    return PointValue(
         x=_clean_zero(segment.start.x + clamped * (segment.end.x - segment.start.x)),
         y=_clean_zero(segment.start.y + clamped * (segment.end.y - segment.start.y)),
     )
 
 
-def _point_on_circle(circle: CircleValue, angle: float) -> Coordinate:
-    return Coordinate(
+def _point_on_circle(circle: CircleValue, angle: float) -> PointValue:
+    return PointValue(
         x=_clean_zero(circle.center.x + circle.radius * cos(angle)),
         y=_clean_zero(circle.center.y + circle.radius * sin(angle)),
     )
@@ -1356,9 +1354,9 @@ def _clamp_angle_to_arc(arc: ArcValue, angle: float) -> float:
     return start_angle + sweep if cw_from_start <= gap_midpoint else start_angle
 
 
-def _point_on_arc(arc: ArcValue, angle: float) -> Coordinate:
+def _point_on_arc(arc: ArcValue, angle: float) -> PointValue:
     clamped = _clamp_angle_to_arc(arc, angle)
-    return Coordinate(
+    return PointValue(
         x=_clean_zero(arc.center.x + arc.radius * cos(clamped)),
         y=_clean_zero(arc.center.y + arc.radius * sin(clamped)),
     )

@@ -398,6 +398,18 @@ def create_slope(
 
 
 @mcp.tool(annotations=CREATE)
+def create_point_on_object(
+    object_id: str,
+    parent: str,
+    document: GeometryDocument | None = None,
+    label: str | None = None,
+) -> dict[str, Any]:
+    """Create a point constrained to an existing line, segment, circle, or arc."""
+
+    return _mutate(document, "create_point_on_object", {"objectId": object_id, "label": label, "parent": parent})
+
+
+@mcp.tool(annotations=CREATE)
 def create_reflection_over_line(
     object_id: str,
     source: str,

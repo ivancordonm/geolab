@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 from collections.abc import Callable
+from math import atan2
 
 from pydantic import BaseModel
 
@@ -14,6 +15,7 @@ from app.agent.models import (
     CircleConstructionInput,
     CircleLineIntersectionInput,
     CreatePointInput,
+    CreatePointOnObjectInput,
     EmptyToolInput,
     EvaluateScriptToolInput,
     EvaluateScriptToolOutput,
@@ -56,6 +58,7 @@ from app.geometry.models import (
     AngleBisectorLine,
     Arc,
     ArcThroughPointsDefinition,
+    ArcValue,
     Circle,
     CircleByCenterPointDefinition,
     CircleValue,
@@ -89,6 +92,14 @@ from app.geometry.models import (
     PerpendicularLine,
     PerpendicularLineDefinition,
     Point,
+    PointOnArc,
+    PointOnArcDefinition,
+    PointOnCircle,
+    PointOnCircleDefinition,
+    PointOnLine,
+    PointOnLineDefinition,
+    PointOnSegment,
+    PointOnSegmentDefinition,
     Polygon,
     PolygonDefinition,
     PolygonValue,
@@ -210,6 +221,39 @@ def _create_slope(workspace: GeometryWorkspace, raw_input: BaseModel) -> Mutatio
         definition=SlopeMeasureDefinition(line=line.object.id),
     )
     return _commit_defined(workspace, obj)
+
+
+def _create_point_on_object(workspace: GeometryWorkspace, raw_input: BaseModel) -> MutationToolOutput:
+    input_model = CreatePointOnObjectInput.model_validate(raw_input)
+    access = workspace.graph_access_map()
+    _ensure_name_available(access, input_model.object_id, input_model.label)
+    try:
+        parent = access.resolve(input_model.parent)
+    except ValueError as error:
+        raise ToolExecutionError(str(error)) from error
+    label = input_model.label or input_model.object_id
+
+    if parent.object.kind == "line":
+        obj = PointOnLine(id=input_model.object_id, label=label, definition=PointOnLineDefinition(line=parent.object.id, t=0.0))
+    elif parent.object.kind == "segment":
+        obj = PointOnSegment(id=input_model.object_id, label=label, definition=PointOnSegmentDefinition(segment=parent.object.id, t=0.0))
+    elif parent.object.kind == "circle":
+        obj = PointOnCircle(id=input_model.object_id, label=label, definition=PointOnCircleDefinition(circle=parent.object.id, angle=0.0))
+    elif parent.object.kind == "arc":
+        arc_value = parent.value
+        if isinstance(arc_value, UndefinedValue):
+            raise ToolExecutionError(f"Geometry object '{input_model.parent}' is not a well-defined arc")
+        assert isinstance(arc_value, ArcValue)
+        default_angle = atan2(arc_value.mid.y - arc_value.center.y, arc_value.mid.x - arc_value.center.x)
+        obj = PointOnArc(id=input_model.object_id, label=label, definition=PointOnArcDefinition(arc=parent.object.id, angle=default_angle))
+    else:
+        raise ToolExecutionError(
+            f"Geometry object '{input_model.parent}' must be a line, segment, circle, or arc, "
+            f"but it is a {parent.object.kind}"
+        )
+    return _commit_defined(workspace, obj)
+
+
 def _export_svg(workspace: GeometryWorkspace) -> ExportSvgOutput:
     graph = graph_view_from_access_map(workspace.graph_access_map())
     return ExportSvgOutput(svg=render_graph_svg(graph))
@@ -447,6 +491,16 @@ def create_geometry_tool_registry(workspace: GeometryWorkspace) -> ToolRegistry:
             MutationToolOutput,
             True,
             lambda model: _create_slope(workspace, model),
+        )
+    )
+    registry.register(
+        _definition(
+            "create_point_on_object",
+            "Create a point constrained to an existing line, segment, circle, or arc.",
+            CreatePointOnObjectInput,
+            MutationToolOutput,
+            True,
+            lambda model: _create_point_on_object(workspace, model),
         )
     )
     registry.register(

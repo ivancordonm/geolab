@@ -50,7 +50,7 @@ def test_mcp_lists_registered_tools_with_safety_annotations(mcp_client: TestClie
 
     assert response.status_code == 200
     tools = {tool["name"]: tool for tool in response.json()["result"]["tools"]}
-    assert len(tools) == 37
+    assert len(tools) == 38
     assert {
         "create_reflection_over_line",
         "create_reflection_over_point",

@@ -37,6 +37,7 @@ Each line is one assignment:  name = Command(arg1, arg2, ...)
 
 COMMANDS (use these names EXACTLY, with the stated arity):
 - Point(x, y)                     free point at numeric coordinates
+- Point(line/segment/circle/arc)  point constrained to an existing line, segment, circle, or arc
 - Line(P, Q)                      line through two points
 - Segment(P, Q)                   segment between two points
 - Circle(center, throughPoint)    circle centred at one point through another

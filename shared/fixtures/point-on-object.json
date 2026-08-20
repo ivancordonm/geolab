@@ -1,5 +1,5 @@
 {
-  "script": "A = Point(0, 0)\nB = Point(6, 0)\nl = Line(A, B)\nP1 = Point(l)\n\nC = Point(0, 4)\nD = Point(4, 4)\ns = Segment(C, D)\nP2 = Point(s)\n\nO = Point(0, 0)\nR = Point(3, 0)\nc = Circle(O, R)\nP3 = Point(c)\n\nE = Point(5, 0)\nF = Point(0, 5)\nG = Point(-5, 0)\narc1 = Arc(E, F, G)\nP4 = Point(arc1)\n",
+  "script": "A = Point(0, 0)\nB = Point(6, 0)\nl = Line(A, B)\nP1 = Point(l)\n\nC = Point(0, 4)\nD = Point(4, 4)\ns = Segment(C, D)\nP2 = Point(s)\n\nO = Point(0, 0)\nR = Point(3, 0)\nc = Circle(O, R)\nP3 = Point(c)\n\nE = Point(5, 0)\nF = Point(0, 5)\nG = Point(-5, 0)\narc1 = Arc(E, F, G)\nP4 = Point(arc1)\n\nH = Point(0, -5)\narc2 = Arc(E, H, G)\nP5 = Point(arc2)\n",
   "document": {
     "schemaVersion": 1,
     "id": "doc_point_on_object",
@@ -209,6 +209,43 @@
           "arc": "arc1",
           "angle": 1.5707963267948966
         }
+      },
+      {
+        "id": "H",
+        "label": "H",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 0.0,
+          "y": -5.0
+        }
+      },
+      {
+        "id": "arc2",
+        "label": "arc2",
+        "visible": true,
+        "style": null,
+        "kind": "arc",
+        "definition": {
+          "type": "arc_through_points",
+          "pointA": "E",
+          "pointMid": "H",
+          "pointB": "G"
+        }
+      },
+      {
+        "id": "P5",
+        "label": "P5",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "on_arc",
+          "arc": "arc2",
+          "angle": -1.5707963267948966
+        }
       }
     ],
     "groups": [],
@@ -329,6 +366,36 @@
       "type": "point",
       "x": 0.0,
       "y": 5.0
+    },
+    "H": {
+      "type": "point",
+      "x": 0.0,
+      "y": -5.0
+    },
+    "arc2": {
+      "type": "arc",
+      "center": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "radius": 5.0,
+      "start": {
+        "x": 5.0,
+        "y": 0.0
+      },
+      "mid": {
+        "x": 0.0,
+        "y": -5.0
+      },
+      "end": {
+        "x": -5.0,
+        "y": 0.0
+      }
+    },
+    "P5": {
+      "type": "point",
+      "x": 0.0,
+      "y": -5.0
     }
   }
 }

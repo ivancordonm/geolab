@@ -311,15 +311,19 @@ export class GeometryGraph {
         return;
       case "on_line":
         requireKind(def.line, "line");
+        assertFiniteNumber(def.t, `${object.id}.t`);
         return;
       case "on_segment":
         requireKind(def.segment, "segment");
+        assertFiniteNumber(def.t, `${object.id}.t`);
         return;
       case "on_circle":
         requireKind(def.circle, "circle");
+        assertFiniteNumber(def.angle, `${object.id}.angle`);
         return;
       case "on_arc":
         requireKind(def.arc, "arc");
+        assertFiniteNumber(def.angle, `${object.id}.angle`);
         return;
       case "through_points":
       case "between_points":

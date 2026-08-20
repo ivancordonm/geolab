@@ -249,12 +249,20 @@ class GeometryGraph:
             require_kind(definition.polygon, "polygon")
         elif isinstance(definition, PointOnLineDefinition):
             require_kind(definition.line, "line")
+            if not isfinite(definition.t):
+                raise GeometryValidationError(f"Point '{obj.id}' parameter must be finite")
         elif isinstance(definition, PointOnSegmentDefinition):
             require_kind(definition.segment, "segment")
+            if not isfinite(definition.t):
+                raise GeometryValidationError(f"Point '{obj.id}' parameter must be finite")
         elif isinstance(definition, PointOnCircleDefinition):
             require_kind(definition.circle, "circle")
+            if not isfinite(definition.angle):
+                raise GeometryValidationError(f"Point '{obj.id}' angle must be finite")
         elif isinstance(definition, PointOnArcDefinition):
             require_kind(definition.arc, "arc")
+            if not isfinite(definition.angle):
+                raise GeometryValidationError(f"Point '{obj.id}' angle must be finite")
         elif isinstance(definition, (LineThroughPointsDefinition, SegmentBetweenPointsDefinition, MidpointDefinition, PerpendicularBisectorDefinition)):
             require_kind(definition.point_a, "point")
             require_kind(definition.point_b, "point")
@@ -925,7 +933,10 @@ def _arc_angular_range(arc: ArcValue) -> tuple[float, float]:
     end_angle = atan2(arc.end.y - arc.center.y, arc.end.x - arc.center.x)
     ccw_to_mid = _normalize_angle(mid_angle - start_angle)
     ccw_to_end = _normalize_angle(end_angle - start_angle)
-    if ccw_to_mid <= ccw_to_end:
+    # The epsilon widening keeps a few ULPs of cross-language trig noise from
+    # flipping the sweep direction (Python `math.atan2` vs JS `Math.atan2`) on a
+    # degenerate `mid ~= end` arc.
+    if ccw_to_mid <= ccw_to_end + GEOMETRY_EPSILON:
         return start_angle, ccw_to_end
     return start_angle, ccw_to_end - 2 * pi
 
@@ -936,14 +947,16 @@ def _clamp_angle_to_arc(arc: ArcValue, angle: float) -> float:
         ccw_from_start = _normalize_angle(angle - start_angle)
         if ccw_from_start <= sweep:
             return start_angle + ccw_from_start
+        # Epsilon-widened so an exact tie at the gap midpoint resolves to the same
+        # endpoint in both runtimes despite ULP-level trig differences.
         gap_midpoint = (sweep + 2 * pi) / 2
-        return start_angle + sweep if ccw_from_start <= gap_midpoint else start_angle
+        return start_angle + sweep if ccw_from_start <= gap_midpoint + GEOMETRY_EPSILON else start_angle
     cw_from_start = _normalize_angle(start_angle - angle)
     abs_sweep = -sweep
     if cw_from_start <= abs_sweep:
         return start_angle - cw_from_start
     gap_midpoint = (abs_sweep + 2 * pi) / 2
-    return start_angle + sweep if cw_from_start <= gap_midpoint else start_angle
+    return start_angle + sweep if cw_from_start <= gap_midpoint + GEOMETRY_EPSILON else start_angle
 
 
 def _point_on_arc(arc: ArcValue, angle: float) -> PointValue:

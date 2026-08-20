@@ -83,7 +83,10 @@ function arcAngularRange(arc: ArcValue): { startAngle: number; sweep: number } {
   const startAngle = angleOfFromCenter(arc.center, arc.start);
   const ccwToMid = normalizeAngle(angleOfFromCenter(arc.center, arc.mid) - startAngle);
   const ccwToEnd = normalizeAngle(angleOfFromCenter(arc.center, arc.end) - startAngle);
-  if (ccwToMid <= ccwToEnd) {
+  // The epsilon widening keeps a few ULPs of cross-language trig noise from
+  // flipping the sweep direction (JS `Math.atan2` vs Python `math.atan2`) on a
+  // degenerate `mid ~= end` arc.
+  if (ccwToMid <= ccwToEnd + GEOMETRY_EPSILON) {
     return { startAngle, sweep: ccwToEnd };
   }
   return { startAngle, sweep: ccwToEnd - 2 * Math.PI };
@@ -94,14 +97,16 @@ export function clampAngleToArc(arc: ArcValue, angle: number): number {
   if (sweep >= 0) {
     const ccwFromStart = normalizeAngle(angle - startAngle);
     if (ccwFromStart <= sweep) return startAngle + ccwFromStart;
+    // Epsilon-widened so an exact tie at the gap midpoint resolves to the same
+    // endpoint in both runtimes despite ULP-level trig differences.
     const gapMidpoint = (sweep + 2 * Math.PI) / 2;
-    return ccwFromStart <= gapMidpoint ? startAngle + sweep : startAngle;
+    return ccwFromStart <= gapMidpoint + GEOMETRY_EPSILON ? startAngle + sweep : startAngle;
   }
   const cwFromStart = normalizeAngle(startAngle - angle);
   const absSweep = -sweep;
   if (cwFromStart <= absSweep) return startAngle - cwFromStart;
   const gapMidpoint = (absSweep + 2 * Math.PI) / 2;
-  return cwFromStart <= gapMidpoint ? startAngle + sweep : startAngle;
+  return cwFromStart <= gapMidpoint + GEOMETRY_EPSILON ? startAngle + sweep : startAngle;
 }
 
 export function pointOnArcFromAngle(arc: ArcValue, angle: number): PointValue {

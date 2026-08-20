@@ -18,3 +18,7 @@ F = Point(0, 5)
 G = Point(-5, 0)
 arc1 = Arc(E, F, G)
 P4 = Point(arc1)
+
+H = Point(0, -5)
+arc2 = Arc(E, H, G)
+P5 = Point(arc2)

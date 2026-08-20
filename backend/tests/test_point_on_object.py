@@ -5,11 +5,18 @@ Mirrors backend/tests/test_tangent.py: direct evaluator tests first
 exists (Task 6).
 """
 
-from math import isclose, pi
+from math import isclose, nan, pi
 
 import pytest
 
-from app.geometry.engine import _point_on_arc, _point_on_circle, _point_on_line, _point_on_segment
+from app.geometry.engine import (
+    GeometryValidationError,
+    _point_on_arc,
+    _point_on_circle,
+    _point_on_line,
+    _point_on_segment,
+    evaluate_geometry_document,
+)
 from app.geometry.models import ArcValue, CircleValue, Coordinate, LineValue, PointValue, SegmentValue
 from app.geometry.script import ConstructionScriptError, evaluate_script
 
@@ -114,3 +121,23 @@ def test_point_command_rejects_a_non_projectable_reference():
             document_id="d", title="t",
         )
     assert error_info.value.diagnostic.code == "invalid_reference_type"
+
+
+def test_point_on_line_rejects_a_non_finite_parameter():
+    document, _ = evaluate_script(
+        "A = Point(0,0)\nB = Point(4,0)\nl = Line(A,B)\nP = Point(l)\n",
+        document_id="doc", title="t",
+    )
+    # Models are frozen, so rebuild the document the way a hostile JSON import would.
+    corrupted = document.model_copy(
+        update={
+            "objects": [
+                o.model_copy(update={"definition": o.definition.model_copy(update={"t": nan})})
+                if o.id == "P"
+                else o
+                for o in document.objects
+            ]
+        }
+    )
+    with pytest.raises(GeometryValidationError):
+        evaluate_geometry_document(corrupted)

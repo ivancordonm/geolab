@@ -988,4 +988,11 @@ describe("point on object", () => {
   it("moveConstrainedPoint throws for a free point", () => {
     expect(() => moveConstrainedPoint(pointOnObjectDoc(), "A", 1, 1)).toThrow(GeometryValidationError);
   });
+
+  it("rejects a non-finite parameter on a point-on-line", () => {
+    const document = pointOnObjectDoc();
+    const p1 = document.objects.find((o) => o.id === "P1")!;
+    (p1.definition as { t: number }).t = Number.NaN;
+    expect(() => evaluateGeometryDocument(document)).toThrow(GeometryValidationError);
+  });
 });

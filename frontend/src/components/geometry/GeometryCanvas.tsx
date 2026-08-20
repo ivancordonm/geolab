@@ -41,6 +41,11 @@ import { PointView } from "./PointView";
 import { PolygonView } from "./PolygonView";
 import { SegmentView } from "./SegmentView";
 
+/** True for the `on_line`/`on_segment`/`on_circle`/`on_arc` point definitions. */
+function isConstrainedPointDefinitionType(definitionType: string): boolean {
+  return definitionType.startsWith("on_");
+}
+
 interface GeometryCanvasProps {
   document: GeometryDocument;
   values: EvaluationMap;
@@ -170,7 +175,8 @@ export function GeometryCanvas({
       }
       const object = document.objects.find((candidate) => candidate.id === objectId);
       const isFreePoint = object?.kind === "point" && object.definition.type === "free";
-      const isConstrainedPoint = object?.kind === "point" && object.definition.type.startsWith("on_");
+      const isConstrainedPoint =
+        object?.kind === "point" && isConstrainedPointDefinitionType(object.definition.type);
       // Non-free, non-constrained-point objects can be translated directly by dragging (no pre-selection required).
       const canTranslate = !isFreePoint && !isConstrainedPoint && onTranslateObject !== undefined;
       if (!isFreePoint && !isConstrainedPoint && !canTranslate) {
@@ -194,6 +200,26 @@ export function GeometryCanvas({
       draggedPointRef.current = { objectId, pointerId: event.pointerId };
     },
     [activeTool, clientToWorld, document.objects, onBeginFreePointMove, onObjectClick, onTranslateObject],
+  );
+
+  // Arrow-key nudging: free points move freely, constrained points are re-projected
+  // onto their host object. Other derived points are not keyboard-movable at all
+  // (they are also rendered non-draggable, so `PointView` never calls this for them).
+  const handleKeyboardMove = useCallback(
+    (objectId: string, x: number, y: number) => {
+      const object = document.objects.find((candidate) => candidate.id === objectId);
+      if (object === undefined || object.kind !== "point") {
+        return;
+      }
+      if (object.definition.type === "free") {
+        onMoveFreePoint(objectId, x, y);
+        return;
+      }
+      if (isConstrainedPointDefinitionType(object.definition.type)) {
+        onMoveConstrainedPoint?.(objectId, x, y);
+      }
+    },
+    [document.objects, onMoveConstrainedPoint, onMoveFreePoint],
   );
 
   const eventToWorld = useCallback(
@@ -432,7 +458,7 @@ export function GeometryCanvas({
               selectedObjectIds,
               selectedObjectId,
               handleObjectPointerDown,
-              onMoveFreePoint,
+              handleKeyboardMove,
               onSetLabelOffset,
             ),
           )}
@@ -446,7 +472,7 @@ export function GeometryCanvas({
               selectedObjectIds,
               selectedObjectId,
               handleObjectPointerDown,
-              onMoveFreePoint,
+              handleKeyboardMove,
               onSetLabelOffset,
             ),
           )}
@@ -460,7 +486,7 @@ export function GeometryCanvas({
               selectedObjectIds,
               selectedObjectId,
               handleObjectPointerDown,
-              onMoveFreePoint,
+              handleKeyboardMove,
               onSetLabelOffset,
             ),
           )}
@@ -647,7 +673,10 @@ function renderPoint(
       screenPoint={worldToScreen(value, viewport, size)}
       color={color}
       free={object.definition.type === "free"}
-      draggable={moveEnabled && object.definition.type === "free"}
+      draggable={
+        moveEnabled &&
+        (object.definition.type === "free" || isConstrainedPointDefinitionType(object.definition.type))
+      }
       selected={selected}
       labelOffset={labelOffset}
       onPointerDown={onPointerDown}

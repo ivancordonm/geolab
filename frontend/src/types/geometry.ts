@@ -64,6 +64,28 @@ export interface PerpendicularLine extends GeometryObjectBase {
   definition: { type: "perpendicular_through"; point: GeometryObjectId; line: GeometryObjectId };
 }
 
+// ─── Point on object ────────────────────────────────────────────────────────
+
+export interface PointOnLine extends GeometryObjectBase {
+  kind: "point";
+  definition: { type: "on_line"; line: GeometryObjectId; t: number };
+}
+
+export interface PointOnSegment extends GeometryObjectBase {
+  kind: "point";
+  definition: { type: "on_segment"; segment: GeometryObjectId; t: number };
+}
+
+export interface PointOnCircle extends GeometryObjectBase {
+  kind: "point";
+  definition: { type: "on_circle"; circle: GeometryObjectId; angle: number };
+}
+
+export interface PointOnArc extends GeometryObjectBase {
+  kind: "point";
+  definition: { type: "on_arc"; arc: GeometryObjectId; angle: number };
+}
+
 // ─── Intersections ─────────────────────────────────────────────────────────
 
 export interface IntersectionLL extends GeometryObjectBase {
@@ -226,6 +248,10 @@ export type GeometryObject =
   | Circle
   | Midpoint
   | PolygonVertexPoint
+  | PointOnLine
+  | PointOnSegment
+  | PointOnCircle
+  | PointOnArc
   | ParallelLine
   | PerpendicularLine
   | IntersectionLL

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from math import atan2
 from dataclasses import dataclass
 from typing import Literal
 
@@ -17,6 +18,7 @@ from app.geometry.models import (
     AngleMeasureDefinition,
     Arc,
     ArcThroughPointsDefinition,
+    ArcValue,
     AreaMeasureDefinition,
     Circle,
     CircleByCenterPointDefinition,
@@ -58,6 +60,14 @@ from app.geometry.models import (
     PerpendicularLine,
     PerpendicularLineDefinition,
     Point,
+    PointOnArc,
+    PointOnArcDefinition,
+    PointOnCircle,
+    PointOnCircleDefinition,
+    PointOnLine,
+    PointOnLineDefinition,
+    PointOnSegment,
+    PointOnSegmentDefinition,
     Polygon,
     PolygonDefinition,
     PolygonVertexDefinition,
@@ -409,6 +419,33 @@ def _build_object(
     # ─── Existing commands ─────────────────────────────────────────────────
 
     if command == "Point":
+        if len(statement.arguments) == 1:
+            target = _resolve_reference(arguments[0], statement, symbols, argument_position=1)
+            if target.kind == "line":
+                return [PointOnLine(id=statement.target, label=statement.target, definition=PointOnLineDefinition(line=target.id, t=0.0))]
+            if target.kind == "segment":
+                return [PointOnSegment(id=statement.target, label=statement.target, definition=PointOnSegmentDefinition(segment=target.id, t=0.0))]
+            if target.kind == "circle":
+                return [PointOnCircle(id=statement.target, label=statement.target, definition=PointOnCircleDefinition(circle=target.id, angle=0.0))]
+            if target.kind == "arc":
+                preview = GeometryDocument(id="_script_preview", title="_script_preview", objects=list(objects))
+                values = GeometryGraph(preview).values
+                arc_value = values[target.id]
+                if isinstance(arc_value, UndefinedValue):
+                    _raise(
+                        "invalid_argument",
+                        f"'{target.id}' is not a well-defined arc",
+                        statement.line, statement.source_line, target.id,
+                    )
+                assert isinstance(arc_value, ArcValue)
+                default_angle = atan2(arc_value.mid.y - arc_value.center.y, arc_value.mid.x - arc_value.center.x)
+                return [PointOnArc(id=statement.target, label=statement.target, definition=PointOnArcDefinition(arc=target.id, angle=default_angle))]
+            _raise(
+                "invalid_reference_type",
+                f"Argument 1 of Point must reference a line, segment, circle, or arc when called with one "
+                f"argument, but '{target.id}' is a {target.kind}",
+                statement.line, statement.source_line, target.id,
+            )
         _require_arity(statement, 2)
         x = _parse_number(arguments[0], statement, argument_position=1)
         y = _parse_number(arguments[1], statement, argument_position=2)

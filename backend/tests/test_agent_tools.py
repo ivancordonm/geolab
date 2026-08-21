@@ -43,6 +43,7 @@ EXPECTED_TOOLS = {
     "create_angle",
     "create_area",
     "create_slope",
+    "create_point_on_object",
     "create_reflection_over_line",
     "create_reflection_over_point",
     "create_translation",
@@ -273,6 +274,44 @@ def test_create_slope_tool_rejects_vertical_line_atomically() -> None:
         execute(registry, "create_slope", {"objectId": "slope", "line": "vln"})
 
     assert "slope" not in workspace.graph_access_map().by_id
+
+
+def test_create_point_on_object_on_a_line():
+    registry = create_geometry_tool_registry(GeometryWorkspace())
+    execute(registry, "create_point", {"objectId": "A", "x": 0, "y": 0})
+    execute(registry, "create_point", {"objectId": "B", "x": 4, "y": 0})
+    execute(registry, "create_line", {"objectId": "l", "pointA": "A", "pointB": "B"})
+
+    output = execute(registry, "create_point_on_object", {"objectId": "P", "parent": "l"})
+
+    assert output.created_object.kind == "point"
+    assert output.created_object.definition.type == "on_line"
+    assert output.created_object.definition.line == "l"
+
+
+def test_create_point_on_object_on_an_arc_uses_the_mid_angle():
+    registry = create_geometry_tool_registry(GeometryWorkspace())
+    execute(registry, "create_point", {"objectId": "E", "x": 5, "y": 0})
+    execute(registry, "create_point", {"objectId": "F", "x": 0, "y": 5})
+    execute(registry, "create_point", {"objectId": "G", "x": -5, "y": 0})
+    execute(registry, "create_arc", {"objectId": "arc1", "pointA": "E", "pointB": "F", "pointC": "G"})
+
+    output = execute(registry, "create_point_on_object", {"objectId": "P", "parent": "arc1"})
+
+    assert output.created_object.definition.type == "on_arc"
+    graph = output.graph
+    value = graph.objects[graph.id_map["P"]].value
+    assert value.type == "point"
+    assert value.x == pytest.approx(0.0, abs=1e-9)
+    assert value.y == pytest.approx(5.0, abs=1e-9)
+
+
+def test_create_point_on_object_rejects_a_non_projectable_parent():
+    registry = create_geometry_tool_registry(GeometryWorkspace())
+    execute(registry, "create_point", {"objectId": "A", "x": 0, "y": 0})
+
+    with pytest.raises(ToolExecutionError):
+        execute(registry, "create_point_on_object", {"objectId": "P", "parent": "A"})
 
 
 def test_create_distance_tool_rejects_non_point_parent() -> None:

@@ -107,6 +107,32 @@ class PerpendicularLineDefinition(GeometryModel):
     line: str
 
 
+# ─── New: point on object ───────────────────────────────────────────────────
+
+class PointOnLineDefinition(GeometryModel):
+    type: Literal["on_line"] = "on_line"
+    line: str
+    t: float
+
+
+class PointOnSegmentDefinition(GeometryModel):
+    type: Literal["on_segment"] = "on_segment"
+    segment: str
+    t: float
+
+
+class PointOnCircleDefinition(GeometryModel):
+    type: Literal["on_circle"] = "on_circle"
+    circle: str
+    angle: float
+
+
+class PointOnArcDefinition(GeometryModel):
+    type: Literal["on_arc"] = "on_arc"
+    arc: str
+    angle: float
+
+
 # ─── New: intersections ─────────────────────────────────────────────────────
 
 class IntersectionLLDefinition(GeometryModel):
@@ -298,6 +324,26 @@ class Midpoint(GeometryObjectBase):
 class PolygonVertexPoint(GeometryObjectBase):
     kind: Literal["point"] = "point"
     definition: PolygonVertexDefinition
+
+
+class PointOnLine(GeometryObjectBase):
+    kind: Literal["point"] = "point"
+    definition: PointOnLineDefinition
+
+
+class PointOnSegment(GeometryObjectBase):
+    kind: Literal["point"] = "point"
+    definition: PointOnSegmentDefinition
+
+
+class PointOnCircle(GeometryObjectBase):
+    kind: Literal["point"] = "point"
+    definition: PointOnCircleDefinition
+
+
+class PointOnArc(GeometryObjectBase):
+    kind: Literal["point"] = "point"
+    definition: PointOnArcDefinition
 
 
 class ParallelLine(GeometryObjectBase):
@@ -493,6 +539,10 @@ GeometryObject: TypeAlias = (
     | Circle
     | Midpoint
     | PolygonVertexPoint
+    | PointOnLine
+    | PointOnSegment
+    | PointOnCircle
+    | PointOnArc
     | ParallelLine
     | PerpendicularLine
     | IntersectionLL

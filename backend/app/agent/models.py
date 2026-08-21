@@ -174,6 +174,12 @@ class SlopeConstructionInput(GeometryModel):
     line: str
 
 
+class CreatePointOnObjectInput(GeometryModel):
+    object_id: str
+    label: str | None = None
+    parent: str
+
+
 class SourceLineConstructionInput(GeometryModel):
     object_id: str
     label: str | None = None

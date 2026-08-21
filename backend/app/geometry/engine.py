@@ -36,6 +36,10 @@ from app.geometry.models import (
     PerpendicularBisectorDefinition,
     PerpendicularLineDefinition,
     Point,
+    PointOnArcDefinition,
+    PointOnCircleDefinition,
+    PointOnLineDefinition,
+    PointOnSegmentDefinition,
     PointValue,
     PolygonDefinition,
     PolygonVertexDefinition,
@@ -85,6 +89,14 @@ def get_parent_ids(obj: GeometryObject) -> list[str]:
         return []
     if isinstance(definition, PolygonVertexDefinition):
         return [definition.polygon]
+    if isinstance(definition, PointOnLineDefinition):
+        return [definition.line]
+    if isinstance(definition, PointOnSegmentDefinition):
+        return [definition.segment]
+    if isinstance(definition, PointOnCircleDefinition):
+        return [definition.circle]
+    if isinstance(definition, PointOnArcDefinition):
+        return [definition.arc]
     if isinstance(definition, (LineThroughPointsDefinition, SegmentBetweenPointsDefinition, MidpointDefinition, PerpendicularBisectorDefinition)):
         return [definition.point_a, definition.point_b]
     if isinstance(definition, CircleByCenterPointDefinition):
@@ -235,6 +247,22 @@ class GeometryGraph:
                 raise GeometryValidationError(f"Slider '{obj.id}' parameters must be finite")
         elif isinstance(definition, PolygonVertexDefinition):
             require_kind(definition.polygon, "polygon")
+        elif isinstance(definition, PointOnLineDefinition):
+            require_kind(definition.line, "line")
+            if not isfinite(definition.t):
+                raise GeometryValidationError(f"Point '{obj.id}' parameter must be finite")
+        elif isinstance(definition, PointOnSegmentDefinition):
+            require_kind(definition.segment, "segment")
+            if not isfinite(definition.t):
+                raise GeometryValidationError(f"Point '{obj.id}' parameter must be finite")
+        elif isinstance(definition, PointOnCircleDefinition):
+            require_kind(definition.circle, "circle")
+            if not isfinite(definition.angle):
+                raise GeometryValidationError(f"Point '{obj.id}' angle must be finite")
+        elif isinstance(definition, PointOnArcDefinition):
+            require_kind(definition.arc, "arc")
+            if not isfinite(definition.angle):
+                raise GeometryValidationError(f"Point '{obj.id}' angle must be finite")
         elif isinstance(definition, (LineThroughPointsDefinition, SegmentBetweenPointsDefinition, MidpointDefinition, PerpendicularBisectorDefinition)):
             require_kind(definition.point_a, "point")
             require_kind(definition.point_b, "point")
@@ -458,6 +486,34 @@ class GeometryGraph:
                 )
             vertex = polygon.vertices[definition.index]
             return PointValue(x=_clean_zero(vertex.x), y=_clean_zero(vertex.y))
+
+        if isinstance(definition, PointOnLineDefinition):
+            line = self._require_value(obj.id, definition.line, "line")
+            if isinstance(line, UndefinedValue):
+                return line
+            assert isinstance(line, LineValue)
+            return _point_on_line(line, definition.t)
+
+        if isinstance(definition, PointOnSegmentDefinition):
+            segment = self._require_value(obj.id, definition.segment, "segment")
+            if isinstance(segment, UndefinedValue):
+                return segment
+            assert isinstance(segment, SegmentValue)
+            return _point_on_segment(segment, definition.t)
+
+        if isinstance(definition, PointOnCircleDefinition):
+            circle = self._require_value(obj.id, definition.circle, "circle")
+            if isinstance(circle, UndefinedValue):
+                return circle
+            assert isinstance(circle, CircleValue)
+            return _point_on_circle(circle, definition.angle)
+
+        if isinstance(definition, PointOnArcDefinition):
+            arc = self._require_value(obj.id, definition.arc, "arc")
+            if isinstance(arc, UndefinedValue):
+                return arc
+            assert isinstance(arc, ArcValue)
+            return _point_on_arc(arc, definition.angle)
 
         if isinstance(definition, LineThroughPointsDefinition):
             points = self._require_points(obj.id, definition.point_a, definition.point_b)
@@ -839,6 +895,76 @@ def _canonical_line(a: float, b: float, c: float) -> LineValue:
         normalized_b *= -1
         normalized_c *= -1
     return LineValue(a=_clean_zero(normalized_a), b=_clean_zero(normalized_b), c=_clean_zero(normalized_c))
+
+
+def _point_on_line(line: LineValue, t: float) -> PointValue:
+    base_x = -line.a * line.c
+    base_y = -line.b * line.c
+    return PointValue(x=_clean_zero(base_x - line.b * t), y=_clean_zero(base_y + line.a * t))
+
+
+def _point_on_segment(segment: SegmentValue, t: float) -> PointValue:
+    clamped = min(1.0, max(0.0, t))
+    return PointValue(
+        x=_clean_zero(segment.start.x + clamped * (segment.end.x - segment.start.x)),
+        y=_clean_zero(segment.start.y + clamped * (segment.end.y - segment.start.y)),
+    )
+
+
+def _point_on_circle(circle: CircleValue, angle: float) -> PointValue:
+    return PointValue(
+        x=_clean_zero(circle.center.x + circle.radius * cos(angle)),
+        y=_clean_zero(circle.center.y + circle.radius * sin(angle)),
+    )
+
+
+def _normalize_angle(angle: float) -> float:
+    two_pi = 2 * pi
+    normalized = angle % two_pi
+    if normalized < 0:
+        normalized += two_pi
+    return normalized
+
+
+def _arc_angular_range(arc: ArcValue) -> tuple[float, float]:
+    """Returns (start_angle, sweep). sweep > 0: CCW from start to end (through mid); sweep < 0: CW."""
+    start_angle = atan2(arc.start.y - arc.center.y, arc.start.x - arc.center.x)
+    mid_angle = atan2(arc.mid.y - arc.center.y, arc.mid.x - arc.center.x)
+    end_angle = atan2(arc.end.y - arc.center.y, arc.end.x - arc.center.x)
+    ccw_to_mid = _normalize_angle(mid_angle - start_angle)
+    ccw_to_end = _normalize_angle(end_angle - start_angle)
+    # The epsilon widening keeps a few ULPs of cross-language trig noise from
+    # flipping the sweep direction (Python `math.atan2` vs JS `Math.atan2`) on a
+    # degenerate `mid ~= end` arc.
+    if ccw_to_mid <= ccw_to_end + GEOMETRY_EPSILON:
+        return start_angle, ccw_to_end
+    return start_angle, ccw_to_end - 2 * pi
+
+
+def _clamp_angle_to_arc(arc: ArcValue, angle: float) -> float:
+    start_angle, sweep = _arc_angular_range(arc)
+    if sweep >= 0:
+        ccw_from_start = _normalize_angle(angle - start_angle)
+        if ccw_from_start <= sweep:
+            return start_angle + ccw_from_start
+        # Epsilon-widened so an exact tie at the gap midpoint resolves to the same
+        # endpoint in both runtimes despite ULP-level trig differences.
+        gap_midpoint = (sweep + 2 * pi) / 2
+        return start_angle + sweep if ccw_from_start <= gap_midpoint + GEOMETRY_EPSILON else start_angle
+    cw_from_start = _normalize_angle(start_angle - angle)
+    abs_sweep = -sweep
+    if cw_from_start <= abs_sweep:
+        return start_angle - cw_from_start
+    gap_midpoint = (abs_sweep + 2 * pi) / 2
+    return start_angle + sweep if cw_from_start <= gap_midpoint + GEOMETRY_EPSILON else start_angle
+
+
+def _point_on_arc(arc: ArcValue, angle: float) -> PointValue:
+    clamped = _clamp_angle_to_arc(arc, angle)
+    return PointValue(
+        x=_clean_zero(arc.center.x + arc.radius * cos(clamped)),
+        y=_clean_zero(arc.center.y + arc.radius * sin(clamped)),
+    )
 
 
 def _intersect_lines(lA: LineValue, lB: LineValue) -> EvaluatedValue:
@@ -1263,7 +1389,7 @@ def _is_same_point(a: PointValue, b: PointValue) -> bool:
     return hypot(a.x - b.x, a.y - b.y) <= GEOMETRY_EPSILON
 
 
-def _point_on_segment(point: PointValue, start: PointValue, end: PointValue) -> bool:
+def _is_point_within_segment_bounds(point: PointValue, start: PointValue, end: PointValue) -> bool:
     return (
         point.x >= min(start.x, end.x) - GEOMETRY_EPSILON
         and point.x <= max(start.x, end.x) + GEOMETRY_EPSILON
@@ -1291,7 +1417,7 @@ def _invert_segment(segment: SegmentValue, circle: CircleValue, declared_kind: s
 
     cross = (start.x - center.x) * (end.y - center.y) - (start.y - center.y) * (end.x - center.x)
     if abs(cross) <= GEOMETRY_EPSILON:
-        if _point_on_segment(center, start, end):
+        if _is_point_within_segment_bounds(center, start, end):
             return UndefinedValue(
                 code="edge_crosses_center",
                 message="Inversion of a segment crossing the inversion center is undefined",

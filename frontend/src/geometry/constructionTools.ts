@@ -22,6 +22,10 @@ import type {
   PerpendicularLine,
   PointValue,
   Point,
+  PointOnArc,
+  PointOnCircle,
+  PointOnLine,
+  PointOnSegment,
   Polygon,
   ReflectionOverLine,
   ReflectionOverPoint,
@@ -32,6 +36,13 @@ import type {
 } from "../types/geometry";
 import type { Coordinate } from "./viewport";
 import { GEOMETRY_EPSILON, GeometryGraph } from "./engine";
+import {
+  angleForPointOnArc,
+  angleForPointOnCircle,
+  angleOfFromCenter,
+  tForPointOnLine,
+  tForPointOnSegment,
+} from "./evaluators/pointOnObject";
 import { nextObjectGroupId } from "./objectGroups";
 
 export type ConstructionTool =
@@ -386,7 +397,7 @@ export class ConstructionToolController {
     };
   }
 
-  handleObjectClick(objectId: string, document: GeometryDocument): ConstructionToolResult {
+  handleObjectClick(objectId: string, document: GeometryDocument, world: Coordinate | null = null): ConstructionToolResult {
     const object = document.objects.find((candidate) => candidate.id === objectId);
     if (object === undefined) {
       return this.fail(`Unknown geometry object '${objectId}'.`);
@@ -395,7 +406,12 @@ export class ConstructionToolController {
       return { state: this.state, selectedObjectId: objectId };
     }
     if (this.stateValue.activeTool === "point") {
-      return { state: this.state };
+      const created = createPointOnObject(object, document, world);
+      if (created === null) {
+        return { state: this.state };
+      }
+      this.stateValue = { ...this.stateValue, error: null };
+      return { state: this.state, createdObjects: [created], selectedObjectId: created.id };
     }
 
     // ─── Variable-arity polygon tools ───────────────────────────────────────
@@ -1365,6 +1381,38 @@ function getCircleRadiusPointId(circle: SourceCircleObject): string {
     case "circumscribed":
       return circle.definition.pointA;
   }
+}
+
+function createPointOnObject(
+  object: GeometryObject,
+  document: GeometryDocument,
+  world: Coordinate | null,
+): GeometryObject | null {
+  const values = new GeometryGraph(document).values;
+  const value = values.get(object.id);
+  const label = nextPointLabel(document);
+
+  if (object.kind === "line" && value?.type === "line") {
+    const t = world === null ? 0 : tForPointOnLine(value, world);
+    const obj: PointOnLine = { id: label, label, kind: "point", visible: true, definition: { type: "on_line", line: object.id, t } };
+    return obj;
+  }
+  if (object.kind === "segment" && value?.type === "segment") {
+    const t = world === null ? 0 : tForPointOnSegment(value, world);
+    const obj: PointOnSegment = { id: label, label, kind: "point", visible: true, definition: { type: "on_segment", segment: object.id, t } };
+    return obj;
+  }
+  if (object.kind === "circle" && value?.type === "circle") {
+    const angle = world === null ? 0 : angleForPointOnCircle(value, world);
+    const obj: PointOnCircle = { id: label, label, kind: "point", visible: true, definition: { type: "on_circle", circle: object.id, angle } };
+    return obj;
+  }
+  if (object.kind === "arc" && value?.type === "arc") {
+    const angle = world === null ? angleOfFromCenter(value.center, value.mid) : angleForPointOnArc(value, world);
+    const obj: PointOnArc = { id: label, label, kind: "point", visible: true, definition: { type: "on_arc", arc: object.id, angle } };
+    return obj;
+  }
+  return null;
 }
 
 function nextPointLabel(document: GeometryDocument): string {

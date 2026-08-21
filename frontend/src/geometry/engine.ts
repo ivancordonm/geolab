@@ -1,4 +1,5 @@
 import type {
+  ArcValue,
   CircleValue,
   EvaluatedValue,
   EvaluationMap,
@@ -17,6 +18,16 @@ import type {
 import { evaluateCircleFamily } from "./evaluators/circles";
 import { normalizeFunctionExpression } from "./functionExpression";
 import { validateObjectGroups } from "./objectGroups";
+import {
+  angleForPointOnArc,
+  angleForPointOnCircle,
+  pointOnArcFromAngle,
+  pointOnCircleFromAngle,
+  pointOnLineFromT,
+  pointOnSegmentFromT,
+  tForPointOnLine,
+  tForPointOnSegment,
+} from "./evaluators/pointOnObject";
 
 export const GEOMETRY_EPSILON = 1e-9;
 
@@ -50,6 +61,14 @@ export function getParentIds(object: GeometryObject): GeometryObjectId[] {
       return [];
     case "polygon_vertex":
       return [object.definition.polygon];
+    case "on_line":
+      return [object.definition.line];
+    case "on_segment":
+      return [object.definition.segment];
+    case "on_circle":
+      return [object.definition.circle];
+    case "on_arc":
+      return [object.definition.arc];
     case "through_points":
     case "between_points":
     case "midpoint":
@@ -177,6 +196,53 @@ export class GeometryGraph {
     };
   }
 
+  moveConstrainedPoint(pointId: GeometryObjectId, x: number, y: number): RecomputeResult {
+    assertFiniteNumber(x, "x");
+    assertFiniteNumber(y, "y");
+
+    const object = this.objectsById.get(pointId);
+    if (object === undefined) {
+      throw new GeometryValidationError(`Unknown point '${pointId}'`);
+    }
+    if (object.kind !== "point") {
+      throw new GeometryValidationError(`Object '${pointId}' is not a point constrained to another object`);
+    }
+    const def = object.definition;
+
+    let updatedDefinition: typeof def;
+    if (def.type === "on_line") {
+      const line = this.requireValue<LineValue>(pointId, def.line, "line");
+      if (isUndefined(line)) throw new GeometryValidationError(`Cannot move '${pointId}': parent line is undefined`);
+      updatedDefinition = { type: "on_line", line: def.line, t: tForPointOnLine(line, { x, y }) };
+    } else if (def.type === "on_segment") {
+      const segment = this.requireValue<SegmentValue>(pointId, def.segment, "segment");
+      if (isUndefined(segment)) throw new GeometryValidationError(`Cannot move '${pointId}': parent segment is undefined`);
+      updatedDefinition = { type: "on_segment", segment: def.segment, t: tForPointOnSegment(segment, { x, y }) };
+    } else if (def.type === "on_circle") {
+      const circle = this.requireValue<CircleValue>(pointId, def.circle, "circle");
+      if (isUndefined(circle)) throw new GeometryValidationError(`Cannot move '${pointId}': parent circle is undefined`);
+      updatedDefinition = { type: "on_circle", circle: def.circle, angle: angleForPointOnCircle(circle, { x, y }) };
+    } else if (def.type === "on_arc") {
+      const arc = this.requireValue<ArcValue>(pointId, def.arc, "arc");
+      if (isUndefined(arc)) throw new GeometryValidationError(`Cannot move '${pointId}': parent arc is undefined`);
+      updatedDefinition = { type: "on_arc", arc: def.arc, angle: angleForPointOnArc(arc, { x, y }) };
+    } else {
+      throw new GeometryValidationError(`Object '${pointId}' is not a point constrained to another object`);
+    }
+
+    const updatedPoint = { ...object, definition: updatedDefinition } as GeometryObject;
+    this.objectsById.set(pointId, updatedPoint);
+    this.documentState = {
+      ...this.documentState,
+      objects: this.documentState.objects.map((candidate) => (candidate.id === pointId ? updatedPoint : candidate)),
+    };
+
+    const affected = this.collectDependants(pointId);
+    const recomputedObjectIds = this.recomputeIds(affected);
+
+    return { document: this.document, values: this.values, recomputedObjectIds };
+  }
+
   private indexAndValidateDocument(): void {
     if (this.documentState.schemaVersion !== 1) {
       throw new GeometryValidationError(
@@ -242,6 +308,22 @@ export class GeometryGraph {
         if (!Number.isInteger(def.index) || def.index < 0) {
           throw new GeometryValidationError(`Object '${object.id}' requires a non-negative vertex index`);
         }
+        return;
+      case "on_line":
+        requireKind(def.line, "line");
+        assertFiniteNumber(def.t, `${object.id}.t`);
+        return;
+      case "on_segment":
+        requireKind(def.segment, "segment");
+        assertFiniteNumber(def.t, `${object.id}.t`);
+        return;
+      case "on_circle":
+        requireKind(def.circle, "circle");
+        assertFiniteNumber(def.angle, `${object.id}.angle`);
+        return;
+      case "on_arc":
+        requireKind(def.arc, "arc");
+        assertFiniteNumber(def.angle, `${object.id}.angle`);
         return;
       case "through_points":
       case "between_points":
@@ -558,6 +640,23 @@ export class GeometryGraph {
           return { type: "undefined", code: "vertex_out_of_range", message: `Polygon vertex ${def.index} is out of range` };
         }
         return { type: "point", x: cleanZero(vertex.x), y: cleanZero(vertex.y) };
+      }
+
+      case "on_line": {
+        const line = this.requireValue<LineValue>(object.id, def.line, "line");
+        return isUndefined(line) ? line : pointOnLineFromT(line, def.t);
+      }
+      case "on_segment": {
+        const segment = this.requireValue<SegmentValue>(object.id, def.segment, "segment");
+        return isUndefined(segment) ? segment : pointOnSegmentFromT(segment, def.t);
+      }
+      case "on_circle": {
+        const circle = this.requireValue<CircleValue>(object.id, def.circle, "circle");
+        return isUndefined(circle) ? circle : pointOnCircleFromAngle(circle, def.angle);
+      }
+      case "on_arc": {
+        const arc = this.requireValue<ArcValue>(object.id, def.arc, "arc");
+        return isUndefined(arc) ? arc : pointOnArcFromAngle(arc, def.angle);
       }
 
       case "through_points": {
@@ -921,6 +1020,15 @@ export function moveFreePoint(
   y: number,
 ): RecomputeResult {
   return new GeometryGraph(document).moveFreePoint(pointId, x, y);
+}
+
+export function moveConstrainedPoint(
+  document: GeometryDocument,
+  pointId: GeometryObjectId,
+  x: number,
+  y: number,
+): RecomputeResult {
+  return new GeometryGraph(document).moveConstrainedPoint(pointId, x, y);
 }
 
 // ─── Geometry helpers ──────────────────────────────────────────────────────

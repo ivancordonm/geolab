@@ -114,7 +114,7 @@ def test_function_command_supports_real_elementary_functions_and_implicit_produc
     [
         ("A Point(0, 0)", "invalid_syntax", 1),
         ("A = Hexagon(0, 0)", "unknown_command", 1),
-        ("A = Point(0)", "invalid_arity", 1),
+        ("A = Point(0)", "expected_reference", 1),
         ("A = Point(x, 0)", "expected_number", 1),
         ("AB = Line(A, B)", "undefined_reference", 1),
         ("f = Function(y = gamma(x))", "unsupported_function_expression", 1),

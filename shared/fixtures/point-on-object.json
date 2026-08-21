@@ -1,0 +1,401 @@
+{
+  "script": "A = Point(0, 0)\nB = Point(6, 0)\nl = Line(A, B)\nP1 = Point(l)\n\nC = Point(0, 4)\nD = Point(4, 4)\ns = Segment(C, D)\nP2 = Point(s)\n\nO = Point(0, 0)\nR = Point(3, 0)\nc = Circle(O, R)\nP3 = Point(c)\n\nE = Point(5, 0)\nF = Point(0, 5)\nG = Point(-5, 0)\narc1 = Arc(E, F, G)\nP4 = Point(arc1)\n\nH = Point(0, -5)\narc2 = Arc(E, H, G)\nP5 = Point(arc2)\n",
+  "document": {
+    "schemaVersion": 1,
+    "id": "doc_point_on_object",
+    "title": "Point on object",
+    "objects": [
+      {
+        "id": "A",
+        "label": "A",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 0.0,
+          "y": 0.0
+        }
+      },
+      {
+        "id": "B",
+        "label": "B",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 6.0,
+          "y": 0.0
+        }
+      },
+      {
+        "id": "l",
+        "label": "l",
+        "visible": true,
+        "style": null,
+        "kind": "line",
+        "definition": {
+          "type": "through_points",
+          "pointA": "A",
+          "pointB": "B"
+        }
+      },
+      {
+        "id": "P1",
+        "label": "P1",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "on_line",
+          "line": "l",
+          "t": 0.0
+        }
+      },
+      {
+        "id": "C",
+        "label": "C",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 0.0,
+          "y": 4.0
+        }
+      },
+      {
+        "id": "D",
+        "label": "D",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 4.0,
+          "y": 4.0
+        }
+      },
+      {
+        "id": "s",
+        "label": "s",
+        "visible": true,
+        "style": null,
+        "kind": "segment",
+        "definition": {
+          "type": "between_points",
+          "pointA": "C",
+          "pointB": "D"
+        }
+      },
+      {
+        "id": "P2",
+        "label": "P2",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "on_segment",
+          "segment": "s",
+          "t": 0.0
+        }
+      },
+      {
+        "id": "O",
+        "label": "O",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 0.0,
+          "y": 0.0
+        }
+      },
+      {
+        "id": "R",
+        "label": "R",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 3.0,
+          "y": 0.0
+        }
+      },
+      {
+        "id": "c",
+        "label": "c",
+        "visible": true,
+        "style": null,
+        "kind": "circle",
+        "definition": {
+          "type": "center_through_point",
+          "center": "O",
+          "point": "R"
+        }
+      },
+      {
+        "id": "P3",
+        "label": "P3",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "on_circle",
+          "circle": "c",
+          "angle": 0.0
+        }
+      },
+      {
+        "id": "E",
+        "label": "E",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 5.0,
+          "y": 0.0
+        }
+      },
+      {
+        "id": "F",
+        "label": "F",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 0.0,
+          "y": 5.0
+        }
+      },
+      {
+        "id": "G",
+        "label": "G",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": -5.0,
+          "y": 0.0
+        }
+      },
+      {
+        "id": "arc1",
+        "label": "arc1",
+        "visible": true,
+        "style": null,
+        "kind": "arc",
+        "definition": {
+          "type": "arc_through_points",
+          "pointA": "E",
+          "pointMid": "F",
+          "pointB": "G"
+        }
+      },
+      {
+        "id": "P4",
+        "label": "P4",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "on_arc",
+          "arc": "arc1",
+          "angle": 1.5707963267948966
+        }
+      },
+      {
+        "id": "H",
+        "label": "H",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "free",
+          "x": 0.0,
+          "y": -5.0
+        }
+      },
+      {
+        "id": "arc2",
+        "label": "arc2",
+        "visible": true,
+        "style": null,
+        "kind": "arc",
+        "definition": {
+          "type": "arc_through_points",
+          "pointA": "E",
+          "pointMid": "H",
+          "pointB": "G"
+        }
+      },
+      {
+        "id": "P5",
+        "label": "P5",
+        "visible": true,
+        "style": null,
+        "kind": "point",
+        "definition": {
+          "type": "on_arc",
+          "arc": "arc2",
+          "angle": -1.5707963267948966
+        }
+      }
+    ],
+    "groups": [],
+    "viewport": {
+      "centerX": 0.0,
+      "centerY": 0.0,
+      "scale": 50.0
+    },
+    "metadata": null
+  },
+  "initialValues": {
+    "A": {
+      "type": "point",
+      "x": 0.0,
+      "y": 0.0
+    },
+    "B": {
+      "type": "point",
+      "x": 6.0,
+      "y": 0.0
+    },
+    "l": {
+      "type": "line",
+      "a": 0.0,
+      "b": 1.0,
+      "c": 0.0
+    },
+    "P1": {
+      "type": "point",
+      "x": 0.0,
+      "y": 0.0
+    },
+    "C": {
+      "type": "point",
+      "x": 0.0,
+      "y": 4.0
+    },
+    "D": {
+      "type": "point",
+      "x": 4.0,
+      "y": 4.0
+    },
+    "s": {
+      "type": "segment",
+      "start": {
+        "x": 0.0,
+        "y": 4.0
+      },
+      "end": {
+        "x": 4.0,
+        "y": 4.0
+      }
+    },
+    "P2": {
+      "type": "point",
+      "x": 0.0,
+      "y": 4.0
+    },
+    "O": {
+      "type": "point",
+      "x": 0.0,
+      "y": 0.0
+    },
+    "R": {
+      "type": "point",
+      "x": 3.0,
+      "y": 0.0
+    },
+    "c": {
+      "type": "circle",
+      "center": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "radius": 3.0
+    },
+    "P3": {
+      "type": "point",
+      "x": 3.0,
+      "y": 0.0
+    },
+    "E": {
+      "type": "point",
+      "x": 5.0,
+      "y": 0.0
+    },
+    "F": {
+      "type": "point",
+      "x": 0.0,
+      "y": 5.0
+    },
+    "G": {
+      "type": "point",
+      "x": -5.0,
+      "y": 0.0
+    },
+    "arc1": {
+      "type": "arc",
+      "center": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "radius": 5.0,
+      "start": {
+        "x": 5.0,
+        "y": 0.0
+      },
+      "mid": {
+        "x": 0.0,
+        "y": 5.0
+      },
+      "end": {
+        "x": -5.0,
+        "y": 0.0
+      }
+    },
+    "P4": {
+      "type": "point",
+      "x": 0.0,
+      "y": 5.0
+    },
+    "H": {
+      "type": "point",
+      "x": 0.0,
+      "y": -5.0
+    },
+    "arc2": {
+      "type": "arc",
+      "center": {
+        "x": 0.0,
+        "y": 0.0
+      },
+      "radius": 5.0,
+      "start": {
+        "x": 5.0,
+        "y": 0.0
+      },
+      "mid": {
+        "x": 0.0,
+        "y": -5.0
+      },
+      "end": {
+        "x": -5.0,
+        "y": 0.0
+      }
+    },
+    "P5": {
+      "type": "point",
+      "x": 0.0,
+      "y": -5.0
+    }
+  }
+}

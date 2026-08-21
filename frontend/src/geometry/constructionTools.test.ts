@@ -36,6 +36,49 @@ describe("ConstructionToolController", () => {
     expectValidAdditions(baseDocument, result.createdObjects!);
   });
 
+  it("creates a point on a line at the clicked location", () => {
+    const controller = new ConstructionToolController();
+    controller.activate("point");
+
+    const result = controller.handleObjectClick("AB", baseDocument, { x: 1.5, y: 7 });
+
+    expect(result.createdObjects).toHaveLength(1);
+    const created = result.createdObjects![0];
+    expect(created.kind).toBe("point");
+    expect(created.definition).toEqual({ type: "on_line", line: "AB", t: expect.any(Number) });
+    if (created.definition.type === "on_line") {
+      // AB is the x-axis (A=(0,0), B=(4,0)); clicking above it projects straight down.
+      expect(created.definition.t).toBeCloseTo(-1.5, 9);
+    }
+    expectValidAdditions(baseDocument, result.createdObjects!);
+  });
+
+  it("defaults to t=0 when no world coordinate is supplied", () => {
+    const controller = new ConstructionToolController();
+    controller.activate("point");
+
+    const result = controller.handleObjectClick("AB", baseDocument);
+
+    expect(result.createdObjects).toHaveLength(1);
+    expect(result.createdObjects![0].definition).toEqual({ type: "on_line", line: "AB", t: 0 });
+  });
+
+  it("does nothing when the point tool clicks a non-projectable object", () => {
+    const controller = new ConstructionToolController();
+    controller.activate("point");
+    const polyDocument: GeometryDocument = {
+      ...baseDocument,
+      objects: [
+        ...baseDocument.objects,
+        { id: "poly", label: "poly", kind: "polygon", visible: true, definition: { type: "polygon", points: ["A", "B", "C"] } },
+      ],
+    };
+
+    const result = controller.handleObjectClick("poly", polyDocument, { x: 1, y: 1 });
+
+    expect(result.createdObjects).toBeUndefined();
+  });
+
   it.each([
     ["segment", "segment", "between_points"],
     ["line", "line", "through_points"],

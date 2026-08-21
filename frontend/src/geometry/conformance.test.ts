@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import basicGeometry from "../../../shared/fixtures/basic-geometry.json";
 import derivedConstructions from "../../../shared/fixtures/derived-constructions.json";
+import pointOnObject from "../../../shared/fixtures/point-on-object.json";
 import polygonsArcs from "../../../shared/fixtures/polygons-arcs.json";
 import transformations from "../../../shared/fixtures/transformations.json";
 import type { EvaluatedValue, GeometryDocument } from "../types/geometry";
@@ -17,6 +18,7 @@ const FIXTURES: ReadonlyArray<readonly [string, ConformanceFixture]> = [
   ["transformations", transformations as unknown as ConformanceFixture],
   ["derived-constructions", derivedConstructions as unknown as ConformanceFixture],
   ["polygons-arcs", polygonsArcs as unknown as ConformanceFixture],
+  ["point-on-object", pointOnObject as unknown as ConformanceFixture],
 ];
 
 function plainValues(values: ReadonlyMap<string, EvaluatedValue>): Record<string, EvaluatedValue> {
